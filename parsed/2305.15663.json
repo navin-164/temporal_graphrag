@@ -1,0 +1,1623 @@
+{
+  "arxiv_id": "2305.15663",
+  "title": "Mixture-of-Expert Conformer for Streaming Multilingual ASR",
+  "authors": [
+    {
+      "name": "Ke Hu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Bo Li",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Tara N. Sainath",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yu Zhang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Francoise Beaufays",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "End-to-end models with large capacity have significantly improved multilingual automatic speech recognition, but their computation cost poses challenges for on-device applications. We propose a streaming truly multilingual Conformer incorporating mixture-of-expert (MoE) layers that learn to only activate a subset of parameters in training and inference. The MoE layer consists of a softmax gate which chooses the best two experts among many in forward propagation. The proposed MoE layer offers efficient inference by activating a fixed number of parameters as the number of experts increases. We evaluate the proposed model on a set of 12 languages, and achieve an average 11.9% relative improvement in WER over the baseline. Compared to an adapter model using ground truth information, our MoE model achieves similar WER and activates similar number of parameters but without any language information. We further show around 3% relative WER improvement by multilingual shallow fusion.",
+  "categories": [
+    "cs.CL",
+    "cs.SD",
+    "eess.AS"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2023-05-25T02:16:32"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "Interspeech",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2023-05-25",
+  "citation_count": 30,
+  "reference_count": 34,
+  "fields_of_study": [
+    "Computer Science",
+    "Engineering"
+  ],
+  "sections": [
+    {
+      "id": "2305.15663::section::0",
+      "paper_id": "2305.15663",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::0::para::0",
+          "section_id": "2305.15663::section::0",
+          "text": "An end-to-end (E2E) multilingual automatic speech recognition (ASR) model is appealing because of its potential to recognize multiple languages using a single model. There has been significant effort in multilingual modeling using E2E models [1,2,3,4,5,6,7]. Previous studies on multilingual ASR have investigated different model structures such as connectionist temporal classification (CTC) models [2], long-short term memory [4], and attention based models [1,3,5,6]. Among them, streaming models [6,8] are promising candidates for ondevice applications. By increasing the model capacity, [8] proposes an on-device streaming multilingual RNN-T model and achieves comparable recognition quality and latency compared to monolingual models. To further increase model capacity, it is crucial to keep computation low for on-device applications.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.15663::section::0::para::1",
+          "section_id": "2305.15663::section::0",
+          "text": "Other studies have also shown that increasing model capacity is a key factor in improving performance. By increasing a multilingual E2E model up to 1B size, [9] has improved quality of all variants of the multilingual model. In [10], the authors show that under a life-long learning strategy, the model performs consistently better as the capacity increases up to 1B parameters. The same trend has been observed in a two-pass multilingual deliberation model [11]. More recently, the Whisper model [12] and Google Universal Speech Model (USM) [13] have achieved human-approaching performance with the help of large-scale data and model sizes in billions of parameters.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.15663::section::0::para::2",
+          "section_id": "2305.15663::section::0",
+          "text": "Larger models come with more cost in training and inference. To improve the modeling efficiency, there have been several approaches in leveraging language-specific components for inference [6,14,15,16]. However, how to predict language information reliably in a streaming fashion is a challenge itself. Others improve efficiency by neural network pruning [17] or mixture-of-expert type of models [18,19,20,21,22] (more discussion in Sect. 2).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.15663::section::0::para::3",
+          "section_id": "2305.15663::section::0",
+          "text": "In this work, we propose to use mixture-of-expert (MoE) layers [23,24] to replace the feed-forward network (FFN) in the Conformer [25] for multilingual ASR. The MoE layer consists of multiple FFNs and a gating network [24]. The gating network is a softmax over the number of experts, and the outputs of the top two experts are combined in a weighted fashion as the final output. The proposed model is thus sparse when the number of total experts is greater than two. Such an MoE layer has been used in NLP [23] as well as shallow fusion [26] and achieved superior quality compared to their dense counterparts. By adding the MoE layers to the end FFN network of the Conformer layers, we improve the average WER of 12 languages by 11.9% relative compared to the baseline. In another comparison with a larger baseline (dense model) with a similar total size as the MoE model, we show that the proposed model achieves similar quality by activating only 53% of parameters during inference.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2305.15663::section::0::para::4",
+          "section_id": "2305.15663::section::0",
+          "text": "We also compare to an adapter model based on [4,27]. By increasing the total number of experts while activating the top two experts during inference, we achieve similar quality compared to a ground truth language information based adapter model. The two models activate the same number of parameters for inference, however, we note that our model does not need any language information in inference and more straightforward in deployment. Finally, we further improve the MoE model performance by around 3% relative by shallow fusion using a multilingual neural LM.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::1",
+      "paper_id": "2305.15663",
+      "heading": "Related Work",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::1::para::0",
+          "section_id": "2305.15663::section::1",
+          "text": "There have been several related mixture-of-expert approaches for ASR modeling, but our work differs from them in the following ways. Our MoE study is for streaming multilingual ASR compared to [18,22], which are for monolingual ASR. We show that our Conformer based MoE structure is effective for multiple languages in Sect. 5.2. Compared to [18,22], our MoE model also works without using any shared embedding network for expert routing. Other MoE models have been proposed for image processing or natural language processing (NLP) [20,21]. In terms of model structure, DeepMoE [20] uses embedding network for expert routing and the Switch Transformer [21] activates only one expert layer layer. Further, the performance of DeepMoE and Switch Transformer in ASR is unclear. In multilingual ASR, a mixture of informed-expert model is proposed in [16]. However, it needs language information to select the expert, and the number of experts increases linearly with the number of languages. In a similar line, a perlanguage second pass model [14] and the adapter model [4,27] can also be considered as informed-expert models since the language information is used to choose the corresponding module (cascaded encoder or adapter). Compared to [14], the proposed MoE model does not rely on any external language information for routing and is thus more generic. Although [15] predicts the language information for the second-pass, this increases both training and inference complexity and potential error propagation in practical applications. In summary, the novelty of our work are mainly two folds: 1) We have proposed an MoE-based Conformer for multilingual ASR and have shown its effectiveness compared to dense models and adapter models, and 2) Our proposed MoE model is relatively simplistic, and does not require language information compared to [14,16] and any shared embedding network for routing [18,22].",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::2",
+      "paper_id": "2305.15663",
+      "heading": "Conformer with Mixture-of-Experts",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::2::para::0",
+          "section_id": "2305.15663::section::2",
+          "text": "Our model uses Conformer as the main building block for causal and non-causal encoders. A Conformer layer [25] consists of a multi-headed self-attention and a convolution-based layer sandwiched by two feed-forward networks (FFN). As shown in Fig. 1, to incorporate experts, we use an MoE layer [24,23] to replace the end FFN in the Conformer layers. Similar to [24,23], the MoE layer consists of a routing network and multiple experts, each of which is an FFN. To route a speech frame, we first use a softmax to estimate expert weights:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.15663::section::2::para::1",
+          "section_id": "2305.15663::section::2",
+          "text": "where x is the output of the previous layer, and W l is the weight matrix for the router at lth Conformer layer. Then the input is routed to the two experts with the highest weights (i.e., top 2 experts) and their outputs are weighted and summed to produce the final output:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.15663::section::2::para::2",
+          "section_id": "2305.15663::section::2",
+          "text": "where g l,i is the weight for the top ith expert at the lth layer. e l,i is the corresponding output of the expert. We use the top 2 experts for both training and inference. In Fig. 1, we replace the end FFN of the Conformer layer with the MoE layer. We have also tried replacing the start FFN layer or both of them (see more results in Sect. 5.1).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.15663::section::2::para::3",
+          "section_id": "2305.15663::section::2",
+          "text": "Locale Language Counts (M) en-US English (USA) 18.1 zh-TW Mandarin 0.5 fr-FR French 10.8 de-DE German 3.8 ja-JP Japanese 10.9 es-US Spanish (USA) 25.2 es-ES Spanish (Spain) 20.3 ar-EG Arabic 3.8 it-IT Italian 13.0 hi-IN Hindi 14.2 pt-BR Portuguese 13.4 ru-RU Russian 5.3 Total 139.4 Table 1: Training data for 12 language locales. Utterance counts are in millions (M).",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2305.15663::section::2::para::4",
+          "section_id": "2305.15663::section::2",
+          "text": "We use the RNN-T loss [28] for training the Conformer model with MoE layers. To ensure load balance across different experts, we use the same auxiliary loss as in [29]: laux = 1 N N i=1 c i S • mi, where mi is the average number of times ith expert is selected over all frames, and ci is the expert decision count for ith expert derived from the top-2 operation. We use the mean gates per expert mi •(ci/S) as a differentiable approximation for (ci/S) 2 (more details in [29]).",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::3",
+      "paper_id": "2305.15663",
+      "heading": "Data",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::3::para::0",
+          "section_id": "2305.15663::section::3",
+          "text": "Our 12-language group consists of English (USA), Mandarin, French, German, Japanese, Spanish (USA), Spanish (Spain), Arabic, Italian, Hindi, Portuguese, and Russian (see Table 1 for more details). Our supervised training data of 12 language locales come from multiple domains such as Voice Search and YouTube. In total, they constitute around 139.4M utterances. The training data is anonymized and human transcribed. The per-language number of utterances ranges from 500K to 25.2M. For each language, we use a test set with utterances sampled from the Voice Search traffic ranging from 1.4K to 10K. The test sets do not overlap with the training set, and are also anonymized and human transcribed. We use word error rate (WER) for evaluation, and for languages such as zh-TW, the WER is computed based on characters. We are aware of the sensitive nature of the ASR research and other AI technologies used in this work. We thus ensure that this work abides by the Google AI Principles [30]. Note that we have removed further details to follow the double blind review process, and will provide them in the camera-ready version.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::4",
+      "paper_id": "2305.15663",
+      "heading": "Baseline Multilingual Model",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::4::para::0",
+          "section_id": "2305.15663::section::4",
+          "text": "We use a language agnostic multilingual model similar to [8] as the baseline. The baseline model consists of a 7-layer causal Conformer encoder and a 10-layer non-causal cascaded encoder. The causal encoder includes two blocks separated by a stacking layer. The first block consists of an input projection layer and 3 convolution layers. The stacking layer concatenates two neighboring encodings in time to form a 60-ms frame rate. The second block starts with a 1024-dim Conformer layer, and then a projection layer to reduce the model dimension back to 512 for the rest of the causal layers. Note that the causal Con- Table 3: WERs (%) by reducing the number of MoE layers.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.15663::section::4::para::1",
+          "section_id": "2305.15663::section::4",
+          "text": "former layers uses causal convolution and left-context attention and is thus strictly causal. Secondly, the non-causal layers are cascaded [31] to the causal encoder output. The 10 layers of non-causal Conformer layers have a dimension of 640, and a total right-context of 0.9 sec. We use separate decoders for causal and non-causal encoders to achieve the best quality.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.15663::section::4::para::2",
+          "section_id": "2305.15663::section::4",
+          "text": "Each transducer decoder consists of a prediction network and a joint network [28]. For the prediction network, we use two embedding layers to embed current and previous tokens separately and concatenate the embeddings as output. The joint network is a single feed-forward layer of 640 units. We use a hybrid autoregressive transducer (HAT) version of the decoder [32]. A softmax is used to predict 16,384 wordpieces. We generate the wordpieces using mixed transcripts pooled from all languages. The baseline multilingual transducer model has a total of 180M parameters.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::5",
+      "paper_id": "2305.15663",
+      "heading": "MoE Conformer",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::5::para::0",
+          "section_id": "2305.15663::section::5",
+          "text": "We replace the start, the end, or both caded encoder of the baseline model. We use up to 24 experts in our experiments and dynamically choose the top 2 for training and inference. The expert FFNs have the same structure as the Conformer FFNs. We use the auxiliary loss in Sect. 3 to encourage load balance between experts. In training, we compute an over-capacity ratio which tracks whether certain experts are overloaded. It is calculated as, for each batch, the percentage of tokens going through a specific expert above a threshold. Our training shows that most experts have over capacity ratios ranging from 0.01 to 0.2 and only 10% of them range from 0.2 to a maximum value of 0.35, which is quite balanced. The model is trained to predict the same 16,384 wordpieces as the baseline.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.15663::section::5::para::1",
+          "section_id": "2305.15663::section::5",
+          "text": "We divide the input speech using 32-ms windows with a frame rate of 10 ms. 128D log-Mel filterbank features are extracted from each frame and then stacked together from 3 previous continuous frames to form a 512D input vector. These input vectors are further downsampled to have a 30-ms frame rate. We use SpecAug [33] to improve model robustness against noise. Two frequency masks with a maximum length of 27 and two time masks with a maximum length of 50 are used.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::6",
+      "paper_id": "2305.15663",
+      "heading": "Place of MoE Layers",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::6::para::0",
+          "section_id": "2305.15663::section::6",
+          "text": "In Table 2, we add the MoE layers to different places of the Conformer layer and each MoE layer has 8 experts. We show in Table 2 that using MoE to replace the start FFN (i.e. MoE-Start) in a Conformer layer improves the baseline (B1) significantly by around 10.9% relative on average. We note the improvement is uniform and significant for all languages. To ablate on the location of where MoE layers are added, we also add MoE layers to the end FFN of the Conformer layer (E2, MoE-End), or both start and end FFNs (E3, MoE-Both). We see in Table 2 that using MoE at the end FFN is slightly better than at the start. Using MoE for both start and end FFN works best but it also increases the inference model size because we have more MoE layers at inference. We are aware that the improvement of MoE models in Table 2 may be due to the increased inference model size. In Sect. 5.2, we will compare to a larger baseline which has a similar size as the MoE model at the inference time.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.15663::section::6::para::1",
+          "section_id": "2305.15663::section::6",
+          "text": "We have also tried adding MoE layers to the causal encoder, and the average WER is significantly worse. In following sec- tions, we use MoE-End given the slightly better performance and efficiency.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::7",
+      "paper_id": "2305.15663",
+      "heading": "Number of Experts",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::7::para::0",
+          "section_id": "2305.15663::section::7",
+          "text": "To reduce the total model size, we tried varying the number of experts in the MoE layer in Table 3. When we reduce the number of experts, the model total size decreases while the inference size stays the same because we always use the top 2 experts during inference. We see that the performance drops significantly when we decrease the expert number from 8 to 4, and relatively slowly from 4 to 2. This shows the model has been able to utilize the capacity from all experts. We also note that E5 degenerates to a dense model and the performance difference between B1 and E5 is due to model size. We have also tried further increasing the number of experts and obtained better performance in Sect. 5.2.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::8",
+      "paper_id": "2305.15663",
+      "heading": "Reduce Number of MoE Layers",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::8::para::0",
+          "section_id": "2305.15663::section::8",
+          "text": "Since reducing the number of experts reduces total model size but not inference model size, we have also tried reducing the number of MoE layers to make inference more efficient. In Table 4, we reduce the number of MoE layers by only adding it to every other Conformer layer (MoE-End-Odd), or only the first Conformer layer (MoE-Conf1). We see that by reducing the number of MoE layers, the model performance drops significantly. However, we note that even adding one MoE layer at the first Conformer layer is helpful. Although it increases the baseline size by only 3M parameters, it reduces the average WER from 11.33% to 10.88%.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::9",
+      "paper_id": "2305.15663",
+      "heading": "Comparisons",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::9::para::0",
+          "section_id": "2305.15663::section::9",
+          "text": "In Table 5, we first compare the multilingual cascaded encoder baseline (B1) to the multilingual MoE-End model (E2), and E2 reduces the average WER by 11.9% relative compared by B1.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.15663::section::9::para::1",
+          "section_id": "2305.15663::section::9",
+          "text": "We then increase the cascaded encoder of B1 to a 896-D 17layer Conformer to have a total size of 400M (i.e. B2), which is the same size as the multilingual MoE model (E2). We show that B2 and E2 have the same average WERs: 9.98%, but the MoE model is around 47% more efficient (211M vs 400M) in terms of model parameters activated for inference. We note that in practice, one needs to implement inference in a way that only activated experts are selected for forward propagation in order to achieve this efficiency.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.15663::section::9::para::2",
+          "section_id": "2305.15663::section::9",
+          "text": "We also compare to an adapter model (B3) which adds residual adapters [34] to the baseline. The adapters we use follow a similar structure in [4,27], i.e., we insert a 512-D residual adapter after every Conformer layer in the cascaded encoder. In both training and decoding, ground truth language information is used to select the corresponding adapter. To compare to the adapter model fairly in inference (same activated parameters), we first reduce the FFN multiplier in the MoE layer from 4 to 3 and then increase the number of experts from 8, 16, to 24.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.15663::section::9::para::3",
+          "section_id": "2305.15663::section::9",
+          "text": "The results in Table 5 show that when the number of experts increases from 8 to 16, the MoE model improves because of increased model capacity. When we increase the experts to 16 or 24, the MoE models (E9, E10) perform similarly to the adapter model on average (10.12% or 10.09% vs 10.05%). However, we note that we do not explicitly use any language information in inference for MoE models while the adapter model uses ground truth language information. We also note that the improvement from 16-expert to 24-expert model (E9 vs E10) is slight. This is probably because we only have 12 languages and the total number of experts may have exceed the needed capacity.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::10",
+      "paper_id": "2305.15663",
+      "heading": "Further Improvement by Shallow Fusion",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::10::para::0",
+          "section_id": "2305.15663::section::10",
+          "text": "We further train a 128M multilingual LM by pooling the text portion of the supervised training data and text-only data from the 12 languages. Our text-only data covers 12 languages, and the sentences for each language ranges from 3.9B to 451B. The sentences are sampled from anonymized search traffic across multiple domains such as Web, Maps, News, Play, and YouTube. We use a 12-layer Conformer LM for shallow fusion (SF). The Conformer LM has a model dimension of 768 and a feedforward layer dimension of 2048. A left context of 31 tokens is used to attend to the previous tokens. We use 6 heads for self-attention. The total model size is around 140M. We use the same wordpiece model as the MoE model.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.15663::section::10::para::1",
+          "section_id": "2305.15663::section::10",
+          "text": "As shown in Table 5, shallow fusion further improves WER for almost all languages. The average WER reduction is around 3% relative, with the largest improvement of around 14.0% for fr-FR. We got regression for a couple of languages: zh-TW and hi-IN. The regression on zh-TW is probably because some of our text-only data contain Cantonese transcripts which is different from zh-TW. As for hi-IN, it has the largest amount of text-only data (around 451B sentences) and we may need to research filtering technique to better match the Search domain.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2305.15663::section::11",
+      "paper_id": "2305.15663",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2305.15663::section::11::para::0",
+          "section_id": "2305.15663::section::11",
+          "text": "We propose a streaming multilingual Conformer model with mixture-of-expert (MoE) layers. By adding the MoE layers to the end FFN network of the Conformer, we improve the average WER of 12 languages by 11.9% relative compared to the baseline. The proposed model is also efficient: Activating only 53% of parameters during inference compared to a large baseline with similar quality. We also achieve similar quality compared to a ground truth language information based adapter model with increased experts but activating the same number of parameters in inference and not using language information. Further improvements have been obtained by multilingual shallow fusion.",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2305.15663::figure::0",
+      "paper_id": "2305.15663",
+      "figure_number": null,
+      "caption": "t e x i t s h a 1 _ b a s e 6 4 = \" C B N o b 5 f P D m F H u N e z L m H 1 4 / H x b M k = \" > A A A B / H i c b V C 7 T s M w F H X K q 5 R X o C O L R Y X E V C U I A W M F C 2 O R 6 E N q o 8 p x n d a q 4 0 T 2 D W o U l V 9 h Y Q A h V j 6 E j b / B T T N A y 5 E s H 5 1 z j 3 x 9 / F h w D Y 7 z b Z X W 1 j c 2 t 8 r b l Z 3 d v f 0 D + / C o r a N E U d a i k Y h U 1 y e a C S 5 Z C z g I 1 o 0 V I 6 E v W M e f 3 M 7 9 z i N T m k f y A d K Y e S E Z S R 5 w S s B I A 7 v a B z Y 1 u S y / / S C b z m Y D u + b U n R x 4 l b g F q a E C z Y H 9 1 R 9 G N A m Z B C q I 1 j 3 X i c H L i A J O B Z t V + o l m M a E T M m I 9 Q y U J m f a y f P k Z P j X K E A e R M k c C z t X f i Y y E W q e h b y Z D A m O 9 7 M 3 F / 7 x e A s G 1 l 3 E Z J 8 A k X T w U J A J D h O d N 4 C F X j I J I D S F U c b M r p m O i C A X T V 8 W U 4 C 5 / e Z W 0 z + v u Z f 3 i / q L W u C n q K K N j d I L O k I u u U A P d o S Z q I Y p S 9 I x e 0 Z v 1 Z L 1 Y 7 9 b H Y r R k F Z k q + g P r 8 w c m f J X B < / l a t e x i t > x < l a t e x i t s h a 1 _ b a s e 6 4 = \" K J N / V 6 l l Q X Q / V u T F I L E b f g 2 t B 5 0 = \" > A A A B / H i c b V C 7 T s M w F L 0 p r 1 J e g Y 4 s F h U S U 5 W g C h g r W B i L R B 9 S G 1 W O 6 7 R W H S e y H U Q U l V 9 h Y Q A h V j 6 E j b / B T T N A y 5 E s H 5 1 z j 3 x 9 / J g z p R 3 n 2 y q t r W 9 s b p W 3 K z u 7 e / s H 9 u F R R 0 W J J L R N I h 7 J n o 8 V 5 U z Q t m a a 0 1 4 s K Q 5 9 T r v + 9 G b u d x + o V C w S 9 z q N q R f i s W A B I 1 g b a W h X B 5 o + m l y W 3 3 6 Q p b P Z 0 K 4 5 d S c H",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_0",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2305.15663::figure::1",
+      "paper_id": "2305.15663",
+      "figure_number": "Figure 1 :",
+      "caption": "Figure 1: Conformer layer with mixture of experts at the position of the end FFN layer. training and inference complexity and potential error propagation in practical applications.In summary, the novelty of our work are mainly two folds: 1) We have proposed an MoE-based Conformer for multilingual ASR and have shown its effectiveness compared to dense models and adapter models, and 2) Our proposed MoE model is relatively simplistic, and does not require language information compared to[14,16] and any shared embedding network for routing[18,22].",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_1",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2305.15663::table::0",
+      "paper_id": "2305.15663",
+      "table_number": "Table 2 :",
+      "caption": "WERs (%) by placing the MoE layers at different places of the cascaded Conformer encoder.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "Model",
+          "No MoE MoE-Start MoE-End MoE-Both"
+        ],
+        [
+          "Total Size",
+          "180M",
+          "400M",
+          "400M",
+          "640M"
+        ],
+        [
+          "Inf. Size",
+          "180M",
+          "211M",
+          "211M",
+          "246M"
+        ],
+        [
+          "en-US",
+          "9.4",
+          "8.4",
+          "",
+          "8.3",
+          "8.0"
+        ],
+        [
+          "fr-FR",
+          "10.8",
+          "9.3",
+          "",
+          "9.3",
+          "8.6"
+        ],
+        [
+          "es-US",
+          "6.8",
+          "6.0",
+          "",
+          "6.0",
+          "5.6"
+        ],
+        [
+          "es-ES",
+          "6.6",
+          "5.2",
+          "",
+          "4.9",
+          "4.8"
+        ],
+        [
+          "ja-JP",
+          "15.5",
+          "13.1",
+          "",
+          "12.9",
+          "12.0"
+        ],
+        [
+          "zh-TW",
+          "9.4",
+          "9.2",
+          "",
+          "9.1",
+          "9.2"
+        ],
+        [
+          "de-DE",
+          "14.5",
+          "12.8",
+          "",
+          "12.6",
+          "11.9"
+        ],
+        [
+          "it-IT",
+          "10.4",
+          "8.8",
+          "",
+          "8.8",
+          "8.1"
+        ],
+        [
+          "ar-EG",
+          "12.3",
+          "10.9",
+          "",
+          "10.8",
+          "10.3"
+        ],
+        [
+          "pt-BR",
+          "7.6",
+          "7.0",
+          "",
+          "6.9",
+          "6.5"
+        ],
+        [
+          "ru-RU",
+          "13.0",
+          "11.0",
+          "",
+          "10.9",
+          "10.4"
+        ],
+        [
+          "hi-IN",
+          "19.6",
+          "19.5",
+          "",
+          "19.2",
+          "19.1"
+        ],
+        [
+          "Avg. WER",
+          "11.33",
+          "10.10",
+          "9.98",
+          "9.54"
+        ],
+        [
+          "",
+          "",
+          "E2",
+          "E4",
+          "E5"
+        ],
+        [
+          "Model",
+          "8-Exp. 4-Exp. 2-Exp."
+        ],
+        [
+          "Total Size",
+          "400M",
+          "295M",
+          "211M"
+        ],
+        [
+          "Inf. Size",
+          "211M",
+          "211M",
+          "211M"
+        ],
+        [
+          "en-US",
+          "8.3",
+          "8.5",
+          "8.6"
+        ],
+        [
+          "fr-FR",
+          "9.3",
+          "9.9",
+          "9.9"
+        ],
+        [
+          "es-US",
+          "6.0",
+          "6.2",
+          "6.3"
+        ],
+        [
+          "es-ES",
+          "4.9",
+          "5.7",
+          "5.8"
+        ],
+        [
+          "ja-JP",
+          "",
+          "12.9",
+          "14.2",
+          "14.5"
+        ],
+        [
+          "zh-TW",
+          "9.1",
+          "8.7",
+          "9.4"
+        ],
+        [
+          "de-DE",
+          "12.6",
+          "13.6",
+          "13.7"
+        ],
+        [
+          "it-IT",
+          "",
+          "8.8",
+          "9.2",
+          "9.2"
+        ],
+        [
+          "ar-EG",
+          "10.8",
+          "11.2",
+          "11.3"
+        ],
+        [
+          "pt-BR",
+          "6.9",
+          "6.8",
+          "7.2"
+        ],
+        [
+          "ru-RU",
+          "10.9",
+          "11.3",
+          "11.5"
+        ],
+        [
+          "hi-IN",
+          "19.2",
+          "19.5",
+          "19.5"
+        ],
+        [
+          "Avg. WER",
+          "9.98",
+          "10.40",
+          "10.58"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2305.15663::table::1",
+      "paper_id": "2305.15663",
+      "table_number": "Table 4 :",
+      "caption": "FFNs of the Conformer layers by MoE layers (see experiments in Sect. 5.1) in the cas-WERs (%) by reducing the number of MoE layers.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "",
+          "E2",
+          "E6",
+          "E7"
+        ],
+        [
+          "Model",
+          "MoE-End MoE-End-Odd MoE-Conf1"
+        ],
+        [
+          "Total Size",
+          "400M",
+          "295M",
+          "203M"
+        ],
+        [
+          "Inf. Size",
+          "211M",
+          "196M",
+          "183M"
+        ],
+        [
+          "en-US",
+          "8.3",
+          "8.5",
+          "8.8"
+        ],
+        [
+          "fr-FR",
+          "9.3",
+          "10.1",
+          "10.6"
+        ],
+        [
+          "es-US",
+          "6.0",
+          "6.4",
+          "6.5"
+        ],
+        [
+          "es-ES",
+          "4.9",
+          "5.9",
+          "6.2"
+        ],
+        [
+          "ja-JP",
+          "12.9",
+          "14.6",
+          "14.8"
+        ],
+        [
+          "zh-TW",
+          "9.1",
+          "8.6",
+          "8.9"
+        ],
+        [
+          "de-DE",
+          "12.6",
+          "13.7",
+          "14.1"
+        ],
+        [
+          "it-IT",
+          "8.8",
+          "9.3",
+          "9.9"
+        ],
+        [
+          "ar-EG",
+          "10.8",
+          "11.4",
+          "12.0"
+        ],
+        [
+          "pt-BR",
+          "6.9",
+          "6.8",
+          "7.2"
+        ],
+        [
+          "ru-RU",
+          "10.9",
+          "11.3",
+          "12.0"
+        ],
+        [
+          "hi-IN",
+          "19.2",
+          "19.4",
+          "19.5"
+        ],
+        [
+          "Avg. WER",
+          "9.98",
+          "10.50",
+          "10.88"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2305.15663::table::2",
+      "paper_id": "2305.15663",
+      "table_number": "Table 5 :",
+      "caption": "US fr-FR es-US es-ES ja-JP zh-TW de-DE it-IT ar-EG pt-BR ru-RU hi-INComparison of multilingual baseline models, adapter models, and MoE models. The numbers in bold represent best WER for any language.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_2",
+      "raw_data": [
+        [
+          "ID en-B1 Total Inf. Model Size Size Multi. Cas. 180M 180M 9.4",
+          "10.8",
+          "6.8",
+          "6.6",
+          "15.5",
+          "WER (%) 9.4 14.5",
+          "10.4",
+          "12.3",
+          "7.6",
+          "13.0",
+          "19.6",
+          "Avg. WER (%) 11.33"
+        ],
+        [
+          "E2",
+          "MoE-End",
+          "400M",
+          "211M",
+          "8.3",
+          "9.3",
+          "6.0",
+          "4.9",
+          "12.9",
+          "9.1",
+          "12.6",
+          "8.8",
+          "10.8",
+          "6.9",
+          "10.9",
+          "19.2",
+          "9.98"
+        ],
+        [
+          "B2",
+          "Larger B1",
+          "400M",
+          "400M",
+          "8.1",
+          "9.1",
+          "6.2",
+          "5.4",
+          "14.5",
+          "9.3",
+          "12.4",
+          "8.1",
+          "10.7",
+          "6.4",
+          "10.6",
+          "19",
+          "9.98"
+        ],
+        [
+          "B3",
+          "B1+Adapter",
+          "280M",
+          "187M",
+          "7.3",
+          "9.4",
+          "6.5",
+          "5.5",
+          "14.4",
+          "8.5",
+          "13.2",
+          "8.7",
+          "10.0",
+          "6.8",
+          "11.2",
+          "19.1",
+          "10.05"
+        ],
+        [
+          "E8",
+          "End-3-8",
+          "336M",
+          "187M",
+          "8.5",
+          "9.3",
+          "6.2",
+          "5.5",
+          "14.1",
+          "8.9",
+          "13.4",
+          "9.1",
+          "11.1",
+          "6.8",
+          "11.2",
+          "19.1",
+          "10.27"
+        ],
+        [
+          "E9",
+          "End-3-16",
+          "532M",
+          "187M",
+          "8.1",
+          "9.6",
+          "6.0",
+          "5.3",
+          "13.5",
+          "8.9",
+          "12.8",
+          "8.9",
+          "11.2",
+          "6.7",
+          "11.0",
+          "19.4",
+          "10.12"
+        ],
+        [
+          "E10",
+          "End-3-24",
+          "729M",
+          "187M",
+          "7.9",
+          "9.8",
+          "6.1",
+          "5.3",
+          "13.4",
+          "9.2",
+          "12.7",
+          "8.9",
+          "11.1",
+          "6.6",
+          "10.7",
+          "19.4",
+          "10.09"
+        ],
+        [
+          "E11",
+          "E2+SF",
+          "+128M LM +128M LM",
+          "8.1",
+          "8.0",
+          "5.7",
+          "4.8",
+          "12.4",
+          "10.4",
+          "11.6",
+          "7.7",
+          "10.6",
+          "6.1",
+          "10.3",
+          "20.4",
+          "9.68"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2305.15663::equation::0",
+      "paper_id": "2305.15663",
+      "latex": "W i V u Q W p Q o D W 0 v w a j i C Q h F Z p w r F T f d W L t Z V h q R j i d V Q a J o j E m U z y m f U M F D q n y s n z 5 G T o 1 y g g F k T R H a J S r v x M Z D p V K Q 9 9 M h l h P 1 L I 3 F / / z + o k O r r y M i T j R V J D F Q 0 H C k Y 7 Q v A k 0 Y p I S z V N D M J H M 7 I r I B E t M t O m r Y k p w l 7 + 8 S j r n d f e i 3 r h r 1 J r X R R 1 l O I Y T O A M X L q E J",
+      "equation_number": null,
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.15663::equation::1",
+      "paper_id": "2305.15663",
+      "latex": "g l = Sof tmax(W l • x) (",
+      "equation_number": "1",
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.15663::equation::2",
+      "paper_id": "2305.15663",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.15663::equation::3",
+      "paper_id": "2305.15663",
+      "latex": "y = 2 i=1 g l,i * e l,i",
+      "equation_number": "(2)",
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2305.15663::citation::0",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "References"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::1",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Language independent end-to-end architecture for joint language identification and speech recognition",
+      "cited_authors": [
+        "S Watanabe",
+        "T Hori",
+        "J R Hershey"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::2",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Towards language-universal end-toend speech recognition",
+      "cited_authors": [
+        "S Kim",
+        "M L Seltzer"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::3",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Multilingual end-to-end speech recognition with a single transformer on low-resource languages",
+      "cited_authors": [
+        "S Zhou",
+        "S Xu",
+        "B Xu"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1806.05059",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::4",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Large-scale multilingual speech recognition with a streaming end-to-end model",
+      "cited_authors": [
+        "A Kannan",
+        "A Datta",
+        "T N Sainath",
+        "E Weinstein",
+        "B Ramabhadran",
+        "Y Wu",
+        "A Bapna",
+        "Z Chen",
+        "S Lee"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1909.05330",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::5",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Large-scale end-to-end multilingual speech recognition and language identification with multi-task learning",
+      "cited_authors": [
+        "W Hou",
+        "Y Dong",
+        "B Zhuang",
+        "L Yang",
+        "J Shi",
+        "T Shinozaki"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::6",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Multilingual speech recognition with self-attention structured parameterization",
+      "cited_authors": [
+        "Y Zhu",
+        "P Haghani",
+        "A Tripathi",
+        "B Ramabhadran",
+        "B Farris",
+        "H Xu",
+        "H Lu",
+        "H Sak",
+        "I Leal",
+        "N Gaur"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::7",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "A configurable multilingual model is all you need to recognize all languages",
+      "cited_authors": [
+        "L Zhou",
+        "J Li",
+        "E Sun",
+        "S Liu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::8",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "A language agnostic multilingual streaming on-device ASR system",
+      "cited_authors": [
+        "B Li",
+        "T N Sainath",
+        "R Pang",
+        "S -Y. Chang",
+        "Q Xu",
+        "T Strohman",
+        "V Chen",
+        "Q Liang",
+        "H Liu",
+        "Y He",
+        "P Haghani",
+        "S Bidichandani"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::9",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Massively multilingual ASR: 50 languages, 1 model, 1 billion parameters",
+      "cited_authors": [
+        "V Pratap",
+        "A Sriram",
+        "P Tomasello",
+        "A Hannun",
+        "V Liptchinsky",
+        "G Synnaeve",
+        "R Collobert"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2007.03001",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::10",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Massively multilingual ASR: A lifelong learning solution",
+      "cited_authors": [
+        "B Li",
+        "R Pang",
+        "Y Zhang",
+        "T N Sainath",
+        "T Strohman",
+        "P Haghani",
+        "Y Zhu",
+        "B Farris",
+        "N Gaur",
+        "M Prasad"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::11",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Scaling up deliberation for multilingual ASR",
+      "cited_authors": [
+        "K Hu",
+        "B Li",
+        "T N Sainath"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::12",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Robust speech recognition via large-scale weak supervision",
+      "cited_authors": [
+        "A Radford",
+        "J W Kim",
+        "T Xu",
+        "G Brockman",
+        "C Mcleavey",
+        "I Sutskever"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2212.04356",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::13",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Google USM: Scaling automatic speech recognition beyond 100 languages",
+      "cited_authors": [
+        "Y Zhang",
+        "W Han",
+        "J Qin",
+        "Y Wang",
+        "A Bapna",
+        "Z Chen",
+        "N Chen",
+        "B Li",
+        "V Axelrod",
+        "G Wang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2303.01037",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::14",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "A truly multilingual first pass and monolingual second pass streaming on-device ASR system",
+      "cited_authors": [
+        "S Mavandadi",
+        "B Li",
+        "C Zhang",
+        "B Farris",
+        "T N Sainath",
+        "T Strohman"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::15",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Streaming end-to-end multilingual speech recognition with joint language identification",
+      "cited_authors": [
+        "C Zhang",
+        "B Li",
+        "T Sainath",
+        "T Strohman",
+        "S Mavandadi",
+        "S Y Chang",
+        "P Haghani"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2209.06058",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::16",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Mixture of informed experts for multilingual speech recognition",
+      "cited_authors": [
+        "N Gaur",
+        "B Farris",
+        "P Haghani",
+        "I Leal",
+        "P J Moreno",
+        "M Prasad",
+        "B Ramabhadran",
+        "Y Zhu"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::17",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Learning ASR pathways: A sparse multilingual ASR model",
+      "cited_authors": [
+        "M Yang",
+        "A Tjandra",
+        "C Liu",
+        "D Zhang",
+        "D Le",
+        "J H Hansen",
+        "O Kalinli"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2209.05735",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::18",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "SpeechMoE: Scaling to large acoustic models with dynamic routing mixture of experts",
+      "cited_authors": [
+        "Z You",
+        "S Feng",
+        "D Su",
+        "D Yu"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2105.03036",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::19",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Bi-encoder transformer network for mandarin-english code-switching speech recognition using mixture of experts",
+      "cited_authors": [
+        "Y Lu",
+        "M Huang",
+        "H Li",
+        "J Guo",
+        "Y Qian"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::20",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Deep mixture of experts via shallow embedding",
+      "cited_authors": [
+        "X Wang",
+        "F Yu",
+        "L Dunlap",
+        "Y.-A Ma",
+        "R Wang",
+        "A Mirhoseini",
+        "T Darrell",
+        "J E Gonzalez"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::21",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Switch transformers: Scaling to trillion parameter models with simple and efficient sparsity",
+      "cited_authors": [
+        "W Fedus",
+        "B Zoph",
+        "N Shazeer"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::22",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "SpeechMoE2: Mixtureof-experts model with improved routing",
+      "cited_authors": [
+        "Z You",
+        "S Feng",
+        "D Su",
+        "D Yu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::23",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "GLaM: Efficient scaling of language models with mixture-of-experts",
+      "cited_authors": [
+        "N Du",
+        "Y Huang",
+        "A M Dai",
+        "S Tong",
+        "D Lepikhin",
+        "Y Xu",
+        "M Krikun",
+        "Y Zhou",
+        "A W Yu",
+        "O Firat"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::24",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Outrageously large neural networks: The sparsely-gated mixture-of-experts layer",
+      "cited_authors": [
+        "N Shazeer",
+        "A Mirhoseini",
+        "K Maziarz",
+        "A Davis",
+        "Q Le",
+        "G Hinton",
+        "J Dean"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": "arXiv:1701.06538",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::25",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Conformer: Convolutionaugmented transformer for speech recognition",
+      "cited_authors": [
+        "A Gulati",
+        "J Qin",
+        "C.-C Chiu",
+        "N Parmar",
+        "Y Zhang",
+        "J Yu",
+        "W Han",
+        "S Wang",
+        "Z Zhang",
+        "Y Wu"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2005.08100",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::26",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Massively multilingual shallow fusion with large language models",
+      "cited_authors": [
+        "K Hu",
+        "T N Sainath",
+        "B Li",
+        "N Du",
+        "Y Huang",
+        "A M Dai",
+        "Y Zhang",
+        "R Cabrera",
+        "Z Chen",
+        "T Strohman"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2302.08917",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::27",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Efficient domain adaptation for speech foundation models",
+      "cited_authors": [
+        "B Li",
+        "D Hwang",
+        "Z Huo",
+        "J Bai",
+        "G Prakash",
+        "T N Sainath",
+        "K C Sim",
+        "Y Zhang",
+        "W Han",
+        "T Strohman"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2302.01496",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::28",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Sequence transduction with recurrent neural networks",
+      "cited_authors": [
+        "A Graves"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": "arXiv:1211.3711",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::29",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "GShard: Scaling giant models with conditional computation and automatic sharding",
+      "cited_authors": [
+        "D Lepikhin",
+        "H Lee",
+        "Y Xu",
+        "D Chen",
+        "O Firat",
+        "Y Huang",
+        "M Krikun",
+        "N Shazeer",
+        "Z Chen"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2006.16668",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::30",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Artificial intelligence at google: Our principles",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::31",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Cascaded encoders for unifying streaming and non-streaming ASR",
+      "cited_authors": [
+        "A Narayanan",
+        "T N Sainath",
+        "R Pang",
+        "J Yu",
+        "C.-C Chiu",
+        "R Prabhavalkar",
+        "E Variani",
+        "T Strohman"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::32",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Hybrid autoregressive transducer (HAT)",
+      "cited_authors": [
+        "E Variani",
+        "D Rybach",
+        "C Allauzen",
+        "M Riley"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::33",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Specaugment: A simple data augmentation method for automatic speech recognition",
+      "cited_authors": [
+        "D S Park",
+        "W Chan",
+        "Y Zhang",
+        "C.-C Chiu",
+        "B Zoph",
+        "E D Cubuk",
+        "Q V Le"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1904.08779",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.15663::citation::34",
+      "paper_id": "2305.15663",
+      "raw_text": null,
+      "cited_title": "Parameter-efficient transfer learning for NLP",
+      "cited_authors": [
+        "N Houlsby",
+        "A Giurgiu",
+        "S Jastrzebski",
+        "B Morrone",
+        "Q De Laroussilhe",
+        "A Gesmundo",
+        "M Attariyan",
+        "S Gelly"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

@@ -1,0 +1,118 @@
+# ==============================================================================
+# Temporal Hybrid GraphRAG with Multi-Agent AI — requirements.txt
+# Target: Python 3.11.x   (conda env: temporal_rag)
+#
+# Covers Weeks 3-8 of the timeline (ingestion -> embeddings -> knowledge graph)
+# plus the framework choices already locked in for later phases (agents, API,
+# frontend, evaluation). A few later-phase libraries — coreference resolution,
+# any Stretch-agent extras (topic modeling, temporal GNNs) — are intentionally
+# NOT pinned yet; see the note at the bottom for why, and they'll be added to
+# this file when we actually build those modules.
+#
+# Install:
+#   conda activate temporal_rag
+#   pip install -r requirements.txt
+#
+# PyTorch note: `torch` below resolves to whatever PyPI serves your platform,
+# which is CPU-only by default on most Windows machines — that's the right
+# choice unless you have an NVIDIA GPU with CUDA already set up. If you do,
+# install torch FIRST with the command from pytorch.org/get-started/locally
+# (pick your CUDA version), THEN run this file — pip won't touch a
+# requirement that's already satisfied.
+# ==============================================================================
+
+# ---- Configuration & environment ----
+pydantic>=2.7             # data validation, request/response models (Pydantic v2)
+pydantic-settings>=2.3    # BaseSettings lives here in Pydantic v2 — config/settings.py uses this
+python-dotenv>=1.0        # loads .env — also fixes the gap in the existing 02_ script
+
+# ---- Backend API (FastAPI) ----
+fastapi>=0.111
+uvicorn[standard]>=0.30   # ASGI server that actually runs the FastAPI app
+python-multipart>=0.0.9   # required by FastAPI for file uploads (PDF ingestion endpoint)
+
+# ---- Frontend dashboard ----
+streamlit>=1.36
+plotly>=5.22               # timeline charts, trend visualizations
+pyvis>=0.3.2                # lightweight interactive graph viz, embeds in Streamlit
+
+# ---- HTTP / networking ----
+httpx>=0.27                 # async-capable HTTP client — GROBID calls, general external requests
+
+# ---- Databases & storage ----
+neo4j>=5.22                  # official driver — has both sync and async APIs
+faiss-cpu>=1.8.0             # vector store (Week 10) — CPU build, no GPU/server required
+
+# ---- Agent orchestration ----
+langgraph>=0.2.20
+langchain-core               # message/state primitives (HumanMessage, AIMessage, etc.)
+                              # — left unpinned so pip resolves the version langgraph actually wants
+
+# ---- LLM providers (free-tier APIs, routed per llm/factory.py) ----
+groq>=0.9.0                  # primary: fast agent calls — Planner, Retrieval, Reasoning,
+                              # Verification, Summarization, Trend, Evaluation
+google-genai>=0.3.0           # routed: Multimodal Understanding agent + long-context overflow
+                              # NOTE: this is Google's CURRENT unified SDK. The older
+                              # `google-generativeai` package is deprecated (EOL Nov 2025) —
+                              # don't install that one even if you see it in older tutorials.
+
+# ---- Embeddings & local ML models (run on your machine — no API calls, no rate limits) ----
+# SPECTER2, SciBERT, CLIP, TAPAS, and BLIP-2 all load through transformers /
+# sentence-transformers directly. CORRECTION from the original version of
+# this file: SPECTER2's own model card explicitly says its base encoder
+# alone is NOT what to use for general embeddings — "please use
+# allenai/specter2" instead, which is actually an adapter (the retrieval/
+# proximity one) loaded onto the base model via the `adapters` package.
+# Skipping `adapters`, as originally planned here, would have run without
+# any error and just silently produced lower-quality embeddings than
+# SPECTER2's own documentation recommends — so it's back in, not optional.
+torch>=2.3                    # backend for transformers/sentence-transformers — see PyTorch note above
+transformers>=4.42
+sentence-transformers>=3.0
+adapters>=1.0.0                # required for SPECTER2's recommended usage — see embeddings/text_embedder.py
+Pillow>=10.0                    # image loading for embeddings/figure_embedder.py — listed explicitly
+                                 # rather than relying on it arriving transitively via matplotlib/streamlit
+accelerate>=0.31              # efficient model loading (device placement, lower memory use)
+sentencepiece>=0.2.0          # tokenizer backend several HF models need but don't bundle
+
+# ---- Document parsing ----
+lxml>=5.2                     # parsing GROBID's TEI XML output
+PyMuPDF>=1.24                 # (imported as `fitz`) fallback text extraction if GROBID errors on a PDF
+
+# ---- Graph algorithms (Python-side, complements Neo4j) ----
+networkx>=3.3
+
+# ---- Core data stack ----
+numpy>=1.26
+pandas>=2.2
+
+# ---- Reliability & performance ----
+tenacity>=8.4                 # retry/backoff decorators for flaky external calls (Groq/Gemini/GROBID/Neo4j)
+diskcache>=5.6                # local disk cache — avoids recomputing embeddings and re-spending
+                               # free-tier LLM quota every time you re-run a script during development
+structlog>=24.2                # structured (JSON-capable) logging, per the project's logging requirement
+
+# ---- Evaluation (Week 15, Core deliverable) ----
+rouge-score>=0.1.2
+bert-score>=0.3.13
+
+# ---- Dev tools ----
+pytest>=8.2
+pytest-asyncio>=0.23           # for testing the async FastAPI/agent code
+black>=24.4
+ruff>=0.5.0
+mypy>=1.10
+
+# ==============================================================================
+# Deliberately NOT here yet:
+#
+# - Relation extraction (OpenIE) and temporal tagging (HeidelTime) are
+#   traditionally Java/UIMA tools (Stanford CoreNLP, HeidelTime) — a heavy,
+#   separate toolchain for a pilot-scale project. Current plan is to do both
+#   via structured prompting against the LLM layer above instead, which needs
+#   no new dependency.
+# - Coreference resolution (Week 8), and any Stretch-agent libraries (topic
+#   modeling for the Trend agent, temporal GNNs) will be added here once we
+#   actually build those modules — I'd rather check current best options at
+#   that time than pin something today based on a guess.
+# ==============================================================================

@@ -1,0 +1,917 @@
+{
+  "arxiv_id": "2311.14126",
+  "title": "Towards Auditing Large Language Models: Improving Text-based Stereotype   Detection",
+  "authors": [
+    {
+      "name": "Wu Zekun",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Sahan Bulathwela",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Adriano Soares Koshiyama",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Large Language Models (LLM) have made significant advances in the recent past becoming more mainstream in Artificial Intelligence (AI) enabled human-facing applications. However, LLMs often generate stereotypical output inherited from historical data, amplifying societal biases and raising ethical concerns. This work introduces i) the Multi-Grain Stereotype Dataset, which includes 52,751 instances of gender, race, profession and religion stereotypic text and ii) a novel stereotype classifier for English text. We design several experiments to rigorously test the proposed model trained on the novel dataset. Our experiments show that training the model in a multi-class setting can outperform the one-vs-all binary counterpart. Consistent feature importance signals from different eXplainable AI tools demonstrate that the new model exploits relevant text features. We utilise the newly created model to assess the stereotypic behaviour of the popular GPT family of models and observe the reduction of bias over time. In summary, our work establishes a robust and practical framework for auditing and evaluating the stereotypic bias in LLM.",
+  "categories": [
+    "cs.CL",
+    "cs.AI",
+    "cs.CY",
+    "cs.LG"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2023-11-23T17:47:14"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2023-11-23",
+  "citation_count": 25,
+  "reference_count": 35,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2311.14126::section::0",
+      "paper_id": "2311.14126",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::0::para::0",
+          "section_id": "2311.14126::section::0",
+          "text": "The field of Artificial Intelligence (AI) continues to evolve with Large Language Models (LLMs) showing both potential and pitfalls. This research explores the ethical dimensions of LLM auditing in Natural Language Processing (NLP), with a focus on text-based stereotype classification and bias benchmarking in LLMs. The advent of state-of-the-art LLMs including OpenAI's GPT series [1][2][3], Meta's LLaMA series [4,5], and the Falcon series [6] has magnified the societal implications. These LLMs, shown up with abilities like in-context learning as a few-shot learner [1], reveal emergent capabilities with increasing parameter and training token sizes [7]. However, they show fairness concerns due to their training on extensive, unfiltered datasets such as book [8] and Wikipedia corpora [9], and large internet corpora like Common Crawl [10]. This training data often exhibits systemic biases and could further lead to detrimental real-world effects, confirmed by studies [11][12][13][14]. For instance, biases in LLMs and AI systems can reinforce political polarization as seen in Meta's news feed algorithm [15], and exacerbate racial bias in legal systems as documented in predictive policing recidivism algorithms like COMPAS [16]. Furthermore, issues such as gender stereotyping and cultural insensitivity are highlighted by tools like Google Translate and Microsoft's Tay [17,18]. Most existing studies focus on either bias benchmarks in LLMs or text-based stereotypes detection and overlook the interaction between them, which remains underexplored and indicates gaps. Our study makes a clear line between Bias, as observable deviations from neutrality in LLM downstream tasks, and Stereotype, a subset of bias entailing generalized assumptions about certain groups in LLM outputs. Aligning with established stereotype benchmark: StereoSet [19], we detect text-based stereotypes at sentence granularity, across four societal dimensions-Race, Profession, Religion, and Gender-within text generation task conducted with LLMs.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::1",
+      "paper_id": "2311.14126",
+      "heading": "Social Impact Statement",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::1::para::0",
+          "section_id": "2311.14126::section::1",
+          "text": "Our framework audits the issue of bias in LLMs, a growing concern as these models become more influential in society. We employ eXplainable AI techniques, and DistilBERT, to make the audit process transparent and energy-efficient, thereby meeting ethical, regulatory, and sustainable standards while improving predictive performance significantly. This work aligns with the ultimate goal of research in this area, to minimize the societal and environmental risks associated with biased LLMs, promoting their responsible and eco-friendly use. The framework proposed in this work is a key component in evaluating the biases and stereotypical language at scale. Such scalable assessment is critical in the age of social media and generative artificial intelligence, where language is generated at the web-scale in digital archives. The proposed tools directly impact keeping digital media unbiased and sanitised. As the next generation of LLMs is mainly trained on web archives, the proposals passively impact the creation of more fair and unbiased LLMs.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::2",
+      "paper_id": "2311.14126",
+      "heading": "Related Works",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::2::para::0",
+          "section_id": "2311.14126::section::2",
+          "text": "Text-based Stereotype Classification has become a notable domain. Dbias [20] addresses the binary classification of general bias in the context of dialogue, while Dinan et al. [21] conducted a multidimensional analysis of gender bias across different pragmatic and semantic dimensions. The Hugging Face Community has seen the advent of pre-trained models for stereotype classification. However, prominent models like distilroberta-finetuned-stereotype-detectionfoot_0 has subpar predictive performance and limits its labels to general stereotype, anti-stereotype and neutral without specialising on stereotype types (gender, religion etc.). We address both these gaps through this work. Models like tunib-electra-stereotype-classifierfoot_1 , trained on the K-StereoSet dataset-a Korean adaptation of the original StereoSet [22], demonstrates high performance, indicating effective stereotype classification within Korean contexts.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.14126::section::2::para::1",
+          "section_id": "2311.14126::section::2",
+          "text": "StereoSet [19] and CrowS-Pairs [23] are popular dataset-based bias benchmarking approaches that use the examples in the datasets to calculate the masked token probabilities and pseudo-likelihoodbased scoring of the LLM to assess whether stereotypical results are output. A key disadvantage of these approaches is that the bias assessment's generalisation bounds are limited to the diversity of the examples in the datasets. On the contrary, we use these examples to teach an LLM to detect stereotypes from any generated text (fine-tuning rather than few/zero-shot cases used in [19] and [23]). This gives our approach the advantage of assessing the LLM's bias based on any text output generated by the LLM rather than within the constraints of the labelled datasets. Benchmarks such as WinoQueer [24] and SeeGULL [25] focus on stereotype types that are out of the scope of this work (e.g. LGBTQ bias etc.). Benchmarks such as WEAT [26] and SEAT [27] use pre-defined attribute and target word sets to assess stereotypical language, making them similar to StereoSet and CrowS-Pairs approaches exposed to the same limitations while BBQ [28] and BOLD [29] focus on specific tasks such as question answering rather than stereotype detection in free from text generated by any LLM. The result of this work is a stereotype detection model that is also thoroughly validated for its generalisation capabilities using explainability tools and counterfactual examples that are out of the reference datasets.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.14126::section::2::para::2",
+          "section_id": "2311.14126::section::2",
+          "text": "Several prior works [11,30] could be used to implement token-level stereotype detection that is out of scope for this work as we focus on sentence-level stereotype detection. Albeit, these works also lack transparency, a gap our work addresses through eXlainable AI (XAI) techniques. While emerging LLM evaluation frameworks like DeepEval [31], HELM [32], and LangKit [33] takes a holistic view on bias evaluation, our framework complements them as our proposal can become a subcomponent within their systems.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::3",
+      "paper_id": "2311.14126",
+      "heading": "Methodology",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::3::para::0",
+          "section_id": "2311.14126::section::3",
+          "text": "Our methodology aims to progress English text-based stereotype classification which can improve LLM bias assessment. We identify four research questions in this direction:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.14126::section::3::para::1",
+          "section_id": "2311.14126::section::3",
+          "text": "• RQ1: Can training stereotype detectors in the multi-class setting bring better results versus training multiple binary classification models in isolation?",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.14126::section::3::para::2",
+          "section_id": "2311.14126::section::3",
+          "text": "• RQ2: How does the multi-label classifier built for stereotype detection compare to competitive baselines?",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.14126::section::3::para::3",
+          "section_id": "2311.14126::section::3",
+          "text": "• RQ3: Does the trained model exploit the right patterns when detecting stereotypes?",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2311.14126::section::3::para::4",
+          "section_id": "2311.14126::section::3",
+          "text": "• RQ4: How unbiased are today's State-of-the-art LLMs in reference to the proposed stereotype detector?",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2311.14126::section::3::para::5",
+          "section_id": "2311.14126::section::3",
+          "text": "For addressing RQ1 and RQ2, we develop the Multi-Grain Stereotype (MGS) dataset (Sec. 3.1) and fine-tune Distil-BERT models (Sec. 3.2). For RQ3, we employ XAI techniques SHAP, LIME, and BertViz to explain predictions (Sec. 3.2). Finally, for RQ4, we generate prompts using the proposed MGS dataset to elicit stereotypes from LLMs and evaluate them using our classifier (Sec. 3.3).",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::4",
+      "paper_id": "2311.14126",
+      "heading": "MGS Dataset (RQ1)",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::4::para::0",
+          "section_id": "2311.14126::section::4",
+          "text": "We constructed the Multi-Grain Stereotype Dataset (MGS Dataset) from two crowdsourced sources: StereoSet [19] and CrowS-Pairs [23]. It comprises a total of 52,751 instances, which we divided into training and testing sets using an 80:20 ratio, ensuring stratified sampling based on stereotype types. This allows us to have a larger number of examples for the model creation while mixing different types of stereotypes together in one dataset for richer multi-class learning. The created dataset supports both sentence-level and token-level classification tasks. In terms of preprocessing, we tokenised the text and inserted \"===\" markers to encapsulate stereotypical tokens (e.g. He is a doctor → He is a ===doctor===). These markers allow us to i) use the dataset for token-level stereotype detector training in the future, and ii) generate prompts/counterfactual scenarios when evaluating sentence-level detector models. Stereoset data has two types of examples, (i) intra-sentence (bias is within the single sentence) vs. (ii) inter-sentence (bias spreads across multiple sentences) while the CrowS-Pairs dataset contains (iii) pairs of sentences that carry the stereotype or anti-stereotype bias.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.14126::section::4::para::1",
+          "section_id": "2311.14126::section::4",
+          "text": "In case (i), we assign the correlated label to the single sentence while in cases (ii) and (iii) we merge the sentences and assign the label to create the final MGS dataset. The resultant labelling scheme classifies stereotypes into three categories: \"stereotype\", \"anti-stereotype\", and \"unrelated\". and span over four social dimensions: \"race\", \"religion\", \"profession\", and \"gender\".",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::5",
+      "paper_id": "2311.14126",
+      "heading": "Finetuning the Stereotype Classifier and Explaining It (RQ 1-3)",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::5::para::0",
+          "section_id": "2311.14126::section::5",
+          "text": "Our proposed model is a fine-tuned Distil-BERT (a lightweight, scalable counterpart of BERT) model that serves as a multi-class classifier. To address RQ1, we fine-tuned four Distil-BERT models finetuned as binary classifiers of different stereotypes as baselines. These models are binary classifiers trained using a one-vs-all setting (RQ1). In order to compare the new model with comparative baselines (RQ2), we built several popular machine learning models since we were unable to identify multi-class baselines from prior work. We implemented the i) Random model, that assigns labels at random, ii) a Logistic regression, and iii) Kernel SVM (sigmoid kernel identified empirically) models trained TF-IDF features. Finally, we use a DeBERTa-based model that has shown the best performance in zero-shot natural language inference task [34].",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.14126::section::5::para::1",
+          "section_id": "2311.14126::section::5",
+          "text": "To ensure robust validation and interpretation of our stereotype classifier (RQ3), we employ multiple XAI methods for feature attribution and model structural interpretability. This allows us to check for consistency of explanations as different explainability methods can yield varying results in feature importance [35]. Specifically, we apply SHAP [36] and LIME [37], two popular model-agnostic explainability techniques, to identify the text tokens most influential in the classification process. We use randomly selected examples from the MGS Dataset to analyse explanations. Additionally, we utilize BERTViz [38], a model-specific visualization tool for transformer models, to observe how the model's attention heads engages with specific tokens across layers.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::6",
+      "paper_id": "2311.14126",
+      "heading": "Stereotype Elicitation Experiment and Bias Benchmarks (RQ4)",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::6::para::0",
+          "section_id": "2311.14126::section::6",
+          "text": "We first establish an automated method for prompt generation, resulting in a prompt library that effectively elicits stereotypical text. We take examples from the MGS dataset and use the markers to identify the prompts (the part of the example before the marker) for the LLM under investigation.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.14126::section::6::para::1",
+          "section_id": "2311.14126::section::6",
+          "text": "When selecting examples for generating prompts, we use word count-based prioritization logic, where initially, we target long examples resulting in detailed prompts. We generate prompts from the dataset for the different societal dimensions (≈ 200 per dimension). We further validate the neutrality of the identified prompts using the proposed model to ensure that all prompts have been classified as \"unrelated\". Finally, we use the prompts library to probe the LLM under investigation (e.g. GPT, LLaMA etc.) to complete the rest of the passage (prompt). We use the generated output to detect stereotypes, which is the final assessment.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.14126::section::6::para::2",
+          "section_id": "2311.14126::section::6",
+          "text": "To evaluate the stereotype bias scores for the LLM M under investigation, we calculate the stereotype bias score µ d,M for social dimension d where d ∈ {race, gender, religion, profession} as",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.14126::section::6::para::3",
+          "section_id": "2311.14126::section::6",
+          "text": ") where P M is the set of passages generated from LLM M using the prompt-library, p is a passage in P M , s is a sentence in p and µ d,s is the bias score given to each sentence. The bias score is the probability of stereotype bias predicted by the proposed sentence-level stereotype detector for each social dimension. In this paper, we assess the stereotypic bias of the GPT series of LLMs, considering only stereotype labels rather than unrelated or anti-stereotype labels.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::7",
+      "paper_id": "2311.14126",
+      "heading": "Results and Discussion",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::7::para::0",
+          "section_id": "2311.14126::section::7",
+          "text": "Table 1 provides the performance difference between the binary vs. multi-class stereotype detection models trained using the proposed MGS dataset. In addressing RQ1, the results in Table 1 show that multi-class models consistently outperform singleclass counterparts across all societal dimensions-Race, Profession, Gender, Religion-as well as in all evaluation metrics: Precision, Recall, and F1 Score. For example, the F1 Score for the multi-class model in the Race dimension is 0.882, much higher than 0.821 for the single-class model. We see similar advantages in other dimensions such as Profession (F1 Score 0.847 vs. 0.778), Gender (0.698 vs. 0.661), and Religion (0.81 vs. 0.718). Interestingly, the performance gap between the two types of models varies across dimensions. The most significant difference is in the Race category, followed by Profession, while the smallest gap appears in the Gender category. Although the multi-class model performs well across all metrics, it is relatively weaker in the Gender dimension, signalling room for improvement. In contrast, the smaller performance gap in the Religion category suggests that single-class models are not dramatically worse in this specific area. Beyond this, the superior performance of multi-class models may indicate an underlying role of stereotype intersectionality. Training models on multiple stereotypes at once seems to improve their ability to recognize complex and intertwined stereotypes. This could mean that understanding one form of stereotype enhances the model's proficiency in detecting other forms, pointing to the importance of exploring stereotype intersectionality in future work.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.14126::section::7::para::1",
+          "section_id": "2311.14126::section::7",
+          "text": "In addressing RQ2, we evaluated our fine-tuned multi-dimensional classifier against several baseline methods. Table 2 presents the performance of the proposed model in comparison to the baselines.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.14126::section::7::para::2",
+          "section_id": "2311.14126::section::7",
+          "text": "Table 2 shows our model excelling in macro metrics: precision, recall, and F1-score. This performance consistency extends across all societal dimensions, validating the robustness of our approach. Compared to traditional methods like Logistic Regression and Kernel Support Vector Machines, our model shows substantial improvement, even when these methods employ TF-IDF features. It also surpasses advanced zero-shot classifiers like DeBERTa-v3-base-tasksource-nli [34], which we evaluated using the same classification labels, illustrating the benefits of fine-tuning. We used the \"Random Assigned Label\" method as a controlled baseline, further emphasizing the superiority of other methods. Importantly, our model not only scores high but also maintains a balanced performance across all metrics, highlighting its calibration and robustness. Overall, our findings validate the efficacy of advanced Pretrained Language Models in accurately detecting stereotypes.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.14126::section::7::para::3",
+          "section_id": "2311.14126::section::7",
+          "text": "To address RQ3, Figure 1 shows an example, \"The baby loved the presence of the caring mommy.\"",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2311.14126::section::7::para::4",
+          "section_id": "2311.14126::section::7",
+          "text": "The analysis reveals that SHAP, LIME, and BERTViz are in agreement and align with our human understanding of gender stereotypes. This consistency validates that our model is effective in identifying stereotype-indicative words like \"caring\" and \"mommy.\". To answer RQ4, Table 3 reveals some key findings. First, no single model excels in every category, highlighting the complexity of completely eliminating bias. However, there is a clear trend: as we move from GPT-2 to GPT-4, the bias scores generally decrease. This is most evident in the 'Race' category, where the score dropped from 0.9111 in GPT-2 to 0.7560 in GPT-4. Moreover, the 'Overall' bias scores also show a consistent decline across model generations. These trends collectively indicate that while no model is perfect, advancements in LLMs are making them less biased over time.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::8",
+      "paper_id": "2311.14126",
+      "heading": "Conclusion and Future Work",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::8::para::0",
+          "section_id": "2311.14126::section::8",
+          "text": "In conclusion, we have developed a framework for auditing bias in LLMs through text-based stereotype classification. Using the Multi-Grain Stereotype Dataset and fine-tuned Distil-BERT models, our approach surpasses existing baselines and demonstrates the superiority of multi-class classifiers over single-class ones. To verify the decisions made by our models, we incorporated XAI techniques such as SHAP, LIME, and BertViz. Benchmark results further confirm a reduction in bias in newer versions of the GPT series. For future work, first, expanding the MGS dataset to include more diverse global, demographic, and cultural contexts. Second, enhancing the model's capabilities by exploring ensemble techniques and alternative architectures that are more adept at complex stereotype detection. Third, delving into the role of stereotype intersectionality, as suggested by the outperformance of multi-class models. Fourth, creating a real-time dashboard to monitor LLM biases. Lastly, considering the use of Bayesian methods for more precise bias benchmarking. Our framework lays the groundwork for more ethical auditing and deployment of LLMs.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.14126::section::9",
+      "paper_id": "2311.14126",
+      "heading": "SHAP Results",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2311.14126::section::9::para::0",
+          "section_id": "2311.14126::section::9",
+          "text": "Figure 2: stereotype_gender",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2311.14126::citation::0",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Language Models are Few-Shot Learners",
+      "cited_authors": [
+        "T B Brown"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2005.14165[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::1",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Language Models are Unsupervised Multitask Learners",
+      "cited_authors": [
+        "A Radford"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::2",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "GPT-4",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2303.08774[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::3",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "LLaMA: Open and Efficient Foundation Language Models",
+      "cited_authors": [
+        "H Touvron"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2302.13971[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::4",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Llama 2: Open Foundation and Fine-Tuned Chat Models 2023",
+      "cited_authors": [
+        "H Touvron"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2307.09288[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::5",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Falcon-40B: an open large language model with state-of-the-art performance",
+      "cited_authors": [
+        "E Almazrouei"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::6",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Emergent Abilities of Large Language Models",
+      "cited_authors": [
+        "J Wei"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2206.07682[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::7",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Aligning books and movies: Towards story-like visual explanations by watching movies and reading books in",
+      "cited_authors": [
+        "Y Zhu"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::8",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "The Free Encyclopedia 2021",
+      "cited_authors": [
+        "W Foundation",
+        "Wikipedia"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::9",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "The Common Crawl Corpus 2021",
+      "cited_authors": [
+        "C C Foundation"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::10",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "On measuring social biases in sentence encoders in",
+      "cited_authors": [
+        "C May",
+        "A Wang",
+        "S Bordia",
+        "S R Bowman",
+        "R Rudinger"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::11",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Identifying and reducing gender bias in word-level language models in",
+      "cited_authors": [
+        "S Bordia",
+        "S R Bowman"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::12",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Racial bias in hate speech and abusive language detection datasets in Proceedings of the Third Workshop on Abusive Language Online",
+      "cited_authors": [
+        "T Davidson",
+        "D Bhattacharya",
+        "I Weber"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::13",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Intersectional bias in causal language models",
+      "cited_authors": [
+        "L Magee",
+        "L Ghahremanlou",
+        "K Soldatic",
+        "S Robertson"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2107.07691",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::14",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Exposure to ideologically diverse news and opinion on Facebook",
+      "cited_authors": [
+        "E Bakshy",
+        "S Messing",
+        "L A Adamic"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::15",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Machine Bias",
+      "cited_authors": [
+        "J Angwin",
+        "J Larson",
+        "L Kirchner",
+        "S Mattu"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::16",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Assessing Gender Bias in Machine Translation -A Case Study with Google Translate",
+      "cited_authors": [
+        "M O R Prates",
+        "P H C Avelar",
+        "L Lamb"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1809.02208[cs.CY",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::17",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Talking to Bots: Symbiotic Agency and the Case of Tay",
+      "cited_authors": [
+        "G Neff",
+        "P Nagy"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::18",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Measuring stereotypical bias in pretrained language models 2020",
+      "cited_authors": [
+        "M Nadeem",
+        "A Bethke",
+        "S Reddy",
+        "Stereoset"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2004.09456[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::19",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Detecting biases and ensuring Fairness in news articles 2022",
+      "cited_authors": [
+        "S Raza",
+        "D J Reji",
+        "C Ding",
+        "Dbias"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2208.05777[cs.IR",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::20",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Multi-Dimensional Gender Bias Classification",
+      "cited_authors": [
+        "E Dinan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2005.00614",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::21",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Jongyoonsong Jongyoonsong/K-Stereoset"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::22",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "CrowS-Pairs: A Challenge Dataset for Measuring Social Biases in Masked Language Models",
+      "cited_authors": [
+        "N Nangia",
+        "C Vania",
+        "R Bhalerao",
+        "S R Bowman"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2010.00133[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::23",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "A Community-in-the-Loop Benchmark for Anti-LGBTQ+ Bias in Large Language Models 2023",
+      "cited_authors": [
+        "V K Felkner",
+        "H.-C H Chang",
+        "E Jang",
+        "J May",
+        "Winoqueer"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2306.15087[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::24",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "SeeGULL: A Stereotype Benchmark with Broad Geo-Cultural Coverage Leveraging Generative Models 2023",
+      "cited_authors": [
+        "A Jha"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2305.11840[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::25",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Semantics derived automatically from language corpora contain human-like biases",
+      "cited_authors": [
+        "A Caliskan",
+        "J J Bryson",
+        "A Narayanan"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::26",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "On Measuring Social Biases in Sentence Encoders",
+      "cited_authors": [
+        "C May",
+        "A Wang",
+        "S Bordia",
+        "S R Bowman",
+        "R Rudinger"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::27",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "BBQ: A hand-built bias benchmark for question answering in Findings of the",
+      "cited_authors": [
+        "A Parrish"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::28",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "BOLD: Dataset and Metrics for Measuring Biases in Open-Ended Language Generation",
+      "cited_authors": [
+        "J Dhamala"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/3442188.3445924",
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::29",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Man is to computer programmer as woman is to homemaker?",
+      "cited_authors": [
+        "T Bolukbasi",
+        "K.-W Chang",
+        "J Y Zou",
+        "V Saligrama",
+        "A T Kalai"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::30",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "A Benchmarking Framework for Language Learning Models",
+      "cited_authors": [
+        "C A Team"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::31",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Holistic Evaluation of Language Models",
+      "cited_authors": [
+        "P Liang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2211.09110[cs.CL",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::32",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "LangKit: An Open-Source Text Metrics Toolkit for Monitoring Language Models",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::33",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Structured Dataset Preprocessing Annotations for Frictionless Extreme Multi-Task Learning and Evaluation",
+      "cited_authors": [
+        "D Sileo",
+        "Tasksource"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2301.05948",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::34",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Evaluating the Explainers: Black-Box Explainable Machine Learning for Student Success Prediction in MOOCs",
+      "cited_authors": [
+        "V Swamy",
+        "B Radmehr",
+        "N Krco",
+        "M Marras",
+        "T Käser"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2207.00551[cs.LG]",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::35",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Unified Approach to Interpreting Model Predictions in Advances in Neural Information Processing Systems",
+      "cited_authors": [
+        "S M Lundberg",
+        "S.-I A Lee"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::36",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Explaining the predictions of any classifier in",
+      "cited_authors": [
+        "M Tulio",
+        "S Singh",
+        "C Guestrin"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.14126::citation::37",
+      "paper_id": "2311.14126",
+      "raw_text": null,
+      "cited_title": "Visualization of Attention in the Transformer Model in Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics: System Demonstrations",
+      "cited_authors": [
+        "J A Vig",
+        "Multiscale"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

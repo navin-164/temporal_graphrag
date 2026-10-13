@@ -1,0 +1,1004 @@
+{
+  "arxiv_id": "2404.17607",
+  "title": "Utilizing Large Language Models to Identify Reddit Users Considering   Vaping Cessation for Digital Interventions",
+  "authors": [
+    {
+      "name": "Sai Krishna Revanth Vuruma",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Dezhi Wu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Saborny Sen Gupta",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Lucas Aust",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Valerie Lookingbill",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Caleb Henry",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yang Ren",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Erin Kasson",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Li-Shiun Chen",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Patricia Cavazos-Rehg",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Dian Hu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Ming Huang",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "The widespread adoption of social media platforms globally not only enhances users' connectivity and communication but also emerges as a vital channel for the dissemination of health-related information, thereby establishing social media data as an invaluable organic data resource for public health research. The surge in popularity of vaping or e-cigarette use in the United States and other countries has caused an outbreak of e-cigarette and vaping use-associated lung injury (EVALI), leading to hospitalizations and fatalities in 2019, highlighting the urgency to comprehend vaping behaviors and develop effective strategies for cession. In this study, we extracted a sample dataset from one vaping sub-community on Reddit to analyze users' quit vaping intentions. Leveraging large language models including both the latest GPT-4 and traditional BERT-based language models for sentence-level quit-vaping intention prediction tasks, this study compares the outcomes of these models against human annotations. Notably, when compared to human evaluators, GPT-4 model demonstrates superior consistency in adhering to annotation guidelines and processes, showcasing advanced capabilities to detect nuanced user quit-vaping intentions that human evaluators might overlook. These preliminary findings emphasize the potential of GPT-4 in enhancing the accuracy and reliability of social media data analysis, especially in identifying subtle users' intentions that may elude human detection.",
+  "categories": [
+    "cs.IR",
+    "cs.AI",
+    "cs.CL",
+    "cs.LG",
+    "cs.SI"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2024-04-25T15:45:58"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2024-04-25",
+  "citation_count": 2,
+  "reference_count": 28,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2404.17607::section::0",
+      "paper_id": "2404.17607",
+      "heading": "I. INTRODUCTION",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::0::para::0",
+          "section_id": "2404.17607::section::0",
+          "text": "Due to the ubiquity of social media platforms, over 4.7 billion users worldwide use them for connectivity, communi-cations, news, and entertainment with a significant portion of the discourse related to health. The utilization of social media data emerges as a nascent source of public health information, offering novel insights into public health trends and enhancing the capabilities of public health surveillance.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::0::para::1",
+          "section_id": "2404.17607::section::0",
+          "text": "In recent years, the United States has witnessed a significant surge in the popularity of vaping or e-cigarette use, leading to a notable rise in cases of e-cigarette and vaping use-associated lung injury (EVALI) that caused hospitalizations and fatalities in 2019. Previous research studies have leveraged popular Twitter and Reddit social media data for public surveillance of health topics. In particular, two previous social media vaping studies [1], [2] used topic modeling and sentiment analysis along with clinical insights to show social media users might benefit from digital intervention programs for vaping cessation and potentially for clinicians to employ proactive outreach strategies to engage vaping patients for patient education and treatment on social media platforms. Moreover, in some other recent studies on e-cigarette or vape use, many users reported symptoms of Vape Dependence [3], where they cannot go for long periods of time with out craving for a vape, with users commonly resorting to stealth-vaping [4] in places that prohibit vaping. Further, researchers found that vape frequency was directly associated with perceived satisfaction while being indirectly associated with perceived danger [5]. Alarmingly, a teenager vaping study [6] has highlighted the youth as high risk population for targeted health communications. To tackle this pressing public health challenges, it is imperative to conduct further research into the analysis of vaping discourse on social media platforms, aiming to develop artificial intelligent (AI)-based approach to more efficiently and accurately identify these patients' social media vaping discourse behaviors and developing targeted vaping prevention and intervention programs for the youth population.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::0::para::2",
+          "section_id": "2404.17607::section::0",
+          "text": "In this study, we aim to employ and evaluate OpenAI's GPT-4 model and traditional BERT-based language models and by comparing human evaluators on a data annotation task to identify vaping cession interests among Reddit users. Our preliminary findings indicate GPT-4 model demonstrates better consistency in adhering to annotation guidelines and processes compared to human evaluators. Following the introduction, in the next section, we present the related work in this area, and then report our research methodology and preliminary study findings. Lastly, we draw study conclusion and propose future research directions.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::1",
+      "paper_id": "2404.17607",
+      "heading": "II. RELATED WORK",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::1::para::0",
+          "section_id": "2404.17607::section::1",
+          "text": "In this technologically prudent era, social media platforms, such as Facebook, Instagram, Reddit, and Twitter, have emerged as pivotal spaces for self-expression and social interaction [7]. These platforms offer a massive data resource that reflects the perceptions of its users, and the extraction and analysis of these data extends an opportunity for different research studies [7], [8]. However, interpretation of natural language data requires deep contextual knowledge and understanding [9].",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::1::para::1",
+          "section_id": "2404.17607::section::1",
+          "text": "Manual annotations of social media texts can be challenging for humans as the texts are short and informal and contain different socio-cultural opinions and perceptions [7], [10]. Studies have shown that lack of contextual understanding can lead to incorrect annotations [10]. Recent work has shown that data annotation process can be augmented with state-of-theart Machine Learning (ML) algorithms and Natural Language Processing (NLP) models to great success [11]. However, care must be taken while using these techniques in tasks requiring complex inferences as shown in [9], [12]. In this regard, advanced and intuitive Large Language Models (LLMs) such as OpenAI's Generative Pre-trained Transformer models GPT-3 [13] and GPT-4 [14] and Meta's LLAMA 2 [15] have gained popularity in recent years due to their proficiency in incontext learning where they outperformed traditional methods [16], [17]. These models can generate quick results and are not susceptible to some of the limitations seen in human annotation [18].",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::1::para::2",
+          "section_id": "2404.17607::section::1",
+          "text": "Using the GPT models, the findings from [19] show that while GPT-3 still has room for improvement when compared to human annotators, it is capable of annotating data from different domains. Another study used GPT-4 to label the political tweets collected from USA politicians [9] with better accuracy, reliability, and equal or lower bias of GPT-4 than the expert classifiers.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2404.17607::section::1::para::3",
+          "section_id": "2404.17607::section::1",
+          "text": "TABLE I ANALYSIS OF SENTENCES AND WORDS PER REDDIT POST Field Name Average number of sentences per post Average number of words per post Title 1.07 6.56 Body 9.02 157.74",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::2",
+      "paper_id": "2404.17607",
+      "heading": "III. METHODOLOGY",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::2::para::0",
+          "section_id": "2404.17607::section::2",
+          "text": "Reddit is a free, popular social media platform where users can take part in discussions and share content. It facilitates conversations between like-minded users through dedicated communities called subreddits. Each subreddit is focused on a specific topic or interest shared amongst it's subscribers.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::2::para::1",
+          "section_id": "2404.17607::section::2",
+          "text": "r/QuitVaping is a subreddit where users come together to motivate each other to quit vaping. With around 40,000 subscribers, it is the largest subreddit dedicated to help users quit vaping and other tobacco products.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::2::para::2",
+          "section_id": "2404.17607::section::2",
+          "text": "The workflow adopted for this study is illustrated in Figure 1. Each stage of the pipeline will be discussed in detail in the respective subsections. First the data is extracted and cleaned from Reddit, then sent to the human evaluators and the GPT-4 model for annotations. The human annotated dataset is then passed to pre-trained BERT models for training on a classification task. The performance of all three approaches is compared at the end to draw conclusions.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::3",
+      "paper_id": "2404.17607",
+      "heading": "A. Data Collection & Preparation",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::3::para::0",
+          "section_id": "2404.17607::section::3",
+          "text": "Reddit's Async PRAW API provides direct access to posts by subreddit through asynchronous execution. From the aforementioned r/QuitVaping subreddit, a total of 1000 posts made by users were extracted using the API. These posts ranged from users talking about their progress towards quitting vaping to users looking for help or motivation to quit or reduce vape use.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::3::para::1",
+          "section_id": "2404.17607::section::3",
+          "text": "Out of these 1000 posts, approximately 120 of them were randomly selected to form a sample dataset. From each post in the sample dataset, two columns including title and body were extracted and broken down into sentences using the Sentence Tokenizer from the NLTK library [20]. Table I gives a statistical overview of the text in the title and body fields of each post in the sample dataset.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::4",
+      "paper_id": "2404.17607",
+      "heading": "B. Human Annotation",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::4::para::0",
+          "section_id": "2404.17607::section::4",
+          "text": "The vaping-related sentences from the extracted sample were assigned to two human evaluators for manual annotations related quit-vaping intention. The assigned labels from this step will serve as the ground truth while making performance comparisons among the ML approaches.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::4::para::1",
+          "section_id": "2404.17607::section::4",
+          "text": "The annotators were tasked to label each sentence as 'Yes' or 'No' by following these guidelines to differentiate whether it is a quit-vaping related sentence:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::4::para::2",
+          "section_id": "2404.17607::section::4",
+          "text": "• Yes: TABLE II CLASS DISTRIBUTION AFTER HUMAN ANNOTATION Quit Vaping Intention Training Data Validation Data Testing Data Total Yes 64 9 13 86 No 860 114 173 1147 Total 924 123 186 1233",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2404.17607::section::4::para::3",
+          "section_id": "2404.17607::section::4",
+          "text": "-User explicitly mentions their desire, plan, or decision to specifically quit vaping, e.g., \"I have been wanting to quit the vape for a while\"",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2404.17607::section::4::para::4",
+          "section_id": "2404.17607::section::4",
+          "text": "• No:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2404.17607::section::4::para::5",
+          "section_id": "2404.17607::section::4",
+          "text": "-Sentences that do not mention vaping or quitting, e.g., \"Sorry if it sounds overdramatic.\" -User explicitly states that they have already quit vaping, e.g., \"5 days strong of cold turkey quitting all nicotine.\" -User describes a negative outcome of vaping, such as a negative health outcome, e.g., \"It makes my mouth taste and smell weird.\" -User expresses negative feelings of or experiences with vaping, such as feelings of shame or embarrassment about vaping, e.g., \"I work in healthcare and live a healthy lifestyle and am ashamed of vaping.\" The class distribution after human annotation was concluded can be found in Table II.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2404.17607::section::4::para::6",
+          "section_id": "2404.17607::section::4",
+          "text": "C. Classification using pre-trained BERT models BERT [21] has revolutionized language representations by introducing the concept of bidirectional attention in transformers. It served as the precursor to modern day Large Language Models (LLMs). Due to its architecture it can easily be finetuned to perform a multitude of tasks from question answering to natural language understanding. It can also be adopted to more specific use cases in social media studies such as COVID19 content analysis [22], Fake News Detection [23] or Hate Speech Detection [24] making it an ideal candidate for our purpose.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2404.17607::section::4::para::7",
+          "section_id": "2404.17607::section::4",
+          "text": "In order to fine-tune the base BERT model on our data, the sample dataset after human annotation was passed to the model as the input. The model was trained to classify the sentences from the title and body columns of the posts into 'Yes' or 'No' instances using the labels assigned by human evaluators as the target. The labelled dataset was broken down into train (75%), validation (10%) and test (15%) sets using stratified sampling. Given the imbalance between the classes in the training data, we had to adjust the model weights to make if a fair classification. As shown in Table II, the samples with label 'No' outnumber those with 'Yes' by about 13.5 times. To account for this lopsidedness, we assigned class weights for both classes and updated the loss function during training and evaluation to arrive at a more representative loss value.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2404.17607::section::4::para::8",
+          "section_id": "2404.17607::section::4",
+          "text": "Along with the base model, other pre-trained BERT models such as BioBERT [25], RedditBERT and DistilBERT [26] were also trained on the data using the same approach.",
+          "paragraph_index": 8
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::5",
+      "paper_id": "2404.17607",
+      "heading": "D. GPT-4 Annotation",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::5::para::0",
+          "section_id": "2404.17607::section::5",
+          "text": "In addition to using traditional transformer models, Ope-nAI's GPT-4 model was used to annotate the data. It is the latest model in the line of the popular Generative Pretrained Transformers from OpenAI. It has shown remarkable capabilities in a multitude of domains, even clearing the bar exam according to a recent study [27]. Recent studies indicate that GPT-4 can act as an alternative to human annotation in many diverse areas [9], [12], [28].",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::5::para::1",
+          "section_id": "2404.17607::section::5",
+          "text": "To test GPT-4's ability to annotate Reddit data from our sample dataset, we used OpenAI's API feature that lets users interact with the model of their choice via prompts. The model was tasked to do the following:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::5::para::2",
+          "section_id": "2404.17607::section::5",
+          "text": "TABLE III BERT MODELS' PERFORMANCE ON CLASSIFICATION Model Accuracy Recall F1 Score bert-base-uncased 94% 95% 94 distilbert-base-uncased 85% 92% 89 reddit-bert-text 10 93% 94% 93 biobert-base-cased-v1.2",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::6",
+      "paper_id": "2404.17607",
+      "heading": "95% 96% 95",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::6::para::0",
+          "section_id": "2404.17607::section::6",
+          "text": "• Assign the label 'Yes' to a sentence if it indicates the speaker's intention to quit vaping right now or the label 'No' if it does not.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::6::para::1",
+          "section_id": "2404.17607::section::6",
+          "text": "• Identify specific phrases from each sentence to justify your response.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::6::para::2",
+          "section_id": "2404.17607::section::6",
+          "text": "• Provide an explanation of why that phrase does or does not indicate an intention to quit vaping.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::7",
+      "paper_id": "2404.17607",
+      "heading": "A. Pre-trained BERT language models",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::7::para::0",
+          "section_id": "2404.17607::section::7",
+          "text": "Four pre-trained variants of the BERT model were finetuned on a binary classification task using the labels from human annotation as the ground truth. The summary of the classification results on the test dataset for each model is shown in Table III. Although the overall accuracy and recall suggest that the models are able to generalize predictions on unseen data, all four variants had issues identifying the positive class ('Yes' instances) on the test dataset. This can in part be owed to the fewer number of 'Yes' cases in the training data, even after the loss function was adjusted to better reflect the train dataset.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::7::para::1",
+          "section_id": "2404.17607::section::7",
+          "text": "Out of the four BERT variants that were tested, BioBERT had the best classification metrics on the test dataset with an F1 score of 95. On the 'Yes' instances in the test data, it had the best recall of about 60%. In comparison, the variant with the second best performance had a recall of 43% on the positive instances.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::7::para::2",
+          "section_id": "2404.17607::section::7",
+          "text": "DistilBERT on the other hand, had the lowest recall (0%) for the positive class on the test dataset. It was unable to correctly classify any instance of the positive class. The base BERT model and RedditBERT were able to make inferences closer to the BioBERT model. However, their performance on the 'Yes' instances was not up to par with BioBERT.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::8",
+      "paper_id": "2404.17607",
+      "heading": "B. GPT-4",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::8::para::0",
+          "section_id": "2404.17607::section::8",
+          "text": "While interacting with the API, two fields including role and prompt inform the model what its intended purpose is. 'Role' refers to the role of the model in this conversation while the 'prompt' field is used to provide input text to the model. We observed differences in model performance upon altering either of these two fields. For evaluating the performance of the GPT-4 model, we used the human annotated dataset as the ground truth for calculating metrics.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::8::para::1",
+          "section_id": "2404.17607::section::8",
+          "text": "The model tends to perform better when it's role is clearly defined. We evaluated the model's performance with three different role definitions as shown in Table IV with the base definition being \"You are an intelligent assistant\". For the other",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::8::para::2",
+          "section_id": "2404.17607::section::8",
+          "text": "TABLE IV GPT-4 MODEL ROLE DEFINITIONS Role Change You are an intelligent assistant -You are an intelligent assistant + Annotation guidelines used by human evaluators added context You are an intelligent assistant + Annotation guidelines used by human evaluators + Sample sentences with labels added context, examples",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2404.17607::section::8::para::3",
+          "section_id": "2404.17607::section::8",
+          "text": "two roles, we gave the model more context and some example labeled sentences in order to give it a better understanding of it's task. The model's recall went up from 48.1% to 74.1% when the role was more specific and had some examples for context.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2404.17607::section::8::para::4",
+          "section_id": "2404.17607::section::8",
+          "text": "However, the model still made a lot of false positive predictions with it's precision as low as 12.4%. For example, the sentence \"I have a big goal of affording an Apple Vision Pro at this Christmas and the money I spend on vaping would make that goal legit go up in smoke I want to look back on this post and know; nicotine was never your friend.\" was marked as positive ('Yes') by GPT-4. Although the speaker talks about distancing themselves from vaping, there is no explicit or implicit mention of quitting vaping right now.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2404.17607::section::8::para::5",
+          "section_id": "2404.17607::section::8",
+          "text": "Subtle changes in words and sentence phrasing affect the way the model responds to a prompt. One instance of hallucination was noted when the model started evaluating every sentence in the context that it was related to vaping. For example, it marked the sentence \"Quit!\" as Yes and reasoned that the word quit indicated that the speaker wanted to quit vaping. Not only does that go against the annotation guidelines, but it shows yet another instance of Generative AI models inferring data that isn't there.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::9",
+      "paper_id": "2404.17607",
+      "heading": "C. Comparison",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::9::para::0",
+          "section_id": "2404.17607::section::9",
+          "text": "Before drawing any conclusions, it is important to note the limitations of this study:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::9::para::1",
+          "section_id": "2404.17607::section::9",
+          "text": "• Training Data:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::9::para::2",
+          "section_id": "2404.17607::section::9",
+          "text": "-Size: For this preliminary study, we used a relatively smaller dataset to train the BERT models. It is no secret that the models could have benefited with a larger training corpus. -Diversity: All the posts were taken from the same subreddit community which may not be representative of the discourse on other subreddits.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2404.17607::section::9::para::3",
+          "section_id": "2404.17607::section::9",
+          "text": "With a detailed and well-constructed prompt and precise role, GPT-4 demonstrated impressive capability to assist in social media data annotation. However, caution must be taken to evaluate the model's responses at each stage of the pipeline to ensure that it is not biased. Key findings from our comparison analysis indicate that the GPT-4 model was more consistent in following annotation guidelines than the human evaluators. It was able to detect implied quit vaping intentions that the human evaluators sometimes missed.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2404.17607::section::10",
+      "paper_id": "2404.17607",
+      "heading": "V. CONCLUSION AND FUTURE WORK",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2404.17607::section::10::para::0",
+          "section_id": "2404.17607::section::10",
+          "text": "With this preliminary study, we were able to compare the performance of OpenAI's GPT-4 model against traditional pretrained BERT-based language models and human evaluators on a data annotation task to identify vaping cessation interests among Reddit users. We found that GPT-4 showed promising results, sometimes even outperforming the human evaluators. However, caution must be taken at each stage of the pipeline to minimize biases.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2404.17607::section::10::para::1",
+          "section_id": "2404.17607::section::10",
+          "text": "In the future, we plan to further develop this study as follows:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2404.17607::section::10::para::2",
+          "section_id": "2404.17607::section::10",
+          "text": "• Larger Dataset: Using the phrases and sentences that mention quit-vaping intentions, a much larger dataset can be collected through techniques such as semantic search.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2404.17607::section::10::para::3",
+          "section_id": "2404.17607::section::10",
+          "text": "• Multi-label Classification: This preliminary study only examined users' quit-vaping intentions at the sentence level due to the nature of work-in-progress. Given the complexity of the social media data, we plan to include more vaping-related labels such as negative health outcomes, reducing vape use, etc.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2404.17607::section::10::para::4",
+          "section_id": "2404.17607::section::10",
+          "text": "• Contextual Learning: In this study, each sentence was evaluated individually without the added context of the post that it was taken from. Machine Learning models tend to perform better with more context, so we will expand this work to contextual learning for the next-phase development.",
+          "paragraph_index": 4
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2404.17607::figure::0",
+      "paper_id": "2404.17607",
+      "figure_number": "Fig. 1 .",
+      "caption": "Fig. 1. Workflow to evaluate GPT-4 and BERT-based language models",
+      "page_number": 3,
+      "bounding_box": {
+        "page": 3,
+        "x": 48.96,
+        "y": 50.54,
+        "width": 514.09,
+        "height": 196.24
+      },
+      "grobid_ref_id": "fig_0",
+      "image_path": "extracted_images\\2404.17607_figure_0.png",
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2404.17607::citation::0",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Topics and sentiment surrounding vaping on twitter and reddit during the 2019 e-cigarette and vaping useassociated lung injury outbreak: Comparative study",
+      "cited_authors": [
+        "D Wu",
+        "E Kasson",
+        "A K Singh",
+        "Y Ren",
+        "N Kaiser",
+        "M Huang",
+        "P A Cavazos-Rehg"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::1",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Using a mixed methods approach to identify public perception of vaping risks and overall health outcomes on twitter during the 2019 evali outbreak",
+      "cited_authors": [
+        "E Kasson",
+        "A K Singh",
+        "M Huang",
+        "D Wu",
+        "P Cavazos-Rehg"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::2",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "i cannot live without my vape\": Electronic cigarette user-identified indicators of vaping dependence",
+      "cited_authors": [
+        "E K Soule",
+        "J G Lee",
+        "K L Egan",
+        "K M Bode",
+        "A C Desrosiers",
+        "M C Guy",
+        "A Breland",
+        "P Fagan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::3",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "E-cigarette users commonly stealth vape in places where e-cigarette use is prohibited",
+      "cited_authors": [
+        "J M Yingst",
+        "C Lester",
+        "S Veldheer",
+        "S I Allen",
+        "P Du",
+        "J Foulds"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::4",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Daily users compared to less frequent users find vape as or more satisfying and less dangerous than cigarettes, and are likelier to use non-cig-alike vaping products",
+      "cited_authors": [
+        "L T Kozlowski",
+        "D L Homish",
+        "G G Homish"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::5",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "The vaping teenager: understanding the psychographics and interests of adolescent vape users to inform health communication campaigns",
+      "cited_authors": [
+        "C A Stalgaitis",
+        "M Djakaria",
+        "J W Jordan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::6",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Classifying sentiments on social media texts: A gpt-4 preliminary study",
+      "cited_authors": [
+        "L L Maceda",
+        "J L Llovido",
+        "M B Artiaga",
+        "M B Abisado"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::7",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "e-cigarette cessation: content analysis of a quit vaping community on reddit",
+      "cited_authors": [
+        "L Struik",
+        "Y Yang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::8",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Chatgpt-4 outperforms experts and crowd workers in annotating political twitter messages with zero-shot learning",
+      "cited_authors": [
+        "P Törnberg"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::9",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Gpt-4 as a twitter data annotator: Unraveling its performance on a stance classification task",
+      "cited_authors": [
+        "C Liyanage",
+        "R Gokani",
+        "V Mago"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::10",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Brat: a web-based tool for nlp-assisted text annotation",
+      "cited_authors": [
+        "P Stenetorp",
+        "S Pyysalo",
+        "G Topić",
+        "T Ohta",
+        "S Ananiadou",
+        "J Tsujii"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::11",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Is gpt-4 a good data analyst?",
+      "cited_authors": [
+        "L Cheng",
+        "X Li",
+        "L Bing"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2305.15038",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::12",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Language models are few-shot learners",
+      "cited_authors": [
+        "T Brown",
+        "B Mann",
+        "N Ryder",
+        "M Subbiah",
+        "J D Kaplan",
+        "P Dhariwal",
+        "A Neelakantan",
+        "P Shyam",
+        "G Sastry",
+        "A Askell"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::13",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Gpt-4 technical report",
+      "cited_authors": [
+        "Openai"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::14",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Llama: Open and efficient foundation language models",
+      "cited_authors": [
+        "H Touvron",
+        "T Lavril",
+        "G Izacard",
+        "X Martinet",
+        "M.-A Lachaux",
+        "T Lacroix",
+        "B Rozière",
+        "N Goyal",
+        "E Hambro",
+        "F Azhar",
+        "A Rodriguez",
+        "A Joulin",
+        "E Grave",
+        "G Lample"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::15",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Using large language models (llms) to extract evidence from pre-annotated social media data",
+      "cited_authors": [
+        "F Alhamed",
+        "J Ive",
+        "L Specia"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::16",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Llms to the moon? reddit market sentiment analysis with large language models",
+      "cited_authors": [
+        "X Deng",
+        "V Bashlovkina",
+        "F Han",
+        "S Baumgartner",
+        "M Bendersky"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::17",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Automated annotation with generative ai requires validation",
+      "cited_authors": [
+        "N Pangakis",
+        "S Wolken",
+        "N Fasching"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2306.00176",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::18",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Is gpt-3 a good data annotator?",
+      "cited_authors": [
+        "B Ding",
+        "C Qin",
+        "L Liu",
+        "Y K Chia",
+        "S Joty",
+        "B Li",
+        "L Bing"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2212.10450",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::19",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "NLTK sentence tokenizer",
+      "cited_authors": [
+        "Nltk Contributors"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::20",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Bert: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "J Devlin",
+        "M.-W Chang",
+        "K Lee",
+        "K Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::21",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Covid-twitter-bert: A natural language processing model to analyse covid-19 content on twitter",
+      "cited_authors": [
+        "M Müller",
+        "M Salathé",
+        "P E Kummervold"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::22",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Fakebert: Fake news detection in social media with a bert-based deep learning approach",
+      "cited_authors": [
+        "R K Kaliyar",
+        "A Goswami",
+        "P Narang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::23",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Hate speech detection and racial bias mitigation in social media based on bert model",
+      "cited_authors": [
+        "M Mozafari",
+        "R Farahbakhsh",
+        "N Crespi"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::24",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Biobert: a pre-trained biomedical language representation model for biomedical text mining",
+      "cited_authors": [
+        "J Lee",
+        "W Yoon",
+        "S Kim",
+        "D Kim",
+        "S Kim",
+        "C H So",
+        "J Kang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1093/bioinformatics/btz682",
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::25",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Distilbert, a distilled version of bert: smaller, faster, cheaper and lighter",
+      "cited_authors": [
+        "V Sanh",
+        "L Debut",
+        "J Chaumond",
+        "T Wolf"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::26",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "Gpt-4 passes the bar exam",
+      "cited_authors": [
+        "D M Katz",
+        "M J Bommarito",
+        "S Gao",
+        "P Arredondo"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2404.17607::citation::27",
+      "paper_id": "2404.17607",
+      "raw_text": null,
+      "cited_title": "The effectiveness of gpt-4 as financial news annotator versus human annotator in improving the accuracy and performance of sentiment analysis",
+      "cited_authors": [
+        "S Azad"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

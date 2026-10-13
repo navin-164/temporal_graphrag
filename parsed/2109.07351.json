@@ -1,0 +1,595 @@
+{
+  "arxiv_id": "2109.07351",
+  "title": "The ELITR ECA Corpus",
+  "authors": [
+    {
+      "name": "Philip Williams",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Barry Haddow",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "We present the ELITR ECA corpus, a multilingual corpus derived from publications of the European Court of Auditors. We use automatic translation together with Bleualign to identify parallel sentence pairs in all 506 translation directions. The result is a corpus comprising 264k document pairs and 41.9M sentence pairs.",
+  "categories": [
+    "cs.CL"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2021-09-15T15:03:27"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2021-09-15",
+  "citation_count": 5,
+  "reference_count": 14,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2109.07351::section::0",
+      "paper_id": "2109.07351",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2109.07351::section::0::para::0",
+          "section_id": "2109.07351::section::0",
+          "text": "Most machine translation systems are trained using large volumes of human-translated text. The high cost of human translation means that training data is not typically created specifically for use in machine translation but is instead repurposed from sources where text has been translated for some other use. The European Union, which publishes in up to 24 languages has long been a rich source of data for the machine translation community (Koehn, 2005;Steinberger et al., 2006Steinberger et al., , 2014;;Hajlaoui et al., 2014).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2109.07351::section::0::para::1",
+          "section_id": "2109.07351::section::0",
+          "text": "In line with other institutions of the EU, the European Court of Auditorsfoot_0 publishes the majority of its official documents in 23 of the 24 EU languages. 2 To our knowledge, this data has not yet been compiled into a publicly available corpus. In this work, we downloaded PDF reports from the ECA website and extracted plain text versions to create 23 monolingual corpora, with text segmented at the document and sentence level. We then used a multilingual neural machine translation system to automatically translate text in all 506 translation directions and used Bleualign (Sennrich and Volk, 2011) to identify parallel sentences. The resulting dataset comprises 264k document pairs and totalling 41.9M sentence pairs (including du-plicates) across all translation directions. It is available from http://data.statmt.org/elitr-eca.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2109.07351::section::0::para::2",
+          "section_id": "2109.07351::section::0",
+          "text": "Sections 2 and 3 describe the methodology in more detail and report some further statistics of the data.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2109.07351::section::1",
+      "paper_id": "2109.07351",
+      "heading": "Monolingual Corpora",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2109.07351::section::1::para::0",
+          "section_id": "2109.07351::section::1",
+          "text": "We created monolingual corpora in 23 languages by downloading PDF reports, extracting plain text, converting to UTF-8, splitting into sentences, dehyphenating, and normalizing.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2109.07351::section::1::para::1",
+          "section_id": "2109.07351::section::1",
+          "text": "The PDFs were downloaded in May 2020. We first used the ECA website's search facilityfoot_2 to obtain a list of URLs for all available English language PDFs. ECA documents use a consistent file naming convention where the ISO 639-1 language code is included in the filename (for example agencies 2019 EN.pdf). We substituted the 22 other language codes and downloaded all documents that were available.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2109.07351::section::1::para::2",
+          "section_id": "2109.07351::section::1",
+          "text": "To obtain plain-text versions of the PDFs, we wrote an Automator script that used macOS's builtin support for PDF-to-text conversion. The resulting files used a mixture of character encodings, so we used chardetfoot_3 to automatically detect the encoding of each file, then converted from that encoding to UTF-8 using iconv.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2109.07351::section::1::para::3",
+          "section_id": "2109.07351::section::1",
+          "text": "We split the text into sentences using the split-sentences.perl script from the Moses toolkit (Koehn et al., 2007).",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2109.07351::section::1::para::4",
+          "section_id": "2109.07351::section::1",
+          "text": "A common problem with text extracted from PDF is that words that were broken at the end of a line retain their hyphenation and must be re-joined. We used a simple statistical approach where we collected token counts for each language across all of the extracted text. We then searched for pairs of tokens where the first ends in a hyphen, replacing the pair with their concatenation, either with or without the hyphen depending on which resulting form had been observed most frequently. For example, dur-ing was replaced with during because during was seen 8,735 times and dur-ing was never seen. co-financed was replaced with co-financed because that token was seen 1,079 times and cofinanced was seen only 63 times. Finally, we normalized the Unicode representation files by converting them to NFC form.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2109.07351::section::1::para::5",
+          "section_id": "2109.07351::section::1",
+          "text": "Table 1 gives per-language statistics for the resulting corpus.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2109.07351::section::2",
+      "paper_id": "2109.07351",
+      "heading": "Parallel Corpora",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2109.07351::section::2::para::0",
+          "section_id": "2109.07351::section::2",
+          "text": "We derived parallel corpora from pairs of plain-text documents for all 506 directed combinations of the 23 languages. For each plain-text version of a document d x in language x with a corresponding plaintext document d y in language y, we translated d x into language y to create document d xy . We then used Bleualign to identify parallel sentences in d x and d y based on the similarity of sentences in d y to the translations in d xy . We used a threshold simi-",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2109.07351::section::2::para::1",
+          "section_id": "2109.07351::section::2",
+          "text": "Language Pair Document Pairs Sentence Pairs fr2en 1,203 455,227 en2fr 1,203 454,616 es2en 1,124 437,505 en2es 1,124 437,174 pt2en 1,112 414,160 en2pt 1,112 409,990 el2en 1,104 404,410 en2el 1,104 400,482 sv2en 1,066 398,566 en2sv 1,066 391,925 . . . . . . . . . it2lv 135 14,923 et2it 134 14,915 lt2it 135 14,888 lv2hr 96 14,848 it2hu 134 14,497 it2et 134 14,348 hu2it 134 14,266 bg2it 122 13,973 hr2it 66 8,386 it2hr 66 8,300",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2109.07351::section::2::para::2",
+          "section_id": "2109.07351::section::2",
+          "text": "Table 2: Parallel corpus statistics.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2109.07351::section::2::para::3",
+          "section_id": "2109.07351::section::2",
+          "text": "larity of 10.0 BLEU. We did this for each language pair x-y to create a corpus of parallel sentences, creating separate corpora for pairs x-y and x-y, from the same set of documents. This provides the option of taking the intersection of sentence pairs obtained from translation in both directions, which should be expected to increase the precision of parallel sentence identification.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2109.07351::section::2::para::4",
+          "section_id": "2109.07351::section::2",
+          "text": "In order that the corpus can be filtered based on translation quality, we provide files in tab-separated format, one per document pair, containing the source sentence, target sentence, and BLEU score.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2109.07351::section::2::para::5",
+          "section_id": "2109.07351::section::2",
+          "text": "Table 2 gives some statistics for the resulting corpus. For space reasons, we show only the top 10 and bottom 10 language pairs, ordered by number of sentence pairs.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2109.07351::section::3",
+      "paper_id": "2109.07351",
+      "heading": "Translation Model",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2109.07351::section::3::para::0",
+          "section_id": "2109.07351::section::3",
+          "text": "For translation, we trained a single many-to-many multilingual model on a dataset sampled from the OPUS collection (Tiedemann, 2012). Similar to prior work, including Aharoni et al. (2019) and Zhang et al. (2020), our dataset was Englishcentric, meaning that all training pairs included English on either the source or target side. We used all available parallel corpora for English paired with the 23 non-English EU languages. In order to reduce the dominance of high-resource language pairs / domains, we applied exponentially smoothed weighting to domain and language pair choice when sampling sentence pairs. In total, our training data contained 364M sentence pairs.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2109.07351::section::3::para::1",
+          "section_id": "2109.07351::section::3",
+          "text": "Our preprocessing pipeline consisted of corpus cleaning, segmentation, and target language tagging. For corpus cleaning, we used the clean-corpus-n.perl script from the Moses toolkit (Koehn et al., 2007). This applies a maximum length threshold of 80 as well as removing empty sentences and sentence pairs with length ratios greater than 9:1. For segmentation, we trained a single SentencePiece model (Kudo and Richardson, 2018) with a vocabulary size of 64,000 BPE subwords and a vocabulary threshold of 50. We added a token to each source sentence to specify the target language, as in Johnson et al. (2017).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2109.07351::section::3::para::2",
+          "section_id": "2109.07351::section::3",
+          "text": "For training we used Marian (Junczys-Dowmunt et al., 2018) with hyperparameter settings matching the 'base' configuration of Vaswani et al. (2017).",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2109.07351::section::4",
+      "paper_id": "2109.07351",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2109.07351::section::4::para::0",
+          "section_id": "2109.07351::section::4",
+          "text": "We have presented the ELITR ECA corpus, a multilingual corpus derived from publications of the European Court of Auditors. The corpus preserves document boundaries and BLEU similarity scores, and contains between 8,300 and 455,227 sentence pairs per language pair in all 506 translation directions, totalling 41.9M sentence pairs.",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [
+    {
+      "id": "2109.07351::table::0",
+      "paper_id": "2109.07351",
+      "table_number": "Table 1 :",
+      "caption": "Monolingual corpus statistics.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "Language",
+          "Documents Sentences"
+        ],
+        [
+          "Bulgarian",
+          "779",
+          "398,012"
+        ],
+        [
+          "Croatian",
+          "444",
+          "281,783"
+        ],
+        [
+          "Czech",
+          "871",
+          "418,043"
+        ],
+        [
+          "Danish",
+          "368",
+          "193,895"
+        ],
+        [
+          "Dutch",
+          "783",
+          "391,914"
+        ],
+        [
+          "English",
+          "1,391",
+          "661,815"
+        ],
+        [
+          "Estonian",
+          "402",
+          "183,265"
+        ],
+        [
+          "Finnish",
+          "1,072",
+          "535,880"
+        ],
+        [
+          "French",
+          "1,229",
+          "591,559"
+        ],
+        [
+          "German",
+          "816",
+          "376,395"
+        ],
+        [
+          "Greek",
+          "1,126",
+          "541,826"
+        ],
+        [
+          "Hungarian",
+          "868",
+          "426,962"
+        ],
+        [
+          "Italian",
+          "181",
+          "92,540"
+        ],
+        [
+          "Latvian",
+          "198",
+          "94,864"
+        ],
+        [
+          "Lithuanian",
+          "434",
+          "204,860"
+        ],
+        [
+          "Maltese",
+          "867",
+          "398,056"
+        ],
+        [
+          "Polish",
+          "867",
+          "412,476"
+        ],
+        [
+          "Portuguese",
+          "1,130",
+          "527,610"
+        ],
+        [
+          "Romanian",
+          "278",
+          "124,837"
+        ],
+        [
+          "Slovak",
+          "869",
+          "434,025"
+        ],
+        [
+          "Slovene",
+          "310",
+          "138,246"
+        ],
+        [
+          "Spanish",
+          "1,143",
+          "555,153"
+        ],
+        [
+          "Swedish",
+          "1,074",
+          "519,219"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2109.07351::citation::0",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Massively multilingual neural machine translation",
+      "cited_authors": [
+        "Roee Aharoni",
+        "Melvin Johnson",
+        "Orhan Firat"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/N19-1388",
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::1",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "DCEP -digital corpus of the European parliament",
+      "cited_authors": [
+        "Najeh Hajlaoui",
+        "David Kolovratnik",
+        "Jaakko Väyrynen",
+        "Ralf Steinberger",
+        "Daniel Varga"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::2",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Google's multilingual neural machine translation system: Enabling zero-shot translation",
+      "cited_authors": [
+        "Melvin Johnson",
+        "Mike Schuster",
+        "Quoc V Le",
+        "Maxim Krikun",
+        "Yonghui Wu",
+        "Zhifeng Chen",
+        "Nikhil Thorat",
+        "Fernanda Viégas",
+        "Martin Wattenberg",
+        "Greg Corrado",
+        "Macduff Hughes",
+        "Jeffrey Dean"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::3",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Marian: Fast neural machine translation in C++",
+      "cited_authors": [
+        "Marcin Junczys-Dowmunt",
+        "Roman Grundkiewicz",
+        "Tomasz Dwojak",
+        "Hieu Hoang",
+        "Kenneth Heafield",
+        "Tom Neckermann",
+        "Frank Seide",
+        "Ulrich Germann",
+        "Alham Fikri Aji",
+        "Nikolay Bogoychev",
+        "F T André"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::4",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Europarl: A parallel corpus for statistical machine translation",
+      "cited_authors": [
+        "Philipp Koehn"
+      ],
+      "cited_year": 2005,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::5",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Moses: Open source toolkit for statistical machine translation",
+      "cited_authors": [
+        "Philipp Koehn",
+        "Hieu Hoang",
+        "Alexandra Birch",
+        "Chris Callison-Burch",
+        "Marcello Federico",
+        "Nicola Bertoldi",
+        "Brooke Cowan",
+        "Wade Shen",
+        "Christine Moran",
+        "Richard Zens",
+        "Chris Dyer",
+        "Ondřej Bojar",
+        "Alexandra Constantin",
+        "Evan Herbst"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::6",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "SentencePiece: A simple and language independent subword tokenizer and detokenizer for neural text processing",
+      "cited_authors": [
+        "Taku Kudo",
+        "John Richardson"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::7",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Iterative, MTbased sentence alignment of parallel texts",
+      "cited_authors": [
+        "Rico Sennrich",
+        "Martin Volk"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::8",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "An overview of the european union's highly multilingual parallel corpora",
+      "cited_authors": [
+        "Ralf Steinberger",
+        "Mohamed Ebrahim",
+        "Alexandros Poulis",
+        "Manuel Carrasco-Benitez",
+        "Patrick Schlüter",
+        "Marek Przybyszewski",
+        "Signe Gilbro"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/s10579-014-9277-0",
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::9",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "The JRC-Acquis: A multilingual aligned parallel corpus with 20+ languages",
+      "cited_authors": [
+        "Ralf Steinberger",
+        "Bruno Pouliquen",
+        "Anna Widiger",
+        "Camelia Ignat",
+        "Tomaž Erjavec"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::10",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Parallel data, tools and interfaces in OPUS",
+      "cited_authors": [
+        "Jörg Tiedemann"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::11",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Attention is all you need",
+      "cited_authors": [
+        "Ashish Vaswani",
+        "Noam Shazeer",
+        "Niki Parmar",
+        "Jakob Uszkoreit",
+        "Llion Jones",
+        "Aidan N Gomez",
+        "Łukasz Kaiser",
+        "Illia Polosukhin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2109.07351::citation::12",
+      "paper_id": "2109.07351",
+      "raw_text": null,
+      "cited_title": "Improving massively multilingual neural machine translation and zero-shot translation",
+      "cited_authors": [
+        "Biao Zhang",
+        "Philip Williams",
+        "Ivan Titov",
+        "Rico Sennrich"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

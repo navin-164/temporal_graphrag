@@ -1,0 +1,902 @@
+{
+  "arxiv_id": "2112.01342",
+  "title": "How not to Lie with a Benchmark: Rearranging NLP Leaderboards",
+  "authors": [
+    {
+      "name": "Shavrina Tatiana",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Malykh Valentin",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Comparison with a human is an essential requirement for a benchmark for it to be a reliable measurement of model capabilities. Nevertheless, the methods for model comparison could have a fundamental flaw - the arithmetic mean of separate metrics is used for all tasks of different complexity, different size of test and training sets.   In this paper, we examine popular NLP benchmarks' overall scoring methods and rearrange the models by geometric and harmonic mean (appropriate for averaging rates) according to their reported results. We analyze several popular benchmarks including GLUE, SuperGLUE, XGLUE, and XTREME. The analysis shows that e.g. human level on SuperGLUE is still not reached, and there is still room for improvement for the current models.",
+  "categories": [
+    "cs.CL",
+    "cs.AI"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2021-12-02T15:40:52"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2021-12-02",
+  "citation_count": 15,
+  "reference_count": 23,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2112.01342::section::0",
+      "paper_id": "2112.01342",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::0::para::0",
+          "section_id": "2112.01342::section::0",
+          "text": "The benchmarking approach has a rich history throughout computer science and is now the leading method in machine learning progress validation. In the field of Natural Language Processing (NLP), there exist at least 898 benchmarksfoot_0 , the most prominent being GLUE, SuperGLUE, XGLUE, etc., created within a single paradigm.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::0::para::1",
+          "section_id": "2112.01342::section::0",
+          "text": "The SOTA-centricity of the language model benchmarking has been since criticized as misleadingfoot_1 : the battle for percentage fractions leads to extensive improvements -an increase in the data volume and number of parameters of models, -rather than an intensive improvement in their architectures. The existing solutions suggest Pareto efficiency between the estimated accuracy and computational costs (Dodge et al., 2019) and draw attention to the question of model utility versus overall score (Ethayarajh and Jurafsky, 2021). The recent work (Dehghani et al., 2021) has also stated that many factors, other than fundamental algorithmic superiority, can lead to a method being evaluated as superior, for example, various subsamples of the benchmark tasks' result in different leaderboard arrangements. This forms the conception of the \"benchmark lottery\", describing the fragility of the main model evaluation instruments.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::0::para::2",
+          "section_id": "2112.01342::section::0",
+          "text": "We state that the delicate question of a general model assessment should not be solved by a simplistic yet incorrect method -the arithmetic mean over all the results. Stated method does not take into account the scatter of results on various tasks, the differing size of the task test sets (e.g. in Super-GLUE they differ a hundred times, compare 146 test samples in Winograd Schema and 10'000 test samples in ReCoRd (Wang et al., 2019a)), different susceptibility to leaks (Elangovan et al., 2021), including the year of creation (Recognizing Textual Entailment data was collected in 2005 (Dagan et al., 2005), while BoolQ or CommitmentBank data was collected in 2019 (Clark et al., 2019), (De Marneffe et al., 2019)).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2112.01342::section::0::para::3",
+          "section_id": "2112.01342::section::0",
+          "text": "In this article we present an analysis of the NLP benchmarks' results, using not the arithmetic mean, but the other metrics: geometric mean and harmonic mean. As F1 (harmonic mean) is frequently used to normalize Precision and Recall as they are fractions, optimizing the classifier threshold to maximize F1 leads to a better balance between metrics than the arithmetic mean because it penalizes systems more for the smaller values (Sasaki et al., 2007). The geometric mean, as noted in the (Fleming and Wallace, 1986), is the preferred metric to the arithmetic mean in computing performance benchmarks when it comes to normalized values and percentages.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2112.01342::section::0::para::4",
+          "section_id": "2112.01342::section::0",
+          "text": "The results change the usual idea of the models' order on leaderboards: humans still occupy the first place in the intellectual task solving, and the best results (1.5-2% worse than humans) belong to DeBerta (He et al., 2020), T5+Meena (Raffel et al., 2020) and McAlbert+DKM modelsfoot_3 . Thus, the contribution of this paper is two-fold:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2112.01342::section::0::para::5",
+          "section_id": "2112.01342::section::0",
+          "text": "1. we present the reviewed model evaluation technique, core for benchmark design, 2. we re-arrange the currently existing leaderboards of most popular benchmarks.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::1",
+      "paper_id": "2112.01342",
+      "heading": "Previous Work",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::1::para::0",
+          "section_id": "2112.01342::section::1",
+          "text": "Evaluation and comparison of NLP models beget a rich history, rising with the Turing test (Turing, 2009). The next step in the development and assessment of intelligent systems belongs to the MLbenchmark methodology, which aims to bring the solution of the Natural Language Understanding problem closer -General Language Understanding Evaluation (Wang et al., 2019b).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::1::para::1",
+          "section_id": "2112.01342::section::1",
+          "text": "As stated in (Wang et al., 2019a), \"Lacking a fair criterion with which to weight the contributions of each task to the overall score, we opt for the simple approach of weighing each task equally, and for tasks with multiple metrics, first averaging those metrics to get a task score.\" All the GLUE-based benchmarks follow this methodology.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::1::para::2",
+          "section_id": "2112.01342::section::1",
+          "text": "However, apart from the GLUE format, other benchmarks have provided several alternatives to evaluate the overall model contribution. KILT, a Benchmark for Knowledge Intensive Language Tasks (Petroni et al., 2020), avoids calculating the overall result, and also do not compare the result with the human level, but only provides metrics for individual tasks. DecaNLP (McCann et al., 2018) makes a rating using not the average, but the sum of points for all tasks. This approach allows balancing the contributions of different tasks to the overall metric.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::2",
+      "paper_id": "2112.01342",
+      "heading": "Method",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::2::para::0",
+          "section_id": "2112.01342::section::2",
+          "text": "We arrange the NLP benchmark results using the publicly available model scores for all the tasks to calculate new overall scores.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::2::para::1",
+          "section_id": "2112.01342::section::2",
+          "text": "Other available options from Pythagorean means -harmonic mean and geometric mean -can also be considered: we have centered our research around 2 simple statistics that are widely used for averaging fractions (lun Chou, 1969) or normalized values (Fleming and Wallace, 1986) among the possible alternatives. We did not consider other measures of central tendency, like median and mode, as the averaged samples more often consist of about 10 measurements, and on them such metrics can give the same results for competing systems.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::2::para::2",
+          "section_id": "2112.01342::section::2",
+          "text": "• The arithmetic mean (AM) desribed in eq. 1 is calculated as the sum of the task scores (Xs) divided by the total number of tasks, referred to as N.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2112.01342::section::2::para::3",
+          "section_id": "2112.01342::section::2",
+          "text": "• The geometric mean (GM) desribed in eq. 2 is calculated as the N-th root of the product of all task scores (with the above conditions), where N is the number of values.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2112.01342::section::2::para::4",
+          "section_id": "2112.01342::section::2",
+          "text": "• The harmonic mean (HM) desribed in eq. 3 is calculated as the number of values N divided by the sum of the reciprocal of the values",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2112.01342::section::2::para::5",
+          "section_id": "2112.01342::section::2",
+          "text": "The sections below present the results of the leaderboard re-weighting as of May 2021.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::3",
+      "paper_id": "2112.01342",
+      "heading": "Reevaluating the Benchmarks",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::3::para::0",
+          "section_id": "2112.01342::section::3",
+          "text": "The GLUE (11 tasks for English), SuperGLUE (10 tasks for English), XGLUE (11 tasks for 19 languages), and XTREME (4 tasks for 40 languages) provide different scoring metrics for each task, including Accuracy, F1, Matthew's correlation coefficient, Exact Match, while the overall score is calculated by their simple average. In cases like these, the geometric mean is appropriate when the data contains values with different units of measure (lun Chou, 1969).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::3::para::1",
+          "section_id": "2112.01342::section::3",
+          "text": "The harmonic mean of the task results as a better overall metric has the same grounding as introduction of the F-1 measure over precision and recall (Sasaki et al., 2007): the harmonic mean is more intuitive than the arithmetic mean when computing a mean of ratios. Given the set of metrics with a large scatter, the harmonic mean will be less than the arithmetic mean, penalizing the system more for the errors made.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::3::para::2",
+          "section_id": "2112.01342::section::3",
+          "text": "The harmonic mean is the appropriate mean if the data is comprised of rates, while the geometric mean is used as an unbiased estimation when working with normalized ratios, for example, in finance (Dittmann and Maug, 2008) or computing benchmarks (Fleming and Wallace, 1986).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2112.01342::section::3::para::3",
+          "section_id": "2112.01342::section::3",
+          "text": "However, their applicability to a better summarization of the model performance to a single number has been widely discussed, see (Smith, 1988), discussing performance computing:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2112.01342::section::3::para::4",
+          "section_id": "2112.01342::section::3",
+          "text": "• the harmonic mean is considered the appropriate metric to summarize benchmark results expressed as rates,",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2112.01342::section::3::para::5",
+          "section_id": "2112.01342::section::3",
+          "text": "• while geometric mean is applicable in case of the use of performance numbers that are normalized with respect to one of the results being compared (see 4),",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2112.01342::section::3::para::6",
+          "section_id": "2112.01342::section::3",
+          "text": "• and arithmetic mean should not be used as a summarizing metric with rates, making it the worst choice for results accumulation.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::4",
+      "paper_id": "2112.01342",
+      "heading": "GLUE",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::4::para::0",
+          "section_id": "2112.01342::section::4",
+          "text": "GLUE benchmark (Wang et al., 2019b) combines 11 tasks in various text classification and question answering.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::4::para::1",
+          "section_id": "2112.01342::section::4",
+          "text": "Overall score: average of all the task results. If task has 2 main metrics, these metrics are averaged, then added to the overall average.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::5",
+      "paper_id": "2112.01342",
+      "heading": "Human evaluation:",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::5::para::0",
+          "section_id": "2112.01342::section::5",
+          "text": "collected on reported human performance numbers from original datasets, not exceeding 200 examples (heavily criticised in (Nangia and Bowman, 2019)). The human baseline performance on the diagnostic set was provided by the project authors with the help of six NLP researchers annotating 50 randomly selected sentence pairs.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::5::para::1",
+          "section_id": "2112.01342::section::5",
+          "text": "Rearranging the scores: the results of geometric and harmonic mean rearrangement are presented in Tab. 1. GLUE benchmark seem to be the most reordered of all the ratings considered: the best result by geometric and harmonic means belongs to humans, DeBerta and McAlbert+DKM got a 1 point demotion, and the other models got severely rearranged their places.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::6",
+      "paper_id": "2112.01342",
+      "heading": "SuperGLUE",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::6::para::0",
+          "section_id": "2112.01342::section::6",
+          "text": "SuperGLUE (Wang et al., 2019a) is the sophisticated version of the GLUE benchmark, combining 10 tasks with a higher demand for higher intellectual abilities. Task data must is available under various licenses that allow use and redistribution for research purposes.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::6::para::1",
+          "section_id": "2112.01342::section::6",
+          "text": "Overall score: average of all the task results. If task has 2 main metrics, these metrics are averaged, then added to the overall average.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::6::para::2",
+          "section_id": "2112.01342::section::6",
+          "text": "Human evaluation: ready-made estimates for WiC, MultiRC, RTE, and ReCoRD datasets, the other tasks being evaluated by the project creators with the help of crowdworker annotators through Amazon's Mechanical Turk.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2112.01342::section::6::para::3",
+          "section_id": "2112.01342::section::6",
+          "text": "Rearranging the scores: Re-weighting the results using the geometric mean and harmonic mean again makes significant changes to the original ranking: the top-3 result (human) is ranked top-1, the DeBerta and T5 models are shifted down 1 position, PAI ALbert and Nezha Plus models swap their places, see Tab. 2.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::7",
+      "paper_id": "2112.01342",
+      "heading": "XTREME",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::7::para::0",
+          "section_id": "2112.01342::section::7",
+          "text": "The XTREME benchmark (Hu et al., 2020)covers 40 typologically diverse languages from 12 language families and includes 9 tasks that require analysis of different levels of syntax or semantics.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::7::para::1",
+          "section_id": "2112.01342::section::7",
+          "text": "Overall score: 2-step averaging: 1) calculating average for each task on all languages 2) calculating average on all tasks.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::7::para::2",
+          "section_id": "2112.01342::section::7",
+          "text": "Human evaluation: 2-step averaging:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2112.01342::section::7::para::3",
+          "section_id": "2112.01342::section::7",
+          "text": "1. step 1: ready-made estimates from the original datasets taken and extrapolated to all unestimated languages; besides, for some datasets there were no original estimates provided (POS) and an empirical estimate of 97% was taken based on (Manning, 2011); no estimates for NER and sentence retrieval tasks; 2. step 2: all the task results averaged together.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2112.01342::section::7::para::4",
+          "section_id": "2112.01342::section::7",
+          "text": "Rearranging the scores: the results of applying the geometric mean and harmonic mean did not change the current ranking of the models -the quality spread between them is high enough for the metrics averaging them to retain the current order.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2112.01342::section::7::para::5",
+          "section_id": "2112.01342::section::7",
+          "text": "N Model AM HM GM Sentence-pair Classification Structured Prediction Question Answering Sentence Retrieval 1 Human 93,30 93,13 93,21 95,10 97,00 87,80 0.00001 2 VECO 81,10 81,27 81,70 88,60 75,40 72,40 92,10 3 ERNIE-M 80,90 81,11 81,52 87,90 75,60 72,30 91,90 4 T-ULRv2 80,70 80,91 81,25 88,80 75,40 72,90 89,30 5 Anonymous3 79,90 80,12 80,50 88,20 74,60 71,70 89,00 6 Polyglot 77,80 78,02 78,56 87,80 72,90 67,40 88,30",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2112.01342::section::7::para::6",
+          "section_id": "2112.01342::section::7",
+          "text": "Table 3: Top results of ranking XTREME benchmark with geometric mean. N -original model rank on the leaderboard; the averaged task scores are shown by the column markings.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::8",
+      "paper_id": "2112.01342",
+      "heading": "XGLUE",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::8::para::0",
+          "section_id": "2112.01342::section::8",
+          "text": "The XGLUE benchmark (Liang et al., 2020)consists of 11 problems in 19 languages and evaluates the performance of multilingual pre-trained systems in terms of their ability to cross-language understanding and natural language generation.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::8::para::1",
+          "section_id": "2112.01342::section::8",
+          "text": "Overall score: 2-step averaging: 1) calculating average for each task on all languages 2) calculating average on all tasks.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::8::para::2",
+          "section_id": "2112.01342::section::8",
+          "text": "Human evaluation: not provided.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2112.01342::section::8::para::3",
+          "section_id": "2112.01342::section::8",
+          "text": "Rearranging the scores: Since the human level is not measured in the benchmark, we can only compare the 2 present models with each other. Tab. 4 shows the results -the difference in the quality of the models is large enough to preserve their ranking on all averaging metrics.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::9",
+      "paper_id": "2112.01342",
+      "heading": "Results and Discussion",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::9::para::0",
+          "section_id": "2112.01342::section::9",
+          "text": "The results show that the ranking of results within a single leaderboard can fluctuate significantly. So, in GLUE, the first place in terms of the harmonic and geometric mean belongs to the result occupying the 16th line in the arithmetic mean. In SuperGLUE, the permutation is not so striking -the third result is on the 1st place. On the XTREME and XGLUE benchmarks system ranking is preserved.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::9::para::1",
+          "section_id": "2112.01342::section::9",
+          "text": "Since all three averaging metrics considered are subject to different biases, we present the statistical measurements of the top-3 SuperGLUE results in Tab. 5. Human results have the highest total points for all tasks (as in the DecaNLP methodology), while the standard deviation and variance are greater than top-2 and top-3 models.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::9::para::2",
+          "section_id": "2112.01342::section::9",
+          "text": "Model AM GM HM Sum Var Std Human 89,8 88,73 87,96 894,40 130,31 11,42 DeBerta 90,3 87,60 86,89 882,55 117,46 10,84 T5 + Meena 90,2 87,10 86,42 877,25 112,39 10,60",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2112.01342::section::9::para::3",
+          "section_id": "2112.01342::section::9",
+          "text": "Table 5: Measuring the statistics of the top-3 SuperGLUE results. Sum is a sum of all the task scores, Var and Std are variance and standard deviation on the task scores respectively. Notable results are highlighted in bold.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2112.01342::section::9::para::4",
+          "section_id": "2112.01342::section::9",
+          "text": "The following topics remain debatable and need special attention of the community:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2112.01342::section::9::para::5",
+          "section_id": "2112.01342::section::9",
+          "text": "1. Different metrics for obtaining the average value (arithmetic, geometric, harmonic) have different restrictions on the accepted values (for example, not every one can take negative or zero values). At the same time, metrics that take zero and negative values are actively used in measuring various skills -MCC metric on SuperGLUE diagnostics can be negative, other metrics can be equal to or greater than zero, and they are averaged altogether.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2112.01342::section::9::para::6",
+          "section_id": "2112.01342::section::9",
+          "text": "2. Correct averaging of the overall score for multilingual benchmarks creates additional problems while performing the averaging operation in 2 stages: for all languages and all tasks.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2112.01342::section::9::para::7",
+          "section_id": "2112.01342::section::9",
+          "text": "3. In addition to the problem of the main averaging metric, we left outside of the scope the problem that was also discovered within the framework of this study: human benchmark scores on various tasks were obtained in a very different way.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2112.01342::section::10",
+      "paper_id": "2112.01342",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2112.01342::section::10::para::0",
+          "section_id": "2112.01342::section::10",
+          "text": "In this paper we present an alternative method to arrange the popular NLP benchmark results, elaborating on several task evaluation. We analyze popular benchmark averaging methods and provide new insight into model comparison. Namely, we obtain the following results:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2112.01342::section::10::para::1",
+          "section_id": "2112.01342::section::10",
+          "text": "• for popular benchmarks GLUE and SuperGLUE we can conclude that their overall score is subject to bias due to outliers; the alternative arrengement methods end with significantly different ordering of the results;",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2112.01342::section::10::para::2",
+          "section_id": "2112.01342::section::10",
+          "text": "• rebuilding leaderboards using other metrics (geometric or harmonic mean) allows one to conclude that human result is the first in the rankings;",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2112.01342::section::10::para::3",
+          "section_id": "2112.01342::section::10",
+          "text": "• in XGLUE leaderboard human result is obtained by extrapolation from one language to others, while in practice the level of problem-solving by native speakers of different languages varies;",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2112.01342::section::10::para::4",
+          "section_id": "2112.01342::section::10",
+          "text": "• the last finding could be extended to other multilingual benchmarks also.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2112.01342::section::10::para::5",
+          "section_id": "2112.01342::section::10",
+          "text": "We believe that an unbiased generalization of the benchmark scores is a necessity for the community to target language modelling. The tracking of the complex process of model improvement over time can require the improvement of the benchmark design itself.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2112.01342::section::10::para::6",
+          "section_id": "2112.01342::section::10",
+          "text": "The expansion towards multilingualism and multimodality of the new benchmark practices plus new models makes the stated problem more urgent and we hope our help to foster research in this direction.",
+          "paragraph_index": 6
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2112.01342::citation::0",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Boolq: Exploring the surprising difficulty of natural yes/no questions",
+      "cited_authors": [
+        "Christopher Clark",
+        "Kenton Lee",
+        "Ming-Wei Chang",
+        "Tom Kwiatkowski",
+        "Michael Collins",
+        "Kristina Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1905.10044",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::1",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "The pascal recognising textual entailment challenge",
+      "cited_authors": [
+        "Ido Dagan",
+        "Oren Glickman",
+        "Bernardo Magnini"
+      ],
+      "cited_year": 2005,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::2",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "The commitmentbank: Investigating projection in naturally occurring discourse",
+      "cited_authors": [
+        "Marie-Catherine De Marneffe",
+        "Mandy Simons",
+        "Judith Tonhauser"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::3",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Mostafa Dehghani",
+        "Yi Tay",
+        "Alexey A Gritsenko",
+        "Zhe Zhao",
+        "Neil Houlsby",
+        "Fernando Diaz",
+        "Donald Metzler"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::4",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Biases and error measures: How to compare valuation methods",
+      "cited_authors": [
+        "Ingolf Dittmann",
+        "Ernst Maug"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::5",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Show your work: Improved reporting of experimental results",
+      "cited_authors": [
+        "Jesse Dodge",
+        "Suchin Gururangan",
+        "Dallas Card",
+        "Roy Schwartz",
+        "Noah A Smith"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::6",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Memorization vs. generalization: quantifying data leakage in nlp performance evaluation",
+      "cited_authors": [
+        "Aparna Elangovan",
+        "Jiayuan He",
+        "Karin Verspoor"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2102.01818",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::7",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Utility is in the eye of the user: A critique of nlp leaderboards",
+      "cited_authors": [
+        "Kawin Ethayarajh",
+        "Dan Jurafsky"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::8",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "How not to lie with statistics: The correct way to summarize benchmark results",
+      "cited_authors": [
+        "Philip J Fleming",
+        "John J Wallace"
+      ],
+      "cited_year": 1986,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/5666.5673",
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::9",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Deberta: Decoding-enhanced bert with disentangled attention",
+      "cited_authors": [
+        "Pengcheng He",
+        "Xiaodong Liu",
+        "Jianfeng Gao",
+        "Weizhu Chen"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2006.03654",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::10",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Xtreme: A massively multilingual multi-task benchmark for evaluating cross-lingual generalisation",
+      "cited_authors": [
+        "Junjie Hu",
+        "Sebastian Ruder",
+        "Aditya Siddhant",
+        "Graham Neubig",
+        "Orhan Firat",
+        "Melvin Johnson"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::11",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Xglue: A new benchmark dataset for cross-lingual pre-training, understanding and generation",
+      "cited_authors": [
+        "Yaobo Liang",
+        "Nan Duan",
+        "Yeyun Gong",
+        "Ning Wu",
+        "Fenfei Guo",
+        "Weizhen Qi",
+        "Ming Gong",
+        "Linjun Shou",
+        "Daxin Jiang",
+        "Guihong Cao"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2004.01401",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::12",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Statistical analysis: With business and economic applications",
+      "cited_authors": [
+        "Ya Lun Chou"
+      ],
+      "cited_year": 1969,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::13",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Part-of-speech tagging from 97% to 100%: is it time for some linguistics?",
+      "cited_authors": [
+        "D Christopher",
+        "Manning"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::14",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "The natural language decathlon: Multitask learning as question answering",
+      "cited_authors": [
+        "Bryan Mccann",
+        "Nitish Shirish Keskar",
+        "Caiming Xiong",
+        "Richard Socher"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1806.08730",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::15",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Human vs. muppet: A conservative estimate of human performance on the glue benchmark",
+      "cited_authors": [
+        "Nikita Nangia",
+        "Samuel R Bowman"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1905.10425",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::16",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Kilt: a benchmark for knowledge intensive language tasks",
+      "cited_authors": [
+        "Fabio Petroni",
+        "Aleksandra Piktus",
+        "Angela Fan",
+        "Patrick Lewis",
+        "Majid Yazdani",
+        "Nicola De Cao",
+        "James Thorne",
+        "Yacine Jernite",
+        "Vladimir Karpukhin",
+        "Jean Maillard"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2009.02252",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::17",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Exploring the limits of transfer learning with a unified text-to-text transformer",
+      "cited_authors": [
+        "Colin Raffel",
+        "Noam Shazeer",
+        "Adam Roberts",
+        "Katherine Lee",
+        "Sharan Narang",
+        "Michael Matena",
+        "Yanqi Zhou",
+        "Wei Li",
+        "Peter J Liu"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::18",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Characterizing computer performance with a single number",
+      "cited_authors": [
+        "James E Smith"
+      ],
+      "cited_year": 1988,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::19",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Computing machinery and intelligence",
+      "cited_authors": [
+        "Alan M Turing"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::20",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Superglue: A stickier benchmark for general-purpose language understanding systems",
+      "cited_authors": [
+        "Alex Wang",
+        "Yada Pruksachatkun",
+        "Nikita Nangia",
+        "Amanpreet Singh",
+        "Julian Michael",
+        "Felix Hill",
+        "Omer Levy",
+        "Samuel R Bowman"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1905.00537",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::21",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": "Glue: A multi-task benchmark and analysis platform for natural language understanding",
+      "cited_authors": [
+        "Alex Wang",
+        "Amanpreet Singh",
+        "Julian Michael",
+        "Felix Hill",
+        "Omer Levy",
+        "Samuel R Bowman"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2112.01342::citation::22",
+      "paper_id": "2112.01342",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "_"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

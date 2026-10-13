@@ -1,0 +1,2666 @@
+{
+  "arxiv_id": "2405.04495",
+  "title": "Toward In-Context Teaching: Adapting Examples to Students'   Misconceptions",
+  "authors": [
+    {
+      "name": "Alexis Ross",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Jacob Andreas",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "When a teacher provides examples for a student to study, these examples must be informative, enabling a student to progress from their current state toward a target concept or skill. Good teachers must therefore simultaneously infer what students already know and adapt their teaching to students' changing state of knowledge. There is increasing interest in using computational models, particularly large language models, as pedagogical tools. As students, language models in particular have shown a remarkable ability to adapt to new tasks given small numbers of examples. But how effectively can these models adapt as teachers to students of different types? To study this question, we introduce a suite of models and evaluation methods we call AdapT. AdapT has two components: (1) a collection of simulated Bayesian student models that can be used for evaluation of automated teaching methods; (2) a platform for evaluation with human students, to characterize the real-world effectiveness of these methods. We additionally introduce (3) AToM, a new probabilistic model for adaptive teaching that jointly infers students' past beliefs and optimizes for the correctness of future beliefs. In evaluations of simulated students across three learning domains (fraction arithmetic, English morphology, function learning), AToM systematically outperforms LLM-based and standard Bayesian teaching models. In human experiments, both AToM and LLMs outperform non-adaptive random example selection. Our results highlight both the difficulty of the adaptive teaching task and the potential of learned adaptive models for solving it.",
+  "categories": [
+    "cs.CL",
+    "cs.AI",
+    "cs.LG"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2024-05-07T17:05:27"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "Annual Meeting of the Association for Computational Linguistics",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2024-05-07",
+  "citation_count": 19,
+  "reference_count": 31,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2405.04495::section::0",
+      "paper_id": "2405.04495",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::0::para::0",
+          "section_id": "2405.04495::section::0",
+          "text": "Good teaching is adaptive to students' specific beliefs and preconceptions (Corbett, 2001). Imagine, for example, that you have been tasked with tutoring students fraction arithmetic. You may start by first probing a student's understanding, asking if addition: else: if addition: else: ? 𝟥 𝟨 Teacher What is ? 𝟣 𝟤 × 𝟣 𝟨 What is ? 𝟣 𝟧 × 𝟤 𝟧 Incorrect. It's . 𝟣 𝟣𝟤 1) infer student misconceptions 2) choose most informative example prog + if addition: else: prog + if addition: else: multiplication learner addition learner over-generalize addition if denominators are equal make common denoms multiply nums make common denoms add nums over-generalize addition over-generalize mult. 𝟣 𝟧 × 𝟤 𝟧 = 𝟣 𝟤 + 𝟤 𝟦 = 𝟤 𝟧 𝟦 𝟦 add nums & denoms multiply nums & denoms make common denoms add nums 𝟣 𝟤 × 𝟣 𝟨 = 𝟥 𝟨 𝟣 𝟣𝟤 𝟤 𝟨 𝟤 𝟧 Incorrect. It's 𝟤 𝟤𝟧 . make common denoms add nums make common denoms multiply nums if equal denoms: multiply nums else: multiply nums & denoms 𝟤 𝟤𝟧 multiply nums & denoms Target Concept Target Concept",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::1",
+      "paper_id": "2405.04495",
+      "heading": "Students",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::1::para::0",
+          "section_id": "2405.04495::section::1",
+          "text": "Figure 1: In the ADAPT (Adaptive Teaching) evaluation framework ( §3), a teacher selects examples to teach a target concept to a student; however, the student has prior misconceptions that are unknown to the teacher. In the fraction arithmetic task ( §3.1), some students (multiplication learner) tend to over-generalize the addition procedure of making common denominators and performing arithmetic only on numerators; others (addition learner) tend to over-generalize the multiplication procedure of applying arithmetic on both numerators and denominators. In order to teach effectively, the teacher must jointly 1) infer the student's misconceptions online by observing their behavior throughout their interaction (i.e., the teacher infers that the student is an addition generalizer after observing the prediction 1 2 × 1 6 → 3 6 ), and 2) adapt to such misconceptions by selecting examples that will most efficiently correct these misconceptions (i.e., the teacher anticipates the student's new incorrect belief that all fractions with equal denominators should be treated as addition problems and selects the example 1 5 × 2 5 = 2 25 to correct it). We propose ATOM, a two-part probabilistic approach that achieves adaptive teaching by maintaining explicit inferences about student priors ( §4.1).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::1::para::1",
+          "section_id": "2405.04495::section::1",
+          "text": "them whatfoot_0 5 × 2 5 is. Suppose the student answers 2 5 . Immediately, you might develop a hypothesis about this student's misconceptions: they seem to be over-generalizing the rule for addition, only applying the operation to the numerator. Now suppose another student correctly answers 1 5 × 2 5 = 2 25 , but answers 1 2 + 2 4 = 2 6 . This student would appear to be over-generalizing the rule for multiplication. These (discrete and systematic) categories of student misconceptions have been found to be widespread among real students learning fraction arithmetic (Braithwaite et al., 2017).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::1::para::2",
+          "section_id": "2405.04495::section::1",
+          "text": "As this example highlights, interactions with students reveal insights about their misconceptions, and these misconceptions in turn influence the course of effective teaching. A good teacher should provide different problems for these students to target their specific misconceptions: The additiongeneralizer would benefit from multiplication examples, especially those with common denominators, while the multiplication-generalizer would benefit from addition examples.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::1::para::3",
+          "section_id": "2405.04495::section::1",
+          "text": "What does this mean for NLP? Computational models-particularly language models (LMs)-are increasingly used as pedagogical tools (Kasneci et al., 2023). But it is unclear how effectively any of today's models can tailor instruction to perform \"incontext teaching\" ( §2) for students with differing degrees of skill and prior knowledge. In this work, we draw on a long line of literature on rational models of pedagogy (Shafto et al., 2014) to study this question.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::1::para::4",
+          "section_id": "2405.04495::section::1",
+          "text": "To do so, we introduce ADAPT (Adaptive Teaching), an evaluation suite targeted at teaching students with varied prior misconceptions ( §3). In ADAPT, a teacher is tasked with selecting examples to teach a particular target concept. As shown in Figure 1, the teacher selects examples one by one and can observe predictions made by the student. Importantly, the student has prior misconceptions that are unknown to the teacher. ADAPT is designed such that correct inferences about student misconceptions can enable more efficient learning. ADAPT has two components:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2405.04495::section::1::para::5",
+          "section_id": "2405.04495::section::1",
+          "text": "1. An offline, probabilistic framework for reproducibly evaluating how efficiently teachers can teach simulated students with unknown prior misconceptions ( §3.2).",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2405.04495::section::1::para::6",
+          "section_id": "2405.04495::section::1",
+          "text": "2. An evaluation platform for measuring teachers' efficacy with human students with prior misconceptions ( §3.3).",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2405.04495::section::1::para::7",
+          "section_id": "2405.04495::section::1",
+          "text": "Simulated and human experiments allow us to characterize the pedagogical capabilities of teachers along several dimensions: their inferences about student beliefs ( §5.3, §6.3), adaptivity of chosen examples ( §5.4), and differences in teaching mathematical concepts ( §5.5). In addition to these evaluations, we introduce: 3. A new probabilistic model, ATOM (Adaptive Teaching tOwards Misconceptions), which performs online inference of student priors, then uses these inferences to select informative teaching examples. ATOM provides proof-of-viability for adaptive teaching methods in simulated and human students ( §4.1).",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2405.04495::section::1::para::8",
+          "section_id": "2405.04495::section::1",
+          "text": "Using ADAPT evaluations, we characterize ATOM, GPT-4, and a range of other methods. In simulated students, we find that while GPT-4 exhibits some adaptation to student misconceptions, there is room for improvement with adaptive approaches; it substantially underperforms ATOM, suggesting promise in using adaptive methods ( §5). In human experiments, however, both ATOM and GPT-4 outperform random example selection, highlighting the potential of learned models (of various kinds) for adaptive teaching ( §6). 1",
+          "paragraph_index": 8
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::2",
+      "paper_id": "2405.04495",
+      "heading": "Preliminaries",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::2::para::0",
+          "section_id": "2405.04495::section::2",
+          "text": "We formulate our problem setting as one in which a teacher interactively provides feedback to a student to communicate a new concept (a mapping from inputs x to outputs y). A teacher observes a sequence of (x, ŷ) pairs guessed by a student, and must infer what additional training example (x, y) pair will most improve the student's understanding of the concept. We term this problem in-context teaching to draw an analogy to the widely studied phenomenon of \"in-context learning\" (Brown et al., 2020;Min et al., 2022;Akyürek et al., 2023). Formally:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::2::para::1",
+          "section_id": "2405.04495::section::2",
+          "text": "• The teacher begins with a target concept h * drawn from some concept space H. A concept parameterizes a mapping between an input space X and an output space Y. In Fig. 1, h is the true procedure for adding and multiplying fractions, and H is the space of other possible fraction manipulation algorithms, so X contains arithmetic expressions involving fractions, and Y contains fractions.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::2::para::2",
+          "section_id": "2405.04495::section::2",
+          "text": "if : undefined else: a x+ if addition: else: if addition: else: if addition: else: if : undefined else: a x+ if addition: else: mult prog Concepts which determine their predictive distributions if : undefined else: ax+ b greater_2(x): Concept space: 9 programs odd even divisible_20 divisible_3 . . . greater_20 greater_1 . . . prime positive 7 f(x) . +ed +d 0.08 0.6 Concept space: possible settings of 10,528 parameters of generative model from the set of concepts in the concept space Teacher aims to teach a specific target concept Students Concept space: 4,158 programs +ed learner +d learner +consonant+ed learner f learner b learner Target concept: program for fraction arithmetic Target concept: generative model of verbs Target concept: wug(x) function that takes in an input x and returns an output have different priors over the concept space High prior belief in programs that over-generalize addition procedure to multiplication, eg: … … … High prior belief in programs with incorrect f/correct b a 1 prog + if addition: else: prog + if addition: else: multiplication learner addition learner 3 sub-programs each +ied learner High prior belief in incorrect parameters for +ied class +ied y fy zz gamify 0.27 0.05 0 1.0 0.6 hop cope accept … … … +consonant+ed +consonant+ed greater_4(x): 7 3 High prior belief in programs with correct f/incorrect b if : undefined else: a x+ greater_2(x): 3 3 Human & Simulated [Uniform belief over values of a] … … High prior belief in programs that over-generalize multiplication procedure to addition, eg: 𝗉 [ 𝟣 𝟧 × 𝟤 𝟧 → 𝟤 𝟧 ] = 𝟢 . 𝟫 𝗉 [ 𝟣 𝟧 + 𝟤 𝟧 → 𝟥 𝟣𝟢 ] = 𝟢 . 𝟫 … 0.08 0.27 0.6 0.5 0.5 Continuous distribution … … 𝗉 [ 𝗐𝗎𝗀(𝟥) → 𝟫 ] = 𝟢 . 𝟪 wug(3) 𝗉 [ 𝗀𝖺𝗆𝗂𝖿𝗒 → ] = 𝟢 . 𝟪 gamify +ed Fractions Add & multiply functions Verbs Categorize English past tense verbs Functions Learn what wug(x) does make common denoms add nums make common denoms multiply nums add nums & denoms multiply nums & denoms make common denoms add nums multiply nums & denoms Different student types ADAPT has three tasks: fractions, verbs, and functions. For the fraction and function tasks, a student's concept space consists of programs; for the verbs task, a student's concept space is the space of generative models corresponding to English past tense verb classes.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::2::para::3",
+          "section_id": "2405.04495::section::2",
+          "text": "• We assume that teachers interact with students by providing examples (x i , y i ) ∈ X × Y. For convenience, we denote a sequence of such examples (x, y) = [(x 1 , y 1 ), . . . , (x n , y n )].",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::2::para::4",
+          "section_id": "2405.04495::section::2",
+          "text": "In each round of teaching, the teacher first presents the student with an input x i , the student produces a guess ŷi , and then the teacher reveals the true y i .foot_1",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2405.04495::section::2::para::5",
+          "section_id": "2405.04495::section::2",
+          "text": "• Given a collection of examples (x, y), we assume that students compute a posterior over concepts p S (h | x, y). For example, a student who just seen that 1 3 × 2 3 = 2 9 may be less likely to believe that fraction addition and multiplication follow the same rules. The process by which students infer concepts from examples can in principle be arbitrary; however, for some models in this paper we will assume that students are Bayesian, with:",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2405.04495::section::2::para::6",
+          "section_id": "2405.04495::section::2",
+          "text": "under some prior belief p S (h) about the concept space.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2405.04495::section::2::para::7",
+          "section_id": "2405.04495::section::2",
+          "text": "Given this setup, a teaching strategy is a policy p T (x, y | x, y) that chooses examples to maximize the probability that the student assigns to h * . In the optimal teaching (OT) framework of Shafto et al. (2014), for example, p S (h | x, y) is assumed known, and teachers choose examples:",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2405.04495::section::2::para::8",
+          "section_id": "2405.04495::section::2",
+          "text": "In the running example, this criterion is more likely to select examples of addition for a student who has already mastered multiplication, and vice-versa. In addition to this greedy approach, it is possible to plan sequences of informative examples for students (Rafferty et al., 2016).",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2405.04495::section::2::para::9",
+          "section_id": "2405.04495::section::2",
+          "text": "As discussed in §1, however, the assumption that teachers have exact knowledge of p S (h | x, y) is often unrealistic-real-world teaching involves students of many different types, whose beliefs and misconceptions may not be known (or easily discerned) a priori. Thus, we study teaching when students' priors are themselves unknown. We assume that students are drawn from a distribution over student types p(α), each associated with a concept prior p(h | α). In the running example, these priors may correspond to different beliefs about the algorithms for fraction addition and multiplication, with \"addition generalizers\" assigning high probability to a spurious multiplication algorithm that manipulates only numerators.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2405.04495::section::2::para::10",
+          "section_id": "2405.04495::section::2",
+          "text": "In this setting, teachers must still implement an effective example selection policy p T (x, y | x, y); however, choosing informative examples now requires inferring student priors in order to estimate the effect of these examples on p S (h * | x, y). In the next section, we describe our proposed framework for evaluating adaptive teaching policies. In §4, we describe a set of candidate adaptive teaching policies (including our new ATOM model), and in §5 and §6 use ADAPT to evaluate these teaching policies with simulated and human students.",
+          "paragraph_index": 10
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::3",
+      "paper_id": "2405.04495",
+      "heading": "The ADAPT Evaluation Framework",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::3::para::0",
+          "section_id": "2405.04495::section::3",
+          "text": "ADAPT has two parts: an offline evaluation framework with simulated students ( §3.2), and a platform for doing experiments with human students ( §3.3). We first describe the tasks in ADAPT ( §3.1). An overview of ADAPT is shown in Figure 2.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::4",
+      "paper_id": "2405.04495",
+      "heading": "Tasks Fractions",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::4::para::0",
+          "section_id": "2405.04495::section::4",
+          "text": "In the first task, the teacher aims to teach the student how to add and multiply fractions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::4::para::1",
+          "section_id": "2405.04495::section::4",
+          "text": "Here, student types correspond to different prior beliefs (possibly incorrect) about the rules for fraction arithmetic.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::5",
+      "paper_id": "2405.04495",
+      "heading": "Verbs",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::5::para::0",
+          "section_id": "2405.04495::section::5",
+          "text": "The second task is English past-tense conjugation. In this task, students are presented with lemmas and must choose an appropriate ending (e.g., play → +ed, fry → +ied). Here, student types correspond to different degrees of familiarity with possible English past-tense endings.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::5::para::1",
+          "section_id": "2405.04495::section::5",
+          "text": "Functions In the third task, reminiscent of existing number concept learning tasks (Tenenbaum, 1999), the teacher aims to teach the student a function that takes in numbers and returns either numbers or undefined. These functions can be represented as programs that take an input x and compute:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::5::para::2",
+          "section_id": "2405.04495::section::5",
+          "text": "if f(x): return undefined",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::5::para::3",
+          "section_id": "2405.04495::section::5",
+          "text": "else: return a*x+b where f is a boolean function and a, b are integers. The teacher chooses input/output pairs (x, wug(x)) to show the student to maximize the student's belief that the concept is the correct program h * . We create 24 target concepts, which combine 3 unique settings of a/b and 8 settings of f. Student types can be instantiated by selecting preferences for specific primitives (e.g., f, a, b); arbitrary priors over programs can then be derived from these preferences for primitives.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::6",
+      "paper_id": "2405.04495",
+      "heading": "Simulated Students",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::6::para::0",
+          "section_id": "2405.04495::section::6",
+          "text": "The first component of ADAPT evaluates teachers with simulated, Bayesian students. These students maintain belief distributions over the full concept space. 3 As shown in Figure 2, different \"student types\" are implemented by initializing students with different priors over the concept space. All student types begin with low initial belief in the target concept h * and assign high probability to other spurious concepts.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::6::para::1",
+          "section_id": "2405.04495::section::6",
+          "text": "Fractions For the fraction task, we represent understanding of fraction arithmetic as programs. Students maintain a belief distribution over the space of possible programs, as shown in Figure 2. We create two student types, mult-learner (a model of a student who has not yet mastered multiplication and incorrectly applies the procedure for addition to multiplication) and add-learner (a student who performs addition by incorrectly applying the procedure for multiplication). These correspond to common incorrect strategies that children exhibit when learning fraction arithmetic (Braithwaite et al., 2017) by over-generalizing the procedure for operation to another.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::6::para::2",
+          "section_id": "2405.04495::section::6",
+          "text": "Functions For the function task, students again maintain a belief distribution over the space of possible concepts. We create two types of students for each target concept: a b-learner and a f-learner.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::6::para::3",
+          "section_id": "2405.04495::section::6",
+          "text": "The f-learner knows the true value of b but has an incorrect, spurious belief about what function f(x) is; the b-learner knows the true f(x) in the target program h * but has an incorrect belief about the value of b. See §B for how we select incorrect beliefs for students.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::6::para::4",
+          "section_id": "2405.04495::section::6",
+          "text": "Verbs For the verb task, we represent understanding of verb conjugation as generative models of English past-tense verbs. Students are naïve Bayes models with features for word-final character ngrams, so p(h | x, y) is a distribution over model parameters, with Dirichlet/Beta priors over the verb class/feature occurrence parameters, respectively. We fit a naïve Bayes model on the Unimorph datasetfoot_4 (Batsuren et al., 2022) and use the mode of the resulting posterior as the target concept. 5We create four student types by picking one of the classes as the \"unknown\" class: a +d-learner, +ed-learner, +consonant+ed-learner, and a +ied-learner. To simulate students who are familiar with all but one class, we initialize the student's priors by using the posterior mode parameters of the model fit on the full data, setting the parameters for the \"unknown\" class to all 1s (effectively removing any learned information about the class): Figure 2 shows how setting the prior in this way determines the mode of the +ied-learner's prior distribution over generative models.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::7",
+      "paper_id": "2405.04495",
+      "heading": "Human Students",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::7::para::0",
+          "section_id": "2405.04495::section::7",
+          "text": "The second component of the ADAPT evaluation framework is a platform for evaluating adaptive teaching with human students, specifically for the function learning task. Human participants are tasked with learning what a \"mystery machine\" called wug does. They are given 10 minutes to interact with a teacher who presents teaching examples through a chat interface. Their task is to figure out when wug(x) is undefined (i.e., guess what f is), and when wug(x) is defined, what it computes (i.e., what a and b are in a*x+b). They can submit guesses for how wug(x) operates whenever and however many times they choose to during the 10 minutes of interaction. wug guesses have 3 components corresponding to f, a, and b, and we allow partial guesses. See §6.1 for more details on instructions, bonus compensation, and other parts of the human study.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::7::para::1",
+          "section_id": "2405.04495::section::7",
+          "text": "We create b-learners and f-learners by priming the human participants with hints from a \"Dr. Smith\"; b-learners receive a hint with the correct f but incorrect value for b, and the reverse for f-learners. An example hint is given in Table 3.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::8",
+      "paper_id": "2405.04495",
+      "heading": "Teaching Toward Misconceptions",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::8::para::0",
+          "section_id": "2405.04495::section::8",
+          "text": "We introduce an approach that makes explicit inferences about the parameters of the student's prior. We call this method ATOM (Adaptive Teaching tOward Misconceptions).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::8::para::1",
+          "section_id": "2405.04495::section::8",
+          "text": "Like the OT method described in ( §2), ATOM assumes that students are Bayesian reasoners and chooses examples to maximize the posterior probability that the student assigns to the target concept h * . Because the student's prior is unknown, however, this process involves two steps:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::8::para::2",
+          "section_id": "2405.04495::section::8",
+          "text": "1. Maximum a posteriori estimation of student priors. Recall that, during interaction, the teacher provides inputs x i , then observes student guesses ŷi before providing ground-truth labels y i . In ATOM, the teacher selects student prior parameters that best explain the student's sequence of guesses:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::8::para::3",
+          "section_id": "2405.04495::section::8",
+          "text": "Estimating this arg max requires a tractable procedure for computing the posterior predictive distribution, which is available for each simulated student model we evaluate in §5.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::9",
+      "paper_id": "2405.04495",
+      "heading": "Optimal selection of informative examples.",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::9::para::0",
+          "section_id": "2405.04495::section::9",
+          "text": "As in OT, once α has been estimated, we choose an example (x i+1 , y i+1 ) to optimize:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::9::para::1",
+          "section_id": "2405.04495::section::9",
+          "text": "We note that many more sophisticated ATOMtype methods are possible-for example, explicit marginalization (rather than MAP estimation) of student priors. More basically, the method described above does not perform any active experimentation to identify the student prior; alternative ATOM implementations could explicitly trade off between exploration (of the student type) and exploitation (of the student posterior).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::10",
+      "paper_id": "2405.04495",
+      "heading": "Other Models",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::10::para::0",
+          "section_id": "2405.04495::section::10",
+          "text": "Random The RANDOM baseline uniformly samples an input to show the student.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::10::para::1",
+          "section_id": "2405.04495::section::10",
+          "text": "Ranking A second baseline ranks the datapoints at the first step according to the objective in Eq 2, then chooses them in this order for the rest of the teaching interaction. The student type is chosen uniformly. We refer to this baseline as RANKING.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::10::para::2",
+          "section_id": "2405.04495::section::10",
+          "text": "Non-Adaptive A third baseline selects examples according to the OT objective in Eq 2 but maintains a fixed guess about the student type, chosen uniformly at the start of teaching. This baseline can be thought of as an ablation of the adaptive piece of ATOM. We refer to this baseline as NON-ADAPTIVE (Shafto et al., 2014). Random [Known] GPT4 Non-Adaptive [Known] Non-Adaptive Adaptive [Known] Rank Rank Number of Datapoints Number of Datapoints Number of Datapoints Number of Datapoints Number of Datapoints Target: greater_2 Spurious: greater_4 Ex: [3, 4] Target: greater_7 Spurious: greater_9 Ex: [8, 9] Target: positive Spurious: greater_1 Ex: [1] Target: divisible_3 Spurious: divisible_6 Ex: [-15, -9, -3, 3, 9, 15] Target: greater_2 Spurious: greater_1 Ex: [2] GPT4 Teaching Methods: Unknown vs Known Student Type Critical Example Selection by Teaching Methods The opacity of each square corresponds to the mean value of whether the example chosen by the teaching method at that step in learning is a \"critical example\" (averaged across experimental conditions: seed and concepts). See §5.4 for details. We report a subset of results here; see §11 for full results.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::11",
+      "paper_id": "2405.04495",
+      "heading": "GPT-4",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::11::para::0",
+          "section_id": "2405.04495::section::11",
+          "text": "We prompt the gpt-4-0314 model to select teaching examples (and provide no other explanations); the prompt describes the target concept, the student's hypothesis space, and the student types. The model is instructed to try to infer the student type in order to teach most efficiently. See Appendix D for actual prompts. To control for the fact GPT-4 sometimes generates incorrect outputs for examples, we use ground truth outputs for generated inputs. 6 We call this method GPT-4.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::12",
+      "paper_id": "2405.04495",
+      "heading": "Oracle Models",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::12::para::0",
+          "section_id": "2405.04495::section::12",
+          "text": "We also compare against several methods that assume access to the true student. These serve as comparison points for how well methods could do if they inferred the correct student model. We 6 We parse GPT-4 generations to get inputs and create new messages with target outputs. More details can be found in §D.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::12::para::1",
+          "section_id": "2405.04495::section::12",
+          "text": "run this reference for all methods except RANDOM, which does not make use of a student model. We refer to these methods as RANKING-KNOWN, NON-ADAPTIVE-KNOWN, and GPT-4-KNOWN.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::12::para::2",
+          "section_id": "2405.04495::section::12",
+          "text": "5 Simulated Experiments",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::13",
+      "paper_id": "2405.04495",
+      "heading": "Experimental Set-Up",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::13::para::0",
+          "section_id": "2405.04495::section::13",
+          "text": "We run 3 random seeds for all experimental conditions. For all methods except the GPT-4-based methods, we restrict the teaching methods from selecting previously selected examples. Teaching interactions last 40 steps for the fraction/function tasks and 50 steps for the verb task. For non GPT-4 methods, we enumerate over either the full dataset (fractions/functions) or a sampled subset (500 examples for verbs) to choose teaching examples.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::14",
+      "paper_id": "2405.04495",
+      "heading": "Students' Learning Efficiency",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::14::para::0",
+          "section_id": "2405.04495::section::14",
+          "text": "We evaluate teacher effectiveness by measuring the student's probability of the target concept, h * . Figure 3 shows the area under simulated students' learning curves, where curves reflect students' beliefs in h * (full curves are shown in Figure 9). We observe that ATOM performs almost as well as the optimal strategy, NON-ADAPTIVE-KNOWN, and outperforms NON-ADAPTIVE, suggesting adaptation is both possible (i.e., student type is inferrable from interaction) and that it leads to improved teaching efficiency. We also observe that both GPT-4-KNOWN and GPT-4 outperform RANDOM but underperform both ATOM and the non-adaptive probabilistic approaches.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::15",
+      "paper_id": "2405.04495",
+      "heading": "GPT-4's Inferences about Student Type",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::15::para::0",
+          "section_id": "2405.04495::section::15",
+          "text": "We query GPT-4 for the student type at the end of the teaching interaction (Based on this interaction, which kind of student do you think I was at the start of this teaching session . . . ). See Table 11 for an example prompt. The mean accuracies of GPT-4's student type guesses are 100% for verbs, 66.67% for fractions, and 53.47% for functions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::15::para::1",
+          "section_id": "2405.04495::section::15",
+          "text": "A possible explanation for these discrepancies is that for the fraction and function tasks, students successfully learn the target concept by the end of the teaching interaction and thus make accurate predictions; for the verb task, however, students are still making errors by the end. 7 We analyze how these accuracies change throughout the teaching interactions. For the function task, the student type accuracies are 64.2%, 60.4%, 56.3%, 53.47% after 10, 20, 30, and 40 steps, respectively: This decrease suggests that GPT-4 exhibits recency bias in making inferences about student type.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::16",
+      "paper_id": "2405.04495",
+      "heading": "Selection of Critical Examples",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::16::para::0",
+          "section_id": "2405.04495::section::16",
+          "text": "For function concepts, we evaluate how early teaching methods select \"critical examples,\" or key examples that distinguish the target f from the spurious f.foot_7 Consider the case where the target f is greater_2 but the f-learner believes it is greater_4: The critical examples are 3 and 4 because they are the only examples on which the target f and spurious f would return different outputs. Observing wug(x) on one of these inputs would make clear to the f-learner that their belief about f is wrong. Therefore, an effective teacher should select such examples early in teaching.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::16::para::1",
+          "section_id": "2405.04495::section::16",
+          "text": "As shown in Figure 4, the probabilistic methods assuming the student type (RANKING-KNOWN, NON-ADAPTIVE-KNOWN) all select critical examples early. GPT-4-KNOWN also shows a concentration of critical examples early, though they are more spread out for some concepts (i.e., for target f divisible_3/positive); GPT-4 thus exhibits some pedagogical reasoning, focusing on examples that will target the f-learner's misconceptions when it knows that the student type is a f-learner. When GPT-4 does not know the student type, we observe that critical examples are still more concentrated at the start than for RANDOM, suggesting some degree of adaptivity. Finally, we observe that ATOM selects critical examples at comparable points to NON-ADAPTIVE-KNOWN despite having to guess about student type.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::17",
+      "paper_id": "2405.04495",
+      "heading": "Qualitative Differences in Teaching Math",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::17::para::0",
+          "section_id": "2405.04495::section::17",
+          "text": "For function concepts, recall that when wug(x) is defined, it computes a*x+b. We analyze how different methods teach what a and b are when wug(x) is defined by plotting the inputs they choose. As Figure 5 shows, GPT-4 tends to select inputs in order of increasing magnitude. In contrast, ATOM starts with higher-magnitude examples, then selects examples in increasing order. These qualitative differences suggest that GPT-4 may have encoded information that inputs closer to the origin are easier to learn from than those further from the origin. 9 9 In contrast, ATOM scores inputs according to how many incorrect concepts they \"rule out,\" treating all else as equal. Function Results with Human Students * * wug partial correctness AUC Random GPT-4 ATOM Figure 6: Results with human students showing how efficiently students guessed the correct wug concept ( §6.2). Stars indicate statistically significant results under a paired t-test. Error bars show 95% confidence intervals.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::18",
+      "paper_id": "2405.04495",
+      "heading": "Examples",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::18::para::0",
+          "section_id": "2405.04495::section::18",
+          "text": "6 Human Experiments",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::19",
+      "paper_id": "2405.04495",
+      "heading": "Experimental Set-Up",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::19::para::0",
+          "section_id": "2405.04495::section::19",
+          "text": "We recruit Prolific users who are fluent English speakers and who indicated some experience with computer programming. We pay participants a base pay of $4.00 per study ($16/hour) and offer a bonus based on the accuracy of their predictions to the teacher and on how early they guess the correct value for wug(x). See Appendix E for details.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::19::para::1",
+          "section_id": "2405.04495::section::19",
+          "text": "We evaluate RANDOM, GPT-4, and ATOM teachers on the function task. We run 5 experiments per teaching method per experimental condition. 10 These experiments were classified as an exempt Benign Behavioral Intervention by our IRB.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::20",
+      "paper_id": "2405.04495",
+      "heading": "Students' Learning Efficiency",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::20::para::0",
+          "section_id": "2405.04495::section::20",
+          "text": "We evaluate the effectiveness of teachers by measuring the correctness of wug guesses made by human participants, computing an AUC-like metric. We consider all timestamps where at least one participant made a guess for wug and compute a partial correctness metric for each guess: (f is correct) + 0.5(a is correct) + 0.5(b is correct). 11 We report the mean correctness values across timestamps.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::20::para::1",
+          "section_id": "2405.04495::section::20",
+          "text": "As shown in Figure 6, we find that both GPT-4 and ATOM improve significantly over the RAN-DOM baseline (p < 0.05 using a paired t-test). Interestingly, these differences are entirely explained Because higher-magnitude inputs tend to result in outputs that can be explained by fewer functions, ATOM selects highermagnitude inputs early in teaching. 10 There are 22 unique experimental conditions (11 target concepts, 2 student types per concept). 11 If no new guess was made by a user, we use their last guess.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::20::para::2",
+          "section_id": "2405.04495::section::20",
+          "text": "by model behavior for f-learners: after controlling for student type, improvements over the random teacher are significant for f-learners but insignificant for b-learners. For results by student type, time, and individual participants, see §E.2.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::21",
+      "paper_id": "2405.04495",
+      "heading": "Inferences about Student Type",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::21::para::0",
+          "section_id": "2405.04495::section::21",
+          "text": "We evaluate the accuracy of predictions of student type made by ATOM and GPT-4 after each minute of teaching. ATOM makes more accurate predictions than GPT-4, with respective mean accuracies of 71.33% and 52.61% across participants and minutes. Accuracies over time are shown in §E.2 (Figure 19).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::22",
+      "paper_id": "2405.04495",
+      "heading": "Discussion",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::22::para::0",
+          "section_id": "2405.04495::section::22",
+          "text": "Both our human and simulated results show that ATOM and GPT-4 exhibit pedagogical ability over random example selection. ATOM's performance with human students suggests that the Bayesian assumptions made by ATOM are accurate models of some aspects of human learning. Across human and simulated experiments, we find evidence of some adaptivity in GPT-4, though less than in ATOM, both in the examples selected ( §5.4) and inferences about student type ( §5.3, §6.3). See §A for additional analyses about how adaptive selected teaching examples are to student beliefs.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::22::para::1",
+          "section_id": "2405.04495::section::22",
+          "text": "We also observe other qualitative limitations of GPT-4 as a teacher: selecting the same teaching examples multiple times or terminating teaching early due to an incorrect belief that all teaching examples have been exhausted. It is important to highlight that because we use ground truth outputs (e.g., ground truth function evaluations) with GPT-4, the GPT-4 results represent an upper bound on GPT-4's performance.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::22::para::2",
+          "section_id": "2405.04495::section::22",
+          "text": "Despite these limitations, however, GPT-4 performs comparably to ATOM with human students, suggesting pedagogical benefits beyond adaptivity. In particular, the analysis in §5.5 suggests that language models may encode information about human learning that is hard to represent in more structured models like ATOM-e.g., that it is easier for humans to learn the weights of a line from inputs closer to the origin.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::22::para::3",
+          "section_id": "2405.04495::section::22",
+          "text": "Together, our results point to complementary advantages of LM teachers like GPT-4 and more structured, probabilistic methods like ATOM. They suggest that there is substantial headroom to improve real-world teaching by augmenting the in-ferences of structured models with richer information about the priors that humans bring to learning, whether by combining such structured methods with information encoded in LMs or by developing other rich models of student priors-e.g., by learning more complex \"student types\" from naturally occurring data. We perform an initial experiment with human students in this direction by combining GPT-4 and ATOM but do not find improvements compared to either teacher alone; see §E.3 for details.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::22::para::4",
+          "section_id": "2405.04495::section::22",
+          "text": "Other directions for future work include modeling more complex student phenomenaaccounting for students who ask questions, reason pedagogically about teacher intentions, and provide feedback to teachers (Chen et al., 2022)-and creating methods for adaptive teaching with natural language explanations in real-world teaching domains.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::23",
+      "paper_id": "2405.04495",
+      "heading": "Related Work",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::23::para::0",
+          "section_id": "2405.04495::section::23",
+          "text": "This work builds on a long line of work in rational models of pedagogy, including Bayesian models like those described by Shafto et al. (2014) and Sumers et al. (2021), as well as improved planning and inference procedures like the one described by Rafferty et al. (2016). Past work generally assumes students' initial belief states are known. In parallel, Rafferty et al. (2015) use an inverse planning model to infer students' prior beliefs from their actions, and Chen et al. (2022) show that human teachers adapt examples to these prior beliefs.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::23::para::1",
+          "section_id": "2405.04495::section::23",
+          "text": "This work is also closely related to other bodies of work that aim to infer student knowledge. Item response theory (IRT) infers a scalar measure of student's skill based on their responses to questions (Hambleton and Swaminathan, 1981;Hambelton and Jodoin, 2003). Knowledge tracing (KT) models students' evolving knowledge states over time separately for a fixed set of skills (Corbett and Anderson, 1994); previous work has used both bayesian methods for modeling individual students' prior knowledge (Yudelson et al., 2013) and neural models for modeling (Piech et al., 2015) and targeting (Srivastava and Goodman, 2021) students' evolving learning states. In contrast to IRT and KT, our work aims to infer the learner's entire prior and posterior over the concept space; these inferences in turn enable more fine-grained design of individual teaching examples.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::23::para::2",
+          "section_id": "2405.04495::section::23",
+          "text": "Inferring student misconceptions from errors also uses tools from a broader literature on computational models of theory of mind. Prominent work includes general-purpose bayesian models of other agents' beliefs and desires (Baker et al., 2011) and models of pragmatic inference grounded in recursive reasoning about speakers and listeners (Frank and Goodman, 2012). More recent work has studied theory of mind capabilities in LMs; they find largely negative results in unaugmented LLMs (Sap et al., 2023) but positive results from LMs augmented with structured belief representations (Sclar et al., 2023). Recent work has also explored LLMs' theory of mind abilities in teaching smaller LMs (Saha et al., 2023).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::23::para::3",
+          "section_id": "2405.04495::section::23",
+          "text": "There is also a large body of work on how to optimally provide and interpret human supervision for ML models. General frameworks for this problem include Machine Teaching (Zhu et al., 2018) and Cooperative IRL (Hadfield-Menell et al., 2016); related ideas appear in program synthesis (Vaduguru et al., 2022), robot learning (Milli and Dragan, 2019;Dragan et al., 2013), and natural language processing (Li et al., 2023) as well.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::23::para::4",
+          "section_id": "2405.04495::section::23",
+          "text": "There has been increased interest in using LLMs to assist or supplement human teachers. See Kas",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::24",
+      "paper_id": "2405.04495",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 24,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::24::para::0",
+          "section_id": "2405.04495::section::24",
+          "text": "We introduce ADAPT, an evaluation suite measuring how effectively automated teaching methods can teach students with different prior misconceptions. We also introduce ATOM, a two-part probabilistic approach to adaptive teaching that maintains explicit inferences about student priors. Our evaluations of ATOM, LLMs, and other probabilistic baselines with both simulated and human students highlight the potential of learned adaptive models for solving the adaptive teaching task.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::25",
+      "paper_id": "2405.04495",
+      "heading": "Limitations",
+      "section_type": null,
+      "order": 25,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::25::para::0",
+          "section_id": "2405.04495::section::25",
+          "text": "One limitation of our work is that in our model of teaching, teachers are limited to example selection and students are limited to observation. These restrictions leave out that teachers can provide explanations, and students can ask questions and provide feedback to teachers. An interesting direction for future work would be to both create an evaluation framework for such phenomena and develop models for these richer forms of teaching and learning feedback. Relatedly, students can also engage in pedagogical reasoning about why teachers chose particular examples, which can in turn influence how they learn from these examples; while the simulated students in ADAPT do not model this phenomenon, future work could explore richer models of students.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::25::para::1",
+          "section_id": "2405.04495::section::25",
+          "text": "Another limitation is that we create the student types by instantiating priors in particular ways rather than deriving the priors from real-world data. Future work could explore how to automatically learn the types of priors that human students bring to different teaching scenarios.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::26",
+      "paper_id": "2405.04495",
+      "heading": "A Do teaching examples target student misconceptions?",
+      "section_type": null,
+      "order": 26,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::26::para::0",
+          "section_id": "2405.04495::section::26",
+          "text": "For the simulated evaluations, we analyze whether the examples selected by different teaching methods target students' specific misconceptions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::26::para::1",
+          "section_id": "2405.04495::section::26",
+          "text": "Data Targets f? Adaptation of Teaching Examples to Simulated Students' Misconceptions: Functions GPT-4 ATOM Non-Adaptive: Known GPT-4: Known Number of Datapoints b-learner f-learner Number of Datapoints Number of Datapoints Number of Datapoints Figure 7: Plot showing whether the data chosen by teaching methods target learning f (i.e., when wug(x) is undefined) or a*x+b (i.e., what wug(x) computes when defined) for the function task. An input x for which wug(x) is undefined targets f, and an input for which wug(x) is defined targets a*x+b. Intuitively, f-learners benefit more from seeing examples targeting f early on in teaching, and b-learners benefit more from seeing examples that target a*x+b. Adaptation of Teaching Examples to Simulated Students' Misconceptions Fractions Verbs Functions Data Targets Unknown Concept? Number of Datapoints Number of Datapoints GPT4 Non-Adaptive GPT4 Non-Adaptive ATOM Number of Datapoints Unknown Student: Known Student: Functions Figure 7 shows whether the selected teaching examples target learning f or a*x+b in the target wug concept, split by student type. We expect an adaptive teacher to select examples targeting f for f-learners at the start of learning, and similarly for examples targeting a*x+b for b-learners.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::26::para::2",
+          "section_id": "2405.04495::section::26",
+          "text": "In both plots, we see that the optimal teacher NON-ADAPTIVE-KNOWN, which assumes access to the ground truth student type, exhibits the expected behavior: It selects more examples targeting f or the f-learner than for the b-learner at the beginning of the teaching interaction. ATOM, despite needing to maintain guesses for the student type, shows similar adaptivity to students' priors early on, selecting more examples targeting f for the f-learner than for the b-learner at the start of teaching.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::26::para::3",
+          "section_id": "2405.04495::section::26",
+          "text": "GPT-4-KNOWN also shows this adaptivity when assuming the true student type. However, when it does not have access to the true student type, it does not show this adaptation; the data selection patterns of GPT-4 are highly similar for the b-learners and f-learners, suggesting that GPT-4 struggles with doing implicit adaptation online.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::26::para::4",
+          "section_id": "2405.04495::section::26",
+          "text": "All Tasks Figure 8 shows adaptation of teaching examples across all tasks and student types. We observe similar trends: Across tasks, ATOM shows similar levels of adaptivity to NON-ADAPTIVE-KNOWN, despite not knowing student type, and outperforms both GPT-4 methods. We also observe GPT-4-KNOWN selecting more examples targeting unknown concepts than GPT-4.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::27",
+      "paper_id": "2405.04495",
+      "heading": "B Creating Function Concepts and",
+      "section_type": null,
+      "order": 27,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::27::para::0",
+          "section_id": "2405.04495::section::27",
+          "text": "Student Types",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::27::para::1",
+          "section_id": "2405.04495::section::27",
+          "text": "b has possible values [1, 2, • • • , 9] and a has possible values [-5, -4, • • • , 4, 5]. For each concept,",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::27::para::2",
+          "section_id": "2405.04495::section::27",
+          "text": "to create the b-learner, we uniformly sample the incorrect b from the range of possible values of b, excluding the target b; to create the f-learner, we uniformly sample the incorrect f from a set of spuriously associated functions: These possible values are shown in Table 5. The full list of concepts and incorrect student beliefs are shown in Table 4.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::28",
+      "paper_id": "2405.04495",
+      "heading": "B.1 Creating the Verbs Dataset",
+      "section_type": null,
+      "order": 28,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::28::para::0",
+          "section_id": "2405.04495::section::28",
+          "text": "For the verbs task, we create verb classes with reg exp matching on their past tense forms. For the GPT-4 method, we create ground truth outputs by first checking if a lemma exists in the Unimorph dataset; if not, we use a Python verb inflection package pyinflectfoot_8 to first get the past tense form of the verb, then categorize it. Table 1 shows verb classes and corresponding counts in the resulting dataset.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::28::para::1",
+          "section_id": "2405.04495::section::28",
+          "text": "The model that we fit on the full dataset (to derive the parameters of the target concept) obtains a predictive accuracy of 95.47%, and the mean probability of the ground truth outputs across the full dataset is 0.945.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::29",
+      "paper_id": "2405.04495",
+      "heading": "C Simulated Experiments",
+      "section_type": null,
+      "order": 29,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::29::para::0",
+          "section_id": "2405.04495::section::29",
+          "text": "For all tasks, we obtain predictions from simulated students by sampling from their predictive distributions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::29::para::1",
+          "section_id": "2405.04495::section::29",
+          "text": "Program Tasks For the programmatic tasks (functions, fractions), each simulated student's prior belief in a program h is proportional to the number of \"special primitives\" that appear in the program. We derive the prior over programs by multiplying a value c by the number of special primitives that appear in a program to get values for all programs; we then normalize these values to get a distribution over programs.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::29::para::2",
+          "section_id": "2405.04495::section::29",
+          "text": "The simulated students for the function and fraction tasks also maintain a noise parameter that governs how noisy the labels are in the examples they observe; this noise parameter governs their posterior updates. For fractions, this noise parameter is 0.8, and for functions, it is 0.05. We use the same noise values for the teacher's models of the students.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::29::para::3",
+          "section_id": "2405.04495::section::29",
+          "text": "Fractions Table 2 shows the multiplication and addition sub-programs that are used to create the concept space for simulated students for the fraction task. For the mult-learner who overgeneralizes the procedure for addition, the \"special primitives\" are (1), ( 4), and (6). For the add-learner who over-generalizes the procedure for multiplication, the \"special primitives\" are (2), (3), and (5). We use a value of c = 1e5.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::29::para::4",
+          "section_id": "2405.04495::section::29",
+          "text": "Functions For b-learners, the \"special primitives\" are the target f and spurious b (and so programs with either of these primitives would have higher prior beliefs; programs having both the target f and spurious b would have the highest prior belief). Similarly, for f-learners, the incorrect f and target b are the special primitives. We use a value of c = 1e4.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::30",
+      "paper_id": "2405.04495",
+      "heading": "D GPT-4: Details",
+      "section_type": null,
+      "order": 30,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::30::para::0",
+          "section_id": "2405.04495::section::30",
+          "text": "Prompts for GPT-4 are shown in Tables 6, 7, and 8 for fractions, Tables 9, 10, and 11 for functions, and Tables 12, 13, and 14 for verbs. An example conversation between GPT-4 and a simulated student is shown in Table 15.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::30::para::1",
+          "section_id": "2405.04495::section::30",
+          "text": "Processing/Filtering GPT-4 Outputs In order to control for the fact that GPT-4 may generate incorrect outputs for examples, we use ground truth outputs for generated inputs. We parse GPT-4generated messages to obtain inputs, then compute ground truth labels for those inputs and append them to the message history, starting with \"That's correct/incorrect.\" If a message cannot be parsed, we append a canned response, i.e., \"Sorry, I could not learn from that example. I can only learn from examples that are formatted as...\" (if no output can be parsed from the message) or \"I would like to keep learning. Can I have another example?\" (if no input can be parsed from the message); these messages do not count as an \"interaction\" in comparing against other teaching methods. For human experiments, we do not display these canned responses to the students and instead only display messages asking for predictions on examples and providing ground truth answers.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::31",
+      "paper_id": "2405.04495",
+      "heading": "E Human Experiments",
+      "section_type": null,
+      "order": 31,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::31::para::0",
+          "section_id": "2405.04495::section::31",
+          "text": "E.1 Set-Up Post-Processing We filter and rerun any experiments where the chat messages were logged out of order or sent twice.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::31::para::1",
+          "section_id": "2405.04495::section::31",
+          "text": "Hyperparameters The ATOM uses a noise parameter value of 0.02 for modeling simulated stu- Simulated Students' Likelihood of Target Concept Probability Log PDF GPT4 Rank Non-Adaptive Random GPT4 Rank Non-Adaptive ATOM Unknown Learner: Known Learner: multiplication learner addition learner b learner f learner +d learner +ed learner +consonant+ed learner +ied learner",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::32",
+      "paper_id": "2405.04495",
+      "heading": "dents.",
+      "section_type": null,
+      "order": 32,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::32::para::0",
+          "section_id": "2405.04495::section::32",
+          "text": "Instructions An example of hints given to the human participants is shown in Table 3. The full set of instructions shown to human participants, along with the interface, are shown in Figures 12/13 (instructions), 14 (chat), and 15 (end).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::32::para::1",
+          "section_id": "2405.04495::section::32",
+          "text": "Bonus Compensation Participants are told that their bonus depends on two things:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::32::para::2",
+          "section_id": "2405.04495::section::32",
+          "text": "1. Accuracy of wug guesses: Participants are told they will receive 0.05 for every 10 seconds of the teaching interaction that their guess is correct, with partial compensation if only f or only a/b is correct.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::33",
+      "paper_id": "2405.04495",
+      "heading": "Accuracy of predictions on teaching examples:",
+      "section_type": null,
+      "order": 33,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::33::para::0",
+          "section_id": "2405.04495::section::33",
+          "text": "Participants are told they will receive up to an additional 1.00 based on the accuracy of their predictions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::33::para::1",
+          "section_id": "2405.04495::section::33",
+          "text": "As shown in Figure She also left a note with some thoughts: I'm pretty sure, but not totally confident, that: 1) wug is undefined when inputs are greater than 2 2) When wug is defined, b = 3 -Dr. Smith Dr. Smith is quite familiar with wug, so her note should give you a good place to start! But keep in mind that it is possible that she is wrong. Table 3: An example of a hint given to a human learner. (1) is correct, while (2) is not, thus creating an b-learner.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::33::para::2",
+          "section_id": "2405.04495::section::33",
+          "text": "their bonus depends on.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::34",
+      "paper_id": "2405.04495",
+      "heading": "E.2 Additional Results",
+      "section_type": null,
+      "order": 34,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::34::para::0",
+          "section_id": "2405.04495::section::34",
+          "text": "Figure 16 shows the learning efficiency of human students by student type. Figure 17 shows the correctness of wug guesses by component as a function of time. Figure 18 shows the AUCs of wug correctness by component for individual participants. Figure 19 shows the accuracy of student type predictions over time.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::35",
+      "paper_id": "2405.04495",
+      "heading": "E.3 Combining GPT-4 and ATOM",
+      "section_type": null,
+      "order": 35,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::35::para::0",
+          "section_id": "2405.04495::section::35",
+          "text": "We run an experiment combining GPT-4 and ATOM in the following way: We use ATOM to make inferences about student type, then prompt GPT-4 with ATOM's inference by updating the system prompt to GPT-4 after each prediction made by the student. Before any predictions are given, GPT-4 is prompted with both student types (i.e., with the prompt given to the teacher that does not know student type). We call this method GPT-4+ATOM.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::35::para::1",
+          "section_id": "2405.04495::section::35",
+          "text": "Results are shown in Figure 20. We find that GPT-4+ATOM outperforms RANDOM (p < 0.05 using a paired t-test) but does not outperform GPT-4 or ATOM. Random [Known] GPT4 Non-Adaptive [Known] Non-Adaptive Adaptive [Known] Rank Rank GPT4 Random [Known] GPT4 Non-Adaptive [Known] Non-Adaptive Adaptive [Known] Rank Rank GPT4",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::36",
+      "paper_id": "2405.04495",
+      "heading": "Critical Example Selection by Teaching Methods",
+      "section_type": null,
+      "order": 36,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::36::para::0",
+          "section_id": "2405.04495::section::36",
+          "text": "Target: divisible_3 Spurious: divisible_6 Ex: [-15, -9, -3, 3, 9, 15] Target: divisible_4 Spurious: divisible_8 Ex: [-20, -12, -4, 4, 12, 20] Target: greater_2 Spurious: greater_1 Ex: [2] Target: greater_2 Spurious: greater_3 Ex: [3] Target: greater_2 Spurious: greater_4 Ex: [3, 4] Target: positive Spurious: greater_1 Ex: [1] Target: positive Spurious: greater_2 Ex: [1, 2] Target: greater_7 Spurious: greater_9 Ex: [8, 9] Target: greater_7 Spurious: greater_8 Ex: [8] Target: greater_7 Spurious: greater_5 Ex: [6, 7] Teaching Methods: Unknown vs Known Student Type Number of Datapoints Number of Datapoints Number of Datapoints Number of Datapoints Number of Datapoints Results are for simulated f-learners, who have a spurious belief about f that agrees with the target f on all but a few examples, as labeled. The opacity of each square corresponds to the mean value of whether the example chosen by the teaching method at that step in learning is a \"critical example\" (averaged across experimental conditions: seed and concepts). See §5.4 for details.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::36::para::1",
+          "section_id": "2405.04495::section::36",
+          "text": "Table 4: The target concepts and incorrect beliefs used in the function learning experiments. The target f, a, b define the concepts being taught. The incorrect f is the belief that the f-learners have about f at the start of learning, and the incorrect b is the value that the b-learners believes b to be.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::36::para::2",
+          "section_id": "2405.04495::section::36",
+          "text": "Introduction 5/6/24, 8:46 AM Mystery Machine Study 128.30.64.44:8089 1/1 Goal In this study, we are researching the way that people learn from examples. You will be tasked with learning what a mystery machine called wug does. This machine takes in numbers and outputs numbers; wug(x)=y means that when wug takes in number x , it outputs y . However, it only works for some numbers and is undefined for others. Your task is to learn on what inputs wug is undefined, and when it is defined, what it does.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::36::para::3",
+          "section_id": "2405.04495::section::36",
+          "text": "For example, suppose that you were instead learning about a machine vug that operated on letters instead of numbers. Suppose you saw the following sequence of examples: vug(A)=B , vug(B)=undefined , vug(E)=F , vug(I)=J . This data might suggest that vug is undefined on consonants and, when defined (on vowels), returns the next letter in the alphabet.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::37",
+      "paper_id": "2405.04495",
+      "heading": "Mystery Machine Study",
+      "section_type": null,
+      "order": 37,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::37::para::0",
+          "section_id": "2405.04495::section::37",
+          "text": "Task 5/6/24, 8:31 AM Mystery Machine Study 128.30.64.44:8089/task1 1/1 Details You will be interacting with a teacher through a chat interface, shown on the right. The teacher will show you examples of what wug does on different numbers, first asking you what you think wug outputs on a given input, and then providing the true output. Your goal is to figure out what wug does as quickly as possible.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::37::para::1",
+          "section_id": "2405.04495::section::37",
+          "text": "Throughout the teaching interaction, you can provide your guess of what you think wug does through the sidebar on the right. Your guess will have two parts: 1. when wug is undefined 2. when defined, what it does.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::37::para::2",
+          "section_id": "2405.04495::section::37",
+          "text": "We also provide a calculator to help with any calculations you may need for your guess.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::37::para::3",
+          "section_id": "2405.04495::section::37",
+          "text": "You will have 10 minutes to learn from the teacher. After that, you will no longer be able to learn about wug or make guesses. If you get 10 predictions correct in a row while talking to the teacher or go through all the teacher's examples before the 10 minutes are up, you will have the option to end the interaction early. f Incorrect f Options prime odd positive",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::38",
+      "paper_id": "2405.04495",
+      "heading": "Mystery Machine Study",
+      "section_type": null,
+      "order": 38,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::38::para::0",
+          "section_id": "2405.04495::section::38",
+          "text": "greater_n for n ∈ [-2, -1, 1, 2] even divis_4, divis_6 odd prime, divis_3, divis_5, divis_7 divis_n divis_m where m is the smallest multiple of n or the largest factor of n (if m = 2, this is even) greater_n greater_m where ∥m -n∥ <= 2 (if m = 0, this is positive)",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::38::para::1",
+          "section_id": "2405.04495::section::38",
+          "text": "Table 5: Descriptions of how the options for incorrect f beliefs of f-learners are generated for each target f in the function task. We uniformly sample the incorrect f from the set of options to determine the actual incorrect f belief for the f-learners.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::39",
+      "paper_id": "2405.04495",
+      "heading": "Bonus",
+      "section_type": null,
+      "order": 39,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::39::para::0",
+          "section_id": "2405.04495::section::39",
+          "text": "You will recive a base pay of $4.00 for this study.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::39::para::1",
+          "section_id": "2405.04495::section::39",
+          "text": "In addition, based on your performance at the task, you will be compensated with a bonus dependent on:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::39::para::2",
+          "section_id": "2405.04495::section::39",
+          "text": "Accuracy of guesses for wug : You will receive a higher bonus the sooner and longer you provide a correct guess for wug . You will receive $0.05 for every 10 seconds of the teaching interaction that your guess is correct. For example, if you provided the correct guess for wug 1 minute into the teaching interaction and left it unchanged, you would have a correct guess for 9 minutes, or equivalently 540 seconds. Therefore, you would get a bonus of $0.05 * (540/10) * = $2.70. You will receive partial compensation if only one of the two parts is correct, or if you have the correct guess submitted for less than 10 seconds.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::39::para::3",
+          "section_id": "2405.04495::section::39",
+          "text": "Accuracy of outputs for teacher examples: You will receive up to an additional $1.00 based on how many of your responses to the teacher are correct . For example, in the example teaching interaction in the right image, the participant gave 2/3 answers to the teacher, and so their bonus would be $1.00 * (2/3) = $0.67.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::39::para::4",
+          "section_id": "2405.04495::section::39",
+          "text": "Therefore, you should aim to provide a guess of what wug does as soon as you think you know, and aim to give the teacher accurate answers. You will not know if the guesses you submit for wug are correct. Back Next Mystery Machine Study Task 5/6/24, 8:31 AM Mystery Machine Study 128.30.64.44:8089/task3 1/1 Hints about wug Fortunately, you are not starting from a blank slate. Dr. Smith spent a bunch of time studying this machine. She figured out that when wug is defined, it computes a function of the form a * x+b , where a and b are constant numbers, so you only need to figure out what a and b are. She also left a note with some thoughts: I'm pretty sure, but not totally confident, that: 1. wug is undefined when inputs are divisible by 3 2. When wug is defined, b = 8 --Dr. Smith Dr. Smith is quite familiar with wug , so her note should give you a good place to start! But keep in mind that it is possible that she is wrong.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2405.04495::section::39::para::5",
+          "section_id": "2405.04495::section::39",
+          "text": "We will provide the note for you throughout learning so that you can refer to it. You can also always come back to the task instructions by using the navigation buttons \"Back\" and \"Next\" below.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::40",
+      "paper_id": "2405.04495",
+      "heading": "Mystery Machine Study",
+      "section_type": null,
+      "order": 40,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::40::para::0",
+          "section_id": "2405.04495::section::40",
+          "text": "Task 5/6/24, 8:32 AM Mystery Machine Study 128.30.64.44:8089/task4 1/1",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::41",
+      "paper_id": "2405.04495",
+      "heading": "Instruction check",
+      "section_type": null,
+      "order": 41,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::41::para::0",
+          "section_id": "2405.04495::section::41",
+          "text": "You now have all the information to start learning wug ! Before you start, please answer the following questions. If you are unsure of the answers, we encourage you to read through the task instructions again.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::41::para::1",
+          "section_id": "2405.04495::section::41",
+          "text": "The bonus depends on:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::41::para::2",
+          "section_id": "2405.04495::section::41",
+          "text": "(1) Accuracy of predictions I give to the teacher (2) How quickly I guess what wug does Both (1) and ( 2)",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::41::para::3",
+          "section_id": "2405.04495::section::41",
+          "text": "Correct! The correct answer is Both (1) and ( 2).",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::41::para::4",
+          "section_id": "2405.04495::section::41",
+          "text": "True or False: Multiple guesses for wug are allowed.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::42",
+      "paper_id": "2405.04495",
+      "heading": "True False",
+      "section_type": null,
+      "order": 42,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::42::para::0",
+          "section_id": "2405.04495::section::42",
+          "text": "Correct! The correct answer is True. Multiple guesses are allowed.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::43",
+      "paper_id": "2405.04495",
+      "heading": "Submit",
+      "section_type": null,
+      "order": 43,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::43::para::0",
+          "section_id": "2405.04495::section::43",
+          "text": "Press \"Next\" to enter the chat interface. There, you will have the opportunity to familiarize yourself with the layout before learning begins and the timer starts. After you press \"I Am Ready\" on the next page, you will interact with the teacher for 10 minutes.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::44",
+      "paper_id": "2405.04495",
+      "heading": "Mystery Machine Study",
+      "section_type": null,
+      "order": 44,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::44::para::0",
+          "section_id": "2405.04495::section::44",
+          "text": "Task 5/6/24, 8:32 AM Mystery Machine Study 128.30.64.44:8089/task5 1/1",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::44::para::1",
+          "section_id": "2405.04495::section::44",
+          "text": "Figure 13: Screens 4-6 (instructions) for the study with human participants.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::45",
+      "paper_id": "2405.04495",
+      "heading": "Accuracy of Predictions:",
+      "section_type": null,
+      "order": 45,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::45::para::0",
+          "section_id": "2405.04495::section::45",
+          "text": "Streak: 1 2 3 4 5 6 7 8 9 10",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::45::para::1",
+          "section_id": "2405.04495::section::45",
+          "text": "Press \"I Am Ready\" when you are ready to start learning. After that, the timer will begin, and you will have 10 minutes to interact with the teacher and submit guesses. You are encouraged to play around with the interface before beginning.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::46",
+      "paper_id": "2405.04495",
+      "heading": "I Am Ready",
+      "section_type": null,
+      "order": 46,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::46::para::0",
+          "section_id": "2405.04495::section::46",
+          "text": "Type your message here...",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::47",
+      "paper_id": "2405.04495",
+      "heading": "Chat",
+      "section_type": null,
+      "order": 47,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::47::para::0",
+          "section_id": "2405.04495::section::47",
+          "text": "You can use this calculator to help you figure out wug; it will not affect your bonus.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::47::para::1",
+          "section_id": "2405.04495::section::47",
+          "text": "Remember: Multiple guesses are allowed, and you can get partial credit for getting only one part of wug correct. The sooner you have the correct guess for wug, the higher your bonus.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::47::para::2",
+          "section_id": "2405.04495::section::47",
+          "text": "Make a guess about wug (1) wug( x) is undefined when input x is:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::47::para::3",
+          "section_id": "2405.04495::section::47",
+          "text": "--",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::47::para::4",
+          "section_id": "2405.04495::section::47",
+          "text": "2) when defined, wug(x) computes a * x+b where: a=-b=-Calculator for a * x+b where: a=-b=-OR Reset to Guess x= 0 Result: I'm pretty sure, but not totally confident, that: 1. wug is undefined when inputs are divisible by 3 2. When wug is defined, b = 8 --Dr. Smith Timer: 10:00 5/6/24, 8:32 AM Chat Interface 128.30.64.44:8089/chat 1/1 Back Accuracy of Predictions: 1/3 Streak: 1 2 3 4 5 6 7 8 9 10 Teacher You Teacher You Teacher You Teacher What is wug(2)? 8 That's incorrect. wug(2)=14. What is wug(4)? 20 That's correct. What is wug(6)? undefined That's incorrect. wug(6)=26. What is wug(8)?",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2405.04495::section::47::para::5",
+          "section_id": "2405.04495::section::47",
+          "text": "Type your message here...",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::48",
+      "paper_id": "2405.04495",
+      "heading": "Chat",
+      "section_type": null,
+      "order": 48,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::48::para::0",
+          "section_id": "2405.04495::section::48",
+          "text": "You can use this calculator to help you figure out wug; it will not affect your bonus.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::48::para::1",
+          "section_id": "2405.04495::section::48",
+          "text": "Remember: Multiple guesses are allowed, and you can get partial credit for getting only one part of wug correct. The sooner you have the correct guess for wug, the higher your bonus.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::48::para::2",
+          "section_id": "2405.04495::section::48",
+          "text": "Make a guess about wug (1) wug(x) is undefined when input x is:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::48::para::3",
+          "section_id": "2405.04495::section::48",
+          "text": "--",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::48::para::4",
+          "section_id": "2405.04495::section::48",
+          "text": ") when defined, wug(x) computes a * x+b where: a=-b=-Calculator for a * x+b where: a=3 b=8 OR Reset to Guess x= 4 Result: 3 * x+8= 20 I'm pretty sure, but not totally confident, that: 1. wug is undefined when inputs are divisible by 3 2. When wug is defined, b = 8 --Dr. Smith Timer: 09:26 5/6/24, 8:33 AM Chat Interface 128.30.64.44:8089/chat 1/1 Figure 14: The chat interface for the study with human participants. A) Was Dr. Smith's note right? I'm pretty sure, but not totally confident, that: 1. wug is undefined when inputs are divisible by 3 2. When wug is defined, b = 8 --Dr. Smith Hint (1) was: Correct Incorrect I don't know Hint (2) was: Correct Incorrect I don't know B) Did Dr. Smith's note influence what you thought wug did? Yes No C) Was there anything you found confusing or did not understand throughout the study, or any other issues that you encountered? Submit Mystery Machine Study Exit Questions 5/6/24, 8:34 AM Mystery Machine Study 128.30.64.44:8089/check 1/1 You have finished the study. Thank you for participating! Here is your completion code: C166E0FJ The correct answer was: 1. wug is undefined when inputs are odd 2. When wug is defined, it computes a * x+b where a = 3 and b = 8 If you have questions about this research, please contact us at alexisro@mit.edu. We will be in touch about your bonus. b-learner f-learner wug partial correctness AUC Function Results by Human Student Type Random GPT-4 ATOM Random GPT-4 ATOM * * Figure 16: Results showing how efficiently human students guessed the correct wug concept ( §6.2), by student type. Stars indicate statistically significant results under a paired t-test: For f-learners, p < 0.05 for RANDOM v.s. ATOM and for RANDOM v.s. GPT-4. Error bars show 95% confidence intervals. Minutes of Teaching Interaction Minutes of Teaching Interaction Minutes of Teaching Interaction a Correctness of Human Guesses for Components of wug b f Correctness GPT-4 Random ATOM You will be interacting with a student who has spent some time with fraction arithmetic but still has some misconceptions about how it works. The student you will be interacting with is a student who performs multiplication correctly, but tends to incorrectly add both numerators and denominators when adding fractions, especially when denominators are different.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2405.04495::section::49",
+      "paper_id": "2405.04495",
+      "heading": "Mystery Machine Study",
+      "section_type": null,
+      "order": 49,
+      "paragraphs": [
+        {
+          "id": "2405.04495::section::49::para::0",
+          "section_id": "2405.04495::section::49",
+          "text": "Please make sure to follow these instructions:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2405.04495::section::49::para::1",
+          "section_id": "2405.04495::section::49",
+          "text": "-You are only allowed to give students example fraction problems, and ask them to guess the outputs. You may not explain any concepts to them directly, or ask any other questions. Anything other than example fraction problems and answers will be ignored by the student.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2405.04495::section::49::para::2",
+          "section_id": "2405.04495::section::49",
+          "text": "-The student has not learned how to simplify fractions yet, so please do not simplify the fractions in your examples. Leave the answers in their unsimplified form. The student will also not simplify their answer.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2405.04495::section::49::para::3",
+          "section_id": "2405.04495::section::49",
+          "text": "-Please only use fractions with positive numerators and denominators.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2405.04495::section::49::para::4",
+          "section_id": "2405.04495::section::49",
+          "text": "-Do not teach arithmetic with mixed numbers or whole numbers.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2405.04495::section::49::para::5",
+          "section_id": "2405.04495::section::49",
+          "text": "-Only teach fraction addition and multiplication. Please format input/output examples as: a/b+c/d=e/f for addition or a/b*c/d=e/f for multiplication. -Keep teaching with fraction problems and outputs until the student says they would like to stop, even if you think you have covered the full input range. For example, your interactions will look like the following, where capital words indicate placeholders for actual verb lemmas and categories: Your interactions will look like the following (where letters are placeholders for actual numbers): System: What is a/b+c/d? User: a/b+c/d=e/f System: That's [correct/incorrect]. a/b+c/d=x/y. What is g/h+i/j?",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2405.04495::section::49::para::6",
+          "section_id": "2405.04495::section::49",
+          "text": "Please start by asking the student for their guess on a fraction example.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2405.04495::section::49::para::7",
+          "section_id": "2405.04495::section::49",
+          "text": "Table 6: System prompt to GPT-4-KNOWN for the fraction task (known student type). Bolded words indicate variables that change between student types.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2405.04495::section::49::para::8",
+          "section_id": "2405.04495::section::49",
+          "text": "You are GPT-teacher, an expert teacher. Your goal is to teach a student how to multiply and add fractions as efficiently as possible with helpful examples.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2405.04495::section::49::para::9",
+          "section_id": "2405.04495::section::49",
+          "text": "You will be interacting with a student who has spent some time with fraction arithmetic but still has some misconceptions about how it works. There are 2 kinds of students: 1) Students who perform addition correctly, but tend to incorrectly multiply only numerators when multiplying fractions, especially when the denominators are equal; if the denominators are not equal, the student sometimes makes common denominators and then multiplies the numerators 2) Students who perform multiplication correctly, but tend to incorrectly add both numerators and denominators when adding fractions, especially when denominators are different You should try to figure out which kind of student you are interacting with and then teach them accordingly.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2405.04495::section::49::para::10",
+          "section_id": "2405.04495::section::49",
+          "text": "Please make sure to follow these instructions:",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2405.04495::section::49::para::11",
+          "section_id": "2405.04495::section::49",
+          "text": "-You are only allowed to give students example fraction problems, and ask them to guess the outputs. You may not explain any concepts to them directly, or ask any other questions. Anything other than example fraction problems and answers will be ignored by the student.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2405.04495::section::49::para::12",
+          "section_id": "2405.04495::section::49",
+          "text": "-The student has not learned how to simplify fractions yet, so please do not simplify the fractions in your examples. Leave the answers in their unsimplified form. The student will also not simplify their answer.",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2405.04495::section::49::para::13",
+          "section_id": "2405.04495::section::49",
+          "text": "-Please only use fractions with positive numerators and denominators.",
+          "paragraph_index": 13
+        },
+        {
+          "id": "2405.04495::section::49::para::14",
+          "section_id": "2405.04495::section::49",
+          "text": "-Do not teach arithmetic with mixed numbers or whole numbers.",
+          "paragraph_index": 14
+        },
+        {
+          "id": "2405.04495::section::49::para::15",
+          "section_id": "2405.04495::section::49",
+          "text": "-Only teach fraction addition and multiplication. Please format input/output examples as: a/b+c/d=e/f for addition or a/b*c/d=e/f for multiplication. -Keep teaching with fraction problems and outputs until the student says they would like to stop, even if you think you have covered the full input range. For example, your interactions will look like the following, where capital words indicate placeholders for actual verb lemmas and categories: Your interactions will look like the following (where letters are placeholders for actual numbers): System: What is a/b+c/d? User: a/b+c/d=e/f System: That's [correct/incorrect]. a/b+c/d=x/y. What is g/h+i/j?",
+          "paragraph_index": 15
+        },
+        {
+          "id": "2405.04495::section::49::para::16",
+          "section_id": "2405.04495::section::49",
+          "text": "Please start by asking the student for their guess on a fraction example.",
+          "paragraph_index": 16
+        },
+        {
+          "id": "2405.04495::section::49::para::17",
+          "section_id": "2405.04495::section::49",
+          "text": "Table 7: System prompt to GPT-4 for the fraction task (unknown student type).",
+          "paragraph_index": 17
+        },
+        {
+          "id": "2405.04495::section::49::para::18",
+          "section_id": "2405.04495::section::49",
+          "text": "Based on this interaction, which kind of student do you think I was at the start of this teaching session: 1) Students who perform addition correctly, but tend to incorrectly multiply only numerators when multiplying fractions, especially when the denominators are equal; if the denominators are not equal, the student sometimes makes common denominators and then multiplies the numerators 2) Students who perform multiplication correctly, but tend to incorrectly add both numerators and denominators when adding fractions, especially when denominators are different Please select (1) or (2).",
+          "paragraph_index": 18
+        },
+        {
+          "id": "2405.04495::section::49::para::19",
+          "section_id": "2405.04495::section::49",
+          "text": "Table 8: System prompt to GPT-4 for inferring student type for the fraction task. You are GPT-teacher, an expert teacher. Your goal is to teach a student what a mystery machine called wug does. This machine takes in numbers and outputs numbers. However, it only works for some numbers and is undefined for others. Your goal is to teach the student on what inputs wug is undefined, and when it is defined, what it does. You should do so as efficiently as possible with helpful input/output examples, such as edge cases.",
+          "paragraph_index": 19
+        },
+        {
+          "id": "2405.04495::section::49::para::20",
+          "section_id": "2405.04495::section::49",
+          "text": "The wug machine works as follows: wug(x) is undefined when x is greater than 2. When defined, wug(x) computes x+7.",
+          "paragraph_index": 20
+        },
+        {
+          "id": "2405.04495::section::49::para::21",
+          "section_id": "2405.04495::section::49",
+          "text": "You're going to be interacting with a student who is learning how wug works. The student knows that wug is sometimes undefined. The student also knows that when wug is defined, it computes something of the form a*x+b. In the real wug machine, a=1 and b=7. However, the student does not know this. The student only knows that a is a constant number between -5 and 5 (inclusive) and that b is a constant number between 1 and 9 (inclusive).",
+          "paragraph_index": 21
+        },
+        {
+          "id": "2405.04495::section::49::para::22",
+          "section_id": "2405.04495::section::49",
+          "text": "The student knows that wug is undefined when the input is one of the following: -prime -positive -even -odd -divisible by n for n between 3 and 20 (inclusive) -greater than n for n between 1 and 20 (inclusive)",
+          "paragraph_index": 22
+        },
+        {
+          "id": "2405.04495::section::49::para::23",
+          "section_id": "2405.04495::section::49",
+          "text": "Students have varying previous exposure to wug, and so they understand different parts of how wug works.",
+          "paragraph_index": 23
+        },
+        {
+          "id": "2405.04495::section::49::para::24",
+          "section_id": "2405.04495::section::49",
+          "text": "The student you will be interacting with is a student who correctly thinks that b=7 but incorrectly thinks that wug is undefined when inputs are greater than 4.",
+          "paragraph_index": 24
+        },
+        {
+          "id": "2405.04495::section::49::para::25",
+          "section_id": "2405.04495::section::49",
+          "text": "Please make sure to follow these instructions:",
+          "paragraph_index": 25
+        },
+        {
+          "id": "2405.04495::section::49::para::26",
+          "section_id": "2405.04495::section::49",
+          "text": "-You are only allowed to give students example inputs, and ask them to guess outputs. You may not explain aspects of the concept to them directly, or ask any other questions. Anything other than inputs and outputs will be ignored by the student.",
+          "paragraph_index": 26
+        },
+        {
+          "id": "2405.04495::section::49::para::27",
+          "section_id": "2405.04495::section::49",
+          "text": "-Please format input/output examples as: wug(INPUT)=ANSWER -wug only works for numbers between -20 to 20 (inclusive), so restrict the inputs you choose to that range. Any inputs outside of that range will be ignored by the student.",
+          "paragraph_index": 27
+        },
+        {
+          "id": "2405.04495::section::49::para::28",
+          "section_id": "2405.04495::section::49",
+          "text": "-Keep teaching with inputs and outputs until the student says they would like to stop, even if you think you have covered the full input range.",
+          "paragraph_index": 28
+        },
+        {
+          "id": "2405.04495::section::49::para::29",
+          "section_id": "2405.04495::section::49",
+          "text": "For example, your interactions will look like the following, where capital words indicate placeholders for actual numbers:",
+          "paragraph_index": 29
+        },
+        {
+          "id": "2405.04495::section::49::para::30",
+          "section_id": "2405.04495::section::49",
+          "text": "Your interactions will look like the following: System: What is wug(INPUT)? User: wug(INPUT)=GUESS System: That's [correct/incorrect]. wug(INPUT)=ANSWER. What is wug(NEW INPUT)?",
+          "paragraph_index": 30
+        },
+        {
+          "id": "2405.04495::section::49::para::31",
+          "section_id": "2405.04495::section::49",
+          "text": "Please start by asking the student for their guess on an input.",
+          "paragraph_index": 31
+        },
+        {
+          "id": "2405.04495::section::49::para::32",
+          "section_id": "2405.04495::section::49",
+          "text": "Table 9: System prompt to GPT-4-KNOWN for the function task (known student type). Bolded words indicate variables that change between student types and target concepts. You are GPT-teacher, an expert teacher. Your goal is to teach a student what a mystery machine called wug does. This machine takes in numbers and outputs numbers. However, it only works for some numbers and is undefined for others. Your goal is to teach the student on what inputs wug is undefined, and when it is defined, what it does. You should do so as efficiently as possible with helpful input/output examples, such as edge cases.",
+          "paragraph_index": 32
+        },
+        {
+          "id": "2405.04495::section::49::para::33",
+          "section_id": "2405.04495::section::49",
+          "text": "The wug machine works as follows: wug(x) is undefined when x is greater than 2. When defined, wug(x) computes x+7.",
+          "paragraph_index": 33
+        },
+        {
+          "id": "2405.04495::section::49::para::34",
+          "section_id": "2405.04495::section::49",
+          "text": "You're going to be interacting with a student who is learning how wug works. The student knows that wug is sometimes undefined. The student also knows that when wug is defined, it computes something of the form a*x+b. In the real wug machine, a=1 and b=7. However, the student does not know this. The student only knows that a is a constant number between -5 and 5 (inclusive) and that b is a constant number between 1 and 9 (inclusive).",
+          "paragraph_index": 34
+        },
+        {
+          "id": "2405.04495::section::49::para::35",
+          "section_id": "2405.04495::section::49",
+          "text": "The student knows that wug is undefined when the input is one of the following:",
+          "paragraph_index": 35
+        },
+        {
+          "id": "2405.04495::section::49::para::36",
+          "section_id": "2405.04495::section::49",
+          "text": "-prime -positive -even -odd -divisible by n for n between 3 and 20 (inclusive) -greater than n for n between 1 and 20 (inclusive)",
+          "paragraph_index": 36
+        },
+        {
+          "id": "2405.04495::section::49::para::37",
+          "section_id": "2405.04495::section::49",
+          "text": "Students have varying previous exposure to wug, and so they understand different parts of how wug works. There are two kinds of students: 1) Students who correctly think that b=7 but incorrectly think wug is undefined when inputs are greater than 4 2) Students who correctly think that wug is undefined when inputs are greater than 2 but incorrectly think that b=3",
+          "paragraph_index": 37
+        },
+        {
+          "id": "2405.04495::section::49::para::38",
+          "section_id": "2405.04495::section::49",
+          "text": "Please make sure to follow these instructions:",
+          "paragraph_index": 38
+        },
+        {
+          "id": "2405.04495::section::49::para::39",
+          "section_id": "2405.04495::section::49",
+          "text": "-You are only allowed to give students example inputs, and ask them to guess outputs. You may not explain aspects of the concept to them directly, or ask any other questions. Anything other than inputs and outputs will be ignored by the student.",
+          "paragraph_index": 39
+        },
+        {
+          "id": "2405.04495::section::49::para::40",
+          "section_id": "2405.04495::section::49",
+          "text": "-Please format input/output examples as: wug(INPUT)=ANSWER -wug is only defined for numbers between -20 to 20 (inclusive), so restrict the inputs you choose to that range.",
+          "paragraph_index": 40
+        },
+        {
+          "id": "2405.04495::section::49::para::41",
+          "section_id": "2405.04495::section::49",
+          "text": "-Keep teaching with inputs and outputs until the student says they would like to stop, even if you think you have covered the full input range.",
+          "paragraph_index": 41
+        },
+        {
+          "id": "2405.04495::section::49::para::42",
+          "section_id": "2405.04495::section::49",
+          "text": "For example, your interactions will look like the following, where capital words indicate placeholders for actual numbers:",
+          "paragraph_index": 42
+        },
+        {
+          "id": "2405.04495::section::49::para::43",
+          "section_id": "2405.04495::section::49",
+          "text": "Your interactions will look like the following: System: What is wug(INPUT)? User: wug(INPUT)=GUESS System: That's [correct/incorrect]. wug(INPUT)=ANSWER. What is wug(NEW INPUT)?",
+          "paragraph_index": 43
+        },
+        {
+          "id": "2405.04495::section::49::para::44",
+          "section_id": "2405.04495::section::49",
+          "text": "Please start by asking the student for their guess on an input.",
+          "paragraph_index": 44
+        },
+        {
+          "id": "2405.04495::section::49::para::45",
+          "section_id": "2405.04495::section::49",
+          "text": "Table 10: System prompt to GPT-4 for the function task (unknown student type). Bolded words indicate variables that change between student types and target concepts.",
+          "paragraph_index": 45
+        },
+        {
+          "id": "2405.04495::section::49::para::46",
+          "section_id": "2405.04495::section::49",
+          "text": "Based on this interaction, which kind of student do you think I was at the start of this teaching session: 1) Students who correctly think that b=7 but incorrectly think wug is undefined when inputs are greater than 4 2) Students who correctly think that wug is undefined when inputs are greater than 2 but incorrectly think that b=3",
+          "paragraph_index": 46
+        },
+        {
+          "id": "2405.04495::section::49::para::47",
+          "section_id": "2405.04495::section::49",
+          "text": "Please select (1) or (2).",
+          "paragraph_index": 47
+        },
+        {
+          "id": "2405.04495::section::49::para::48",
+          "section_id": "2405.04495::section::49",
+          "text": "Table 11: System prompt to GPT-4 for inferring student type for the function task. Bolded words indicate variables that change between student types and target concepts.",
+          "paragraph_index": 48
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2405.04495::figure::0",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 2 :",
+      "caption": "Figure2: An overview of the tasks and student types in the ADAPT (Adaptive Teaching) evaluation framework ( §3). ADAPT has three tasks: fractions, verbs, and functions. For the fraction and function tasks, a student's concept space consists of programs; for the verbs task, a student's concept space is the space of generative models corresponding to English past tense verb classes.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_0",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::1",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 3 :",
+      "caption": "Figure3: Area under simulated learners' learning curves, where curves plot learners' posterior beliefs in the target concept by number of datapoints. We report results by task and student type with 3 random seeds per bar. Dashed bars indicate that the true student type is assumed. Note that the y-axis for the f-learner for functions starts at 0.8, as these learners all learn the concept early on, and so differences in teaching methods are small. Error bars show min/max values across seeds. Full learning curves are shown in Figure9.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_1",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::2",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 4 :",
+      "caption": "Figure 4: Critical example selection by different teaching methods for the function task. Results are for simulated f-learners, who have a spurious belief about f that agrees with the target f on all but a few examples, as labeled.The opacity of each square corresponds to the mean value of whether the example chosen by the teaching method at that step in learning is a \"critical example\" (averaged across experimental conditions: seed and concepts). See §5.4 for details. We report a subset of results here; see §11 for full results.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_2",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::3",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 5 :Figure 6 :",
+      "caption": "Figure 5: Examples selected by different teaching methods for teaching a and b in the function learning task (i.e., what wug(x) computes when it is defined). The x-axis indicates the order of the chosen example compared to other examples targeting a and b.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_3",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::4",
+      "paper_id": "2405.04495",
+      "figure_number": null,
+      "caption": "neci et al. (2023) for a survey and Wang et al. (2023) for a specific application to math teaching problems. Concurrent work by Chandra et al. (2024) uses program synthesis techniques to infer misconceptions and provide explanations about Javascript. Our work adds to this literature by providing a framework that allows reproducible evaluation of the effectiveness and personalization skills of LLMs as teachers, as well as a new model that empirically improves upon LLM baselines in teaching humans a new task.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_4",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::5",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 8 :",
+      "caption": "Figure8: Plot showing whether examples selected by teaching methods target student misconceptions. For fractions, multiplication problems with common denominators target mult-learners' misconceptions, and addition problems with different denominators target add-learners' misconceptions. For functions, inputs x for which f(x) returns True target f-learners' misconceptions, and inputs for which f(x) returns False target b-learners' misconceptions. For verbs, inputs with class \"unknown\" by the student (e.g., a +ied verb for a +ied-learner) target the student's misconception.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_5",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::6",
+      "paper_id": "2405.04495",
+      "figure_number": "VerbsFigure 9 :",
+      "caption": "Figure 9: Learning curves for simulated students. Top row: results for function learning and fraction arithmetic, with y-axis showing the probability of the target concept. Bottom row: results for verb conjugation, with y-axis showing the log PDF of the target concept. Each subplot corresponds to a different student type. Color indicates teaching method. Linestyles indicate whether the true student type is assumed (dashed=unknown, solid=known).",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_6",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::7",
+      "paper_id": "2405.04495",
+      "figure_number": null,
+      "caption": "13, participants are prompted to indicate their understanding of what Dr. Smith spent a bunch of time studying this machine. She figured out that when wug is defined, it computes a function of the form a*x+b, where a and b are constant numbers, so you only need to figure out what a and b are.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_7",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::8",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 10 :",
+      "caption": "Figure 10: Correctness of simulated student predictions on teaching examples by task. Error bars indicate 95% confidence intervals.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_8",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::9",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 11 :",
+      "caption": "Figure11: Full results for critical example selection by different teaching methods for the function task. Results are for simulated f-learners, who have a spurious belief about f that agrees with the target f on all but a few examples, as labeled. The opacity of each square corresponds to the mean value of whether the example chosen by the teaching method at that step in learning is a \"critical example\" (averaged across experimental conditions: seed and concepts). See §5.4 for details.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_9",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::10",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 12 :",
+      "caption": "Figure 12: Screens 1-3 (instructions) for the study with human participants.",
+      "page_number": 17,
+      "bounding_box": {
+        "page": 17,
+        "x": 247.2,
+        "y": 418.79,
+        "width": 230.92,
+        "height": 124.39
+      },
+      "grobid_ref_id": "fig_10",
+      "image_path": "extracted_images\\2405.04495_figure_10.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::figure::11",
+      "paper_id": "2405.04495",
+      "figure_number": "Figure 15 :Figure 16 :Figure 17 :Figure 18 :Figure 19 :Figure 20 :",
+      "caption": "Figure15: Post-chat end screens for the study with human participants.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_11",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2405.04495::table::0",
+      "paper_id": "2405.04495",
+      "table_number": "Table 1 :",
+      "caption": "Verb classes and corresponding dataset counts for the verb conjugation task ( §3.1).",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "Verb Class",
+          "Description",
+          "",
+          "Example Counts"
+        ],
+        [
+          "+ed",
+          "",
+          "add 'ed' to the lemma",
+          "",
+          "clasp",
+          "6,130"
+        ],
+        [
+          "+d",
+          "",
+          "add 'd' to the lemma",
+          "",
+          "smile",
+          "13,463"
+        ],
+        [
+          "+ied",
+          "",
+          "replace last 'y' with 'ied'",
+          "",
+          "cry",
+          "1,056"
+        ],
+        [
+          "+consonant+ed",
+          "double last consonant, add 'ed'",
+          "stop",
+          "1,878"
+        ],
+        [
+          "Addition Sub-Programs",
+          "",
+          "",
+          ""
+        ],
+        [
+          "(1)",
+          "",
+          "(2)",
+          "",
+          "(3)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "if denominators are equal:"
+        ],
+        [
+          "make common denominators add numerators",
+          "add numerators & denominators",
+          "add numerators else:"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "add numerators & denominators"
+        ],
+        [
+          "Multiplication Sub-Programs",
+          "",
+          "",
+          ""
+        ],
+        [
+          "(4)",
+          "",
+          "(5)",
+          "",
+          "(6)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "if denominators are equal:"
+        ],
+        [
+          "make common denominators multiply numerators",
+          "multiply numerators & denoms",
+          "multiply numerators else:"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "multiply numerators & denominators"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2405.04495::table::1",
+      "paper_id": "2405.04495",
+      "table_number": "Table 2 :",
+      "caption": "The addition and multiplication sub-programs in the concept space for the fraction task in ADAPT ( §3). The sub-programs in the target concept (i.e., correct sub-programs for adding/multiplying fractions) are bolded.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "Learning Curves:",
+          ""
+        ],
+        [
+          "Fractions",
+          "Functions"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2405.04495::equation::0",
+      "paper_id": "2405.04495",
+      "latex": "p S (h | x, y) ∝ p S (h) i p S (y i | x i , h) (1)",
+      "equation_number": null,
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2405.04495::equation::1",
+      "paper_id": "2405.04495",
+      "latex": "x i+1 , y i+1 = arg max x,y p(h * | x, y, x, y) (2)",
+      "equation_number": null,
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2405.04495::equation::2",
+      "paper_id": "2405.04495",
+      "latex": "\\alpha i = arg max \\alpha i log p S (ŷ i | x, y, x i , \\alpha ) (4) where (x, y) = [(x 1 , y 1 ), . . . , (x i-1 , y i-1 )]",
+      "equation_number": null,
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2405.04495::equation::3",
+      "paper_id": "2405.04495",
+      "latex": "arg max x i+1 ,y i+1 p S (h * | x, y, x i , y i , x i+1 , y i+1 , \\alpha ) (",
+      "equation_number": "5",
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2405.04495::equation::4",
+      "paper_id": "2405.04495",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_5",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2405.04495::equation::5",
+      "paper_id": "2405.04495",
+      "latex": "Target Incorrect Used in f a b f b Human Experiments? even 1 7 divisible_6 5 even -5 5 divisible_6 7 Y even 3 8 divisible_4 3 Y greater_2 1 7 greater_4 3 greater_2 -5 5 greater_1 6 greater_2 3 8 greater_3 5 Y prime 1 7 odd 2 Y prime -5 5 odd 9 Y prime 3 8 odd 6 divisible_3 1 7 divisible_6 6 divisible_3 -5 5 divisible_6 9 divisible_3 3 8 divisible_6 5 divisible_4 1 7 divisible_8 1 divisible_4 -5 5 divisible_8 8 Y divisible_4 3 8 divisible_8 9 Y positive 1 7 greater_2 4 positive -5 5 greater_2 2 positive 3 8 greater_1 4 odd 1 7 divisible_5 3 Y odd -5 5 prime 2 Y odd 3 8 divisible_3 6 Y greater_7 1 7 greater_9 2 greater_7 -5 5 greater_8 6 Y greater_7 3 8 greater_5",
+      "equation_number": "6",
+      "grobid_ref_id": "formula_6",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2405.04495::citation::0",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "What learning algorithm is in-context learning? investigations with linear models",
+      "cited_authors": [
+        "Ekin Akyürek",
+        "Dale Schuurmans",
+        "Jacob Andreas",
+        "Tengyu Ma",
+        "Denny Zhou"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::1",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Bayesian theory of mind: Modeling joint Belief-Desire attribution",
+      "cited_authors": [
+        "Chris Baker",
+        "Rebecca Saxe",
+        "Joshua Tenenbaum"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::2",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Khuyagbaatar Batsuren",
+        "Omer Goldman",
+        "Salam Khalifa",
+        "Nizar Habash",
+        "Witold Kieraś",
+        "Gábor Bella",
+        "Brian Leonard",
+        "Garrett Nicolai",
+        "Kyle Gorman",
+        "Yustinus Ghanggo Ate",
+        "Maria Ryskina",
+        "Sabrina Mielke",
+        "Elena Budianskaya",
+        "Charbel El-Khaissi",
+        "Tiago Pimentel",
+        "Michael Gasser",
+        "William Abbott Lane",
+        "Mohit Raj",
+        "Matt Coler",
+        "Jaime Rafael Montoya Samame",
+        "Delio Siticonatzi Camaiteri",
+        "Esaú Zumaeta Rojas",
+        "Didier López Francis",
+        "Arturo Oncevay",
+        "Juan López Bautista",
+        "Gema",
+        "Celeste Silva Villegas",
+        "Lucas Torroba Hennigen",
+        "Adam Ek",
+        "David Guriel",
+        "Peter Dirix",
+        "Jean-Philippe Bernardy",
+        "Andrey Scherbakov",
+        "Aziyana Bayyr-Ool",
+        "Antonios Anastasopoulos",
+        "Roberto Zariquiey",
+        "Karina Sheifer",
+        "Sofya Ganieva",
+        "Hilaria Cruz",
+        "Ritván Karahóǧa",
+        "Stella Markantonatou",
+        "George Pavlidis",
+        "Matvey Plugaryov",
+        "Elena Klyachko",
+        "Ali Salehi",
+        "Candy Angulo",
+        "Jatayu Baxi",
+        "Andrew Krizhanovsky",
+        "Natalia Krizhanovskaya",
+        "Elizabeth Salesky",
+        "Clara Vania",
+        "Sardana Ivanova",
+        "Jennifer White",
+        "Rowan Hall Maudslay",
+        "Josef Valvoda",
+        "Ran Zmigrod",
+        "Paula Czarnowska",
+        "Irene Nikkarinen",
+        "Aelita Salchak",
+        "Brijesh Bhatt",
+        "Christopher Straughn",
+        "Zoey Liu",
+        "Jonathan North Washington",
+        "Yuval Pinter",
+        "Duygu Ataman",
+        "Marcin Wolinski",
+        "Totok Suhardijanto",
+        "Anna Yablonskaya",
+        "Niklas Stoehr",
+        "Hossep Dolatian",
+        "Zahroh Nuriah",
+        "Shyam Ratan",
+        "Francis M Tyers"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::3",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "A computational model of fraction arithmetic",
+      "cited_authors": [
+        "Aryn A David W Braithwaite",
+        "Robert S Pyke",
+        "Siegler"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::4",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Alec Radford, Ilya Sutskever, and Dario Amodei",
+      "cited_authors": [
+        "Tom Brown",
+        "Benjamin Mann",
+        "Nick Ryder",
+        "Melanie Subbiah",
+        "Jared D Kaplan",
+        "Prafulla Dhariwal",
+        "Arvind Neelakantan",
+        "Pranav Shyam",
+        "Girish Sastry",
+        "Amanda Askell",
+        "Sandhini Agarwal",
+        "Ariel Herbert-Voss",
+        "Gretchen Krueger",
+        "Tom Henighan",
+        "Rewon Child",
+        "Aditya Ramesh",
+        "Daniel Ziegler",
+        "Jeffrey Wu",
+        "Clemens Winter",
+        "Chris Hesse",
+        "Mark Chen",
+        "Eric Sigler",
+        "Mateusz Litwin",
+        "Scott Gray",
+        "Benjamin Chess",
+        "Jack Clark",
+        "Christopher Berner",
+        "Sam Mccandlish"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::5",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "From 'why?' to 'wat!': Explaining perplexing programs by debugging mental models",
+      "cited_authors": [
+        "Kartik Chandra",
+        "Tzu-Mao Li",
+        "Rachit Nigam",
+        "Joshua Tenenbaum",
+        "Jonathan Ragan-Kelley"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::6",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Andrew Alicia M Chen",
+        "Natalia Palacci",
+        "Robert Vélez",
+        "Samuel J Hawkins",
+        "Gershman"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::7",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Cognitive computer tutors: Solving the Two-Sigma problem",
+      "cited_authors": [
+        "Albert Corbett"
+      ],
+      "cited_year": 2001,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::8",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Knowledge tracing: Modeling the acquisition of procedural knowledge",
+      "cited_authors": [
+        "T Albert",
+        "John R Corbett",
+        "Anderson"
+      ],
+      "cited_year": 1994,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::9",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Legibility and predictability of robot motion",
+      "cited_authors": [
+        "D Anca",
+        "Kenton C T Dragan",
+        "Siddhartha S Lee",
+        "Srinivasa"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::10",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Predicting pragmatic reasoning in language games",
+      "cited_authors": [
+        "C Michael",
+        "Noah D Frank",
+        "Goodman"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1126/science.1218633",
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::11",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Cooperative inverse reinforcement learning",
+      "cited_authors": [
+        "Dylan Hadfield-Menell",
+        "Anca Dragan",
+        "Pieter Abbeel",
+        "Stuart Russell"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::12",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Item response theory: models and features",
+      "cited_authors": [
+        "M Rk Hambelton",
+        "Jodoin"
+      ],
+      "cited_year": 2003,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::13",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Ronald K Hambleton",
+        "Hariharan Swaminathan"
+      ],
+      "cited_year": 1981,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::14",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Chatgpt for good? on opportunities and challenges of large language models for education",
+      "cited_authors": [
+        "Enkelejda Kasneci",
+        "Kathrin Sessler",
+        "Stefan Küchemann",
+        "Maria Bannert",
+        "Daryna Dementieva",
+        "Frank Fischer",
+        "Urs Gasser",
+        "Georg Groh",
+        "Stephan Günnemann",
+        "Eyke Hüllermeier",
+        "Stephan Krusche",
+        "Gitta Kutyniok",
+        "Tilman Michaeli",
+        "Claudia Nerdel",
+        "Jürgen Pfeffer",
+        "Oleksandra Poquet",
+        "Michael Sailer",
+        "Albrecht Schmidt",
+        "Tina Seidel",
+        "Matthias Stadler",
+        "Jochen Weller",
+        "Jochen Kuhn",
+        "Gjergji Kasneci"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/j.lindif.2023.102274",
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::15",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Eliciting human preferences with language models",
+      "cited_authors": [
+        "Belinda Z Li",
+        "Alex Tamkin",
+        "Noah Goodman",
+        "Jacob Andreas"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::16",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Literal or pedagogic human? analyzing human model misspecification in objective learning",
+      "cited_authors": [
+        "Smitha Milli",
+        "Anca D Dragan"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::17",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Rethinking the role of demonstrations: What makes in-context learning work?",
+      "cited_authors": [
+        "Sewon Min",
+        "Xinxi Lyu",
+        "Ari Holtzman",
+        "Mikel Artetxe",
+        "Mike Lewis",
+        "Hannaneh Hajishirzi",
+        "Luke Zettlemoyer"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2022.emnlp-main.759",
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::18",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Deep knowledge tracing",
+      "cited_authors": [
+        "Chris Piech",
+        "Jonathan Spencer",
+        "Jonathan Huang",
+        "Surya Ganguli",
+        "Mehran Sahami",
+        "Leonidas J Guibas",
+        "Jascha Sohl-Dickstein"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::19",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Faster teaching via POMDP planning",
+      "cited_authors": [
+        "Anna N Rafferty",
+        "Emma Brunskill",
+        "Thomas L Griffiths",
+        "Patrick Shafto"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::20",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Inferring learners' knowledge from their actions",
+      "cited_authors": [
+        "Anna N Rafferty",
+        "Michelle M Lamar",
+        "Thomas L Griffiths"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::21",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Can language models teach weaker agents? teacher explanations improve students via personalization",
+      "cited_authors": [
+        "Swarnadeep Saha",
+        "Peter Hase",
+        "Mohit Bansal"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::22",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Neural theory-of-mind? on the limits of social intelligence in large lms",
+      "cited_authors": [
+        "Maarten Sap",
+        "Ronan Lebras",
+        "Daniel Fried",
+        "Yejin Choi"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::23",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Minding language models' (lack of) theory of mind: A plug-andplay multi-character belief tracker",
+      "cited_authors": [
+        "Melanie Sclar",
+        "Sachin Kumar",
+        "Peter West",
+        "Alane Suhr",
+        "Yejin Choi",
+        "Yulia Tsvetkov"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::24",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "A rational account of pedagogical reasoning: teaching by, and learning from, examples",
+      "cited_authors": [
+        "Patrick Shafto",
+        "Thomas L Noah D Goodman",
+        "Griffiths"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::25",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Question generation for adaptive education",
+      "cited_authors": [
+        "Megha Srivastava",
+        "Noah Goodman"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.acl-short.88",
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::26",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Extending rational models of communication from beliefs to actions",
+      "cited_authors": [
+        "Robert D Theodore R Sumers",
+        "Mark K Hawkins",
+        "Thomas L Ho",
+        "Griffiths"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::27",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Rules and similarity in concept learning",
+      "cited_authors": [
+        "Joshua Tenenbaum"
+      ],
+      "cited_year": 1999,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::28",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Efficient pragmatic program synthesis with informative specifications",
+      "cited_authors": [
+        "Saujas Vaduguru",
+        "Kevin Ellis",
+        "Yewen Pu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::29",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Bridging the novice-expert gap via models of decision-making: A case study on remediating math mistakes",
+      "cited_authors": [
+        "Rose E Wang",
+        "Qingyang Zhang",
+        "Carly Robinson",
+        "Susanna Loeb",
+        "Dorottya Demszky"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::30",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "Individualized bayesian knowledge tracing models",
+      "cited_authors": [
+        "Kenneth R Michael V Yudelson",
+        "Geoffrey J Koedinger",
+        "Gordon"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2405.04495::citation::31",
+      "paper_id": "2405.04495",
+      "raw_text": null,
+      "cited_title": "An overview of machine teaching",
+      "cited_authors": [
+        "Xiaojin Zhu",
+        "Adish Singla",
+        "Sandra Zilles",
+        "Anna N Rafferty"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

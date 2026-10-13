@@ -1,0 +1,1503 @@
+{
+  "arxiv_id": "2303.17183",
+  "title": "The Nordic Pile: A 1.2TB Nordic Dataset for Language Modeling",
+  "authors": [
+    {
+      "name": "Joey \\\"Ohman",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Severine Verlinden",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Ariel Ekgren",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Amaru Cuba Gyllensten",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Tim Isbister",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Evangelia Gogoulou",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Fredrik Carlsson",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Magnus Sahlgren",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Pre-training Large Language Models (LLMs) require massive amounts of text data, and the performance of the LLMs typically correlates with the scale and quality of the datasets. This means that it may be challenging to build LLMs for smaller languages such as Nordic ones, where the availability of text corpora is limited. In order to facilitate the development of the LLMS in the Nordic languages, we curate a high-quality dataset consisting of 1.2TB of text, in all of the major North Germanic languages (Danish, Icelandic, Norwegian, and Swedish), as well as some high-quality English data. This paper details our considerations and processes for collecting, cleaning, and filtering the dataset.",
+  "categories": [
+    "cs.CL",
+    "cs.AI"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2023-03-30T06:42:22"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2023-03-30",
+  "citation_count": 17,
+  "reference_count": 21,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2303.17183::section::0",
+      "paper_id": "2303.17183",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::0::para::0",
+          "section_id": "2303.17183::section::0",
+          "text": "Recent work on Large Language Models (LLMs) show that for current architectures, model performance is strongly correlated with its scale (Brown et al., 2020;Rae et al., 2021;Black et al., 2022;BigScience, 2022;Chowdhery et al., 2022), with some capabilities emerging only past a certain parameter count. However, with the constantly growing model architectures, the optimal dataset size and required to compute increases in a proportional manner (Ghorbani et al., 2022;Hoffmann et al., 2022). This suggests that access to a massive dataset is a fundamental requirement for pre-training such LLMs. For lower-resourced languages, this may be a limiting factor, which often leads practitioners to rely on English or multilingual models.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::0::para::1",
+          "section_id": "2303.17183::section::0",
+          "text": "For the languages in the North Germanic language group, there is limited open access to large textual datasets. This may be a limiting factor for the development of LLMs for these languages. We therefore create a training dataset consisting of 1.2TB of high-quality multilingual texts in Danish, English, Icelandic, Norwegian, and Swedish. We refer to the dataset as The Nordic Pile, since the collection process has been inspired by its English predecessor The Pile (Gao et al., 2021). This paper details our considerations and processes for collecting, cleaning, and filtering the dataset in order to build a well-performing Nordic LLM.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::1",
+      "paper_id": "2303.17183",
+      "heading": "Related Work",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::1::para::0",
+          "section_id": "2303.17183::section::1",
+          "text": "The rapid progress within the field of Natural Language Processing (NLP), has to a great extent benefited from having access to open datasets. These are often derived from Common Crawlfoot_0 , such as C4 (Raffel et al., 2020), OSCAR (Suárez et al., 2019;Ortiz Suárez et al., 2020) and The Pile (Gao et al., 2021). While the majority of these datasets have included some form of quality filtering and deduplication, recent work has applied more aggressive filters and deduplication processes to their datasets prior to LLM pre-training. Wenzek et al. (2020) propose an automatic pipeline for extracting massive high-quality monolingual datasets from Common Crawl.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::1::para::1",
+          "section_id": "2303.17183::section::1",
+          "text": "The pipeline includes deduplication and language identification using fastText (Joulin et al., 2016b), and is extended by removing low-quality documents, using a small Kneser-Ney language model trained on Wikipedia. The authors show that their filtering process results in better model performance. Brown et al. (2020) present GPT-3 and describes their corpus, which is a filtered and deduplicated version of Common Crawl, extended with several curated high-quality datasets. Rae et al. (2021) train Gopher on their cleaned corpus Mas-siveText, a diverse dataset with a large portion de- rived from web data. Their dataset pipeline consists of six stages: content filtering, text extraction, quality filtering, repetition removal, document deduplication, and test-set filtering. Laurenc ¸on et al. (2022) also perform thorough quality filtering to create their 1.6TB multilingual ROOTS dataset. Lee et al. (2022) extensively experiment with two different deduplication algorithms, MinHash Locality Sensitive Hashing (MinHash LSH) and Exact Substring Matching, and evaluate their effects by training LLMs, showing that deduplication indeed improves the model performance.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::1::para::2",
+          "section_id": "2303.17183::section::1",
+          "text": "Our data pipeline is heavily inspired by the related literature, and parts of the above work are hence revisited and further explained in Section 4.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::2",
+      "paper_id": "2303.17183",
+      "heading": "Data Collection",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::2::para::0",
+          "section_id": "2303.17183::section::2",
+          "text": "When collecting language modeling datasets, both quality and quantity are vital. The largest language models are often pre-trained on more than 1TB of text, with higher quality typically yielding better-performing models. In order to collect these massive amounts of data, manual methods are infeasible. Therefore, The Nordic Pile is composed mostly of existing sources, with a large portion of these originating from derivatives of Common Crawl data, such as OSCAR (Suárez et al., 2019;Ortiz Suárez et al., 2020) and Multilingual C4 (mC4) (Xue et al., 2021), which is a languagefiltered version of C4 (Raffel et al., 2020).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::2::para::1",
+          "section_id": "2303.17183::section::2",
+          "text": "In order to ensure the versatility of models trained on this dataset, we strive for a high degree of diversity in the data. This entails col-lecting data not only from Common Crawl, but also from other categories of data, such as conversational forums, academic articles, books, code, task-related datasets, and more. While most of the data originate from public pre-curated datasets, parts of The Nordic Pile were scraped using the Trafilatura library (Barbaresi, 2021) or curated from other sources. For instance, after downloading the Reddit data from Pushshift (Baumgartner et al., 2020), we constructed conversational trees in order to enable sampling of sequential conversations. Other examples involve building and translating templates for language-parallel sentences from OPUSfoot_1 (Tiedemann and Nygaard, 2004) or generated mathematical tasksfoot_2 (Saxton et al., 2019).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::2::para::2",
+          "section_id": "2303.17183::section::2",
+          "text": "Our data sources can be divided into the following nine categories, based on their domains and quality, illustrated in Figure 1: • Articles: Academic papers.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::2::para::3",
+          "section_id": "2303.17183::section::2",
+          "text": "• Books: High-quality books, e.g. fiction, novels.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2303.17183::section::2::para::4",
+          "section_id": "2303.17183::section::2",
+          "text": "• Code: Code in the programming languages Bash, JavaScript, Python, and SQL.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2303.17183::section::2::para::5",
+          "section_id": "2303.17183::section::2",
+          "text": "• Conversational: Primarily social forums, such as Reddit.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2303.17183::section::2::para::6",
+          "section_id": "2303.17183::section::2",
+          "text": "• Math: Mathematical problems and solutions.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2303.17183::section::2::para::7",
+          "section_id": "2303.17183::section::2",
+          "text": "• Miscellaneous: Data which do not belong in any other category, often task-specific, such as parallel data.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2303.17183::section::2::para::8",
+          "section_id": "2303.17183::section::2",
+          "text": "• Web CC: Web data derived from Common Crawl.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2303.17183::section::2::para::9",
+          "section_id": "2303.17183::section::2",
+          "text": "• Web Sources: Web data from other sources, e.g. scraping.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2303.17183::section::2::para::10",
+          "section_id": "2303.17183::section::2",
+          "text": "• Wikipedia: Official Wikipedia dumps.",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2303.17183::section::2::para::11",
+          "section_id": "2303.17183::section::2",
+          "text": "A complete overview of our collected resources is available in Appendix C.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2303.17183::section::2::para::12",
+          "section_id": "2303.17183::section::2",
+          "text": "The inclusion of multiple datasets from the same domain inherently introduces overlaps between datasets, which is sub-optimal for efficient pre-training. Our method to address this issue is explained in Sections 4.4 and 4.6. All collected documents are formatted consistently in the JSON Linesfoot_3 format as a preparation for further data processing.",
+          "paragraph_index": 12
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::3",
+      "paper_id": "2303.17183",
+      "heading": "Data Processing Pipeline",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::3::para::0",
+          "section_id": "2303.17183::section::3",
+          "text": "Our data processing pipeline consists of 7 steps:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::3::para::1",
+          "section_id": "2303.17183::section::3",
+          "text": "1. normalization, 2. metrics, 3. quality filtering, 4. exact deduplication, 5. language segmentation, 6. fuzzy deduplication, 7. merging. Each of these steps are described in more detail below. All of these steps, except for deduplication and merging, are done completely on the document-level, and are thus embarrassingly parallel. The source code for the first 3 stepsfoot_4 and 4 last stepsfoot_5 is publicly available on GitHub.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::4",
+      "paper_id": "2303.17183",
+      "heading": "Normalization",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::4::para::0",
+          "section_id": "2303.17183::section::4",
+          "text": "This step ensures that documents are consistently encoded, and perform the following operations:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::4::para::1",
+          "section_id": "2303.17183::section::4",
+          "text": "Non-printing character removal removes unwanted characters that may be hidden in the document, for instance, control characters such as soft hyphens or non-breaking spaces.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::4::para::2",
+          "section_id": "2303.17183::section::4",
+          "text": "Whitespace normalization converts any form of whitespace to a standard whitespace.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::4::para::3",
+          "section_id": "2303.17183::section::4",
+          "text": "Unicode normalization of the text using NFC Unicode normalizationfoot_6 . The motivation to opt for NFC is its non-destructive transformation that maintains a consistent and informative format.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::5",
+      "paper_id": "2303.17183",
+      "heading": "Metrics",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::5::para::0",
+          "section_id": "2303.17183::section::5",
+          "text": "After normalizing the text, document-level metrics are added as metadata. This is primarily done to satisfy prerequisites of the following stages of the data processing pipeline, as some of these are later required. Moreover, these metadata metrics assist in the overall data analysis. We add the following metrics to each document:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::5::para::1",
+          "section_id": "2303.17183::section::5",
+          "text": "• lang: language identified using fastText (Joulin et al., 2016c,a), • num chars: number of characters, • num utf8bytes: number of UTF-8 encoded bytes, • num words: number of words, • num sents: number of sentences, • md5: 128-bit MD5 hash as hexadecimal string.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::6",
+      "paper_id": "2303.17183",
+      "heading": "Quality Filtering",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::6::para::0",
+          "section_id": "2303.17183::section::6",
+          "text": "Documents of poor quality not only negatively impact model performance but may also increase the risk of divergence and other problematic behaviors during LLM pre-training. To remedy this, we have aggressively filtered our data using many different filters. Most of these filters are inspired by the data processing work described in Gopher (Rae et al., 2021) and ROOTS (Laurenc ¸on et al., 2022). Due to the nature of the different categories of data, we have not used all filters for all data categories, see Appendix D for details on where the different filters are used. Whenever a document does not meet a filter criterion, we save that information in the document's metadata to facilitate later data analysis. Furthermore, when a document is removed, it is not present in the succeeding pipeline stages. Below follows descriptions for each of the 16 filters used, if the statement about the document is false, the document is removed.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::6::para::1",
+          "section_id": "2303.17183::section::6",
+          "text": "Alpha Present: at least 80% of the words contain an alphabetic character.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::6::para::2",
+          "section_id": "2303.17183::section::6",
+          "text": "Blacklist URLs: the URL is not malformed, and the domain, file extension, and URL are not blacklisted. If a URL is not available, this filter is skipped.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::6::para::3",
+          "section_id": "2303.17183::section::6",
+          "text": "Digit Fraction: the digit to character ratio is less than 0.2.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::7",
+      "paper_id": "2303.17183",
+      "heading": "Document Length: num chars is greater than 50.",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::7::para::0",
+          "section_id": "2303.17183::section::7",
+          "text": "Ellipsis To Word Ratio: the ellipsis to word ratio is less than 0.1. Flagged Words: each flagged word is coupled with a weight in the range [0, 1], where higher weights are worse. The document contains less than 4 total flagged words and less than 3 unique flagged words, and the sum of weights for flagged words in the document is less than num words/100.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::7::para::1",
+          "section_id": "2303.17183::section::7",
+          "text": "Hashtag To Word Ratio: the hashtag to word ratio is less than 0.1.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::7::para::2",
+          "section_id": "2303.17183::section::7",
+          "text": "Initial Bullet Point: less than 90% of the lines start with a bullet point, or such lines occur less than 3 times.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::7::para::3",
+          "section_id": "2303.17183::section::7",
+          "text": "Mean Line Length: let M eanM ed be the operation of computing the mean of the median value and mean value. M eanM ed number of characters per non-empty line is greater than 9, and M eanM ed number of words per non-empty line is greater than or equal to 2.1.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2303.17183::section::7::para::4",
+          "section_id": "2303.17183::section::7",
+          "text": "Mean Word Length: average word length is in the range [2,10].",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2303.17183::section::7::para::5",
+          "section_id": "2303.17183::section::7",
+          "text": "Repetitive BSP: the document is not considered repetitive, according to the filter for repetition used for ROOTS (Laurenc ¸on et al., 2022). Details for this filter were found in their source code, and is, complementary to the Repetitive Gopher filter, based on characters and words.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2303.17183::section::7::para::6",
+          "section_id": "2303.17183::section::7",
+          "text": "Repetitive Gopher: the document is not considered repetitive, according to the Repetition Removal filter described in Gopher (Rae et al., 2021), pages 40-41, based on n-grams, lines, and paragraphs. Our implementation differs in that it is word-based whereas the original implementation is token-based. To account for this, and our multilingual data, the thresholds are adjusted and are shown in Table 1.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2303.17183::section::7::para::7",
+          "section_id": "2303.17183::section::7",
+          "text": "Stop Word contains at least 2 stop words, and at least 10% of all words are stop words. Supported Language lang is one of Danish, English, Icelandic, Norwegian, or Swedish.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2303.17183::section::7::para::8",
+          "section_id": "2303.17183::section::7",
+          "text": "Trailing Ellipsis less than 30% of the lines end with an ellipsis, or such lines occur less than 3 times.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2303.17183::section::7::para::9",
+          "section_id": "2303.17183::section::7",
+          "text": "These filters complement each other, and are designed to capture different characteristics of lowquality documents. While all filters are not active for all data categories, the goal is that the subset of filters that are should capture the majority of non-desired documents. Some filters can be tweaked through parameters and could be adjusted for each language and data category similar to Laurenc ¸on et al. (2022). In our data pipeline, however, these are for simplicity fixed to values that seemed overall suitable through quantitative and qualitative evaluation. This is primarily due to limited resources and yields a less specialized yet robust filtering method.",
+          "paragraph_index": 9
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::8",
+      "paper_id": "2303.17183",
+      "heading": "Exact Deduplication",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::8::para::0",
+          "section_id": "2303.17183::section::8",
+          "text": "Even if the fuzzy deduplication would most likely also remove identical documents, we perform an initial exact deduplication step. The reason for this is primarily technical; fuzzy deduplication is computationally expensive and requires a lot of memory. Identifying exact duplicates is trivial and can ease the burden of fuzzy deduplication.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::8::para::1",
+          "section_id": "2303.17183::section::8",
+          "text": "We sequentially iterate through all documents and maintain a set of seen MD5 hashes. When a document with a previously seen MD5 hash is encountered, we simply mark it as a duplicate for later analysis and remove it.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::9",
+      "paper_id": "2303.17183",
+      "heading": "Language Segmentation",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::9::para::0",
+          "section_id": "2303.17183::section::9",
+          "text": "The sole purpose of this step is to prepare for fuzzy deduplication. Since fuzzy deduplication is computationally heavy, we separate the supported languages and fuzzily deduplicate them separately. Therefore, using the previously identified document language, documents are split into separate language-specific subsets on the document level.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::10",
+      "paper_id": "2303.17183",
+      "heading": "Fuzzy Deduplication",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::10::para::0",
+          "section_id": "2303.17183::section::10",
+          "text": "With the many subsets included in The Nordic Pile, some overlaps emerge, especially within the Common Crawl-based corpora. However, documents may be considered duplicates while not being identical. Consider an example where only a few characters or words differ, or where only a subset of the document is duplicated. These are not trivial to identify and decisions have to be made about how similar documents must be to be considered duplicates. There are two major algorithms used for this in the literature, evaluated and compared by Lee et al. (2022). These are Exact Substring Matching using Suffix Arrays (Manber and Myers, 1993) and MinHash LSH (Broder, 1997). For explanations of how these two methods work and are implemented, along with selected parameters, see Appendix A.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::10::para::1",
+          "section_id": "2303.17183::section::10",
+          "text": "We opted for the MinHash LSH solution, and its purpose is to identify groups of duplicated documents, from which only one is kept. Despite it being an efficient algorithm, deduplication of massive datasets is inevitably computationally expensive. During this work, we had access to machines with at most 256GB RAM. With our limited resources, it is difficult to deduplicate the entire dataset as one. Furthermore, experiments showed that our implementation required roughly three times the dataset size for deduplication. To avoid crashes, we added some margins and never deduplicated subsets of more than 80GB at a time. Therefore, we relied on sharding the data, and deduplicating shards separately (intra-shard) or pair-wise (inter-shard).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::10::para::2",
+          "section_id": "2303.17183::section::10",
+          "text": "The first form of sharding is a product of the previous Language Segmentation step, and we do not deduplicate anything cross-language. This should not have a major impact on the results, assuming that fuzzy duplicate documents are rarely identified with different languages. For all languages except Icelandic, the datasets were of sizes greater than 80GB, forcing us to further segment the data into smaller shards. We decided that our Nordic-language datasets were more prone to include many duplicate documents since we included several data sources from Common Crawl that may overlap for these languages. So, our English data was deduplicated intra-shard, and the Nordic data (except Icelandic) was deduplicated inter-shard.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::11",
+      "paper_id": "2303.17183",
+      "heading": "Intra-shard Deduplication",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::11::para::0",
+          "section_id": "2303.17183::section::11",
+          "text": "Intra-shard deduplication divides the data of one language into shards, each maximally 80GB. Then, each shard is deduplicated separately, and duplicates across shards will not be identified. This type of shards is hence sub-optimal for finding duplicates, but requires significantly less resources. Since the English data was already to a large extent deduplicated with less overlapping subsets, we deemed this method sufficient. When sharding the English data, we aimed for having each shard include as similar data as possible.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::12",
+      "paper_id": "2303.17183",
+      "heading": "Inter-shard Deduplication",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::12::para::0",
+          "section_id": "2303.17183::section::12",
+          "text": "Inter-shard deduplication is a proxy for complete deduplication and theoretically achieves the same result as deduplicating everything together. We divide the data of a language into shards of at maximum 40GB. This accounts for half of the previous memory constraint, to enable pair-wise deduplication of shards. Using this approach, we sacrifice computational performance to reduce the memory constraint of complete deduplication. After dividing the data into N shards of accepted size, there are two steps to this approach:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::12::para::1",
+          "section_id": "2303.17183::section::12",
+          "text": "Pair-wise deduplication deduplicates all shard pairs separately, each pair as one concatenated dataset. This setup is equivalent to a complete graph with N nodes and E edges, each node and edge corresponding to a shard and pair-wise deduplication respectively. The number of edges of a complete graph is shown in Equation 1. The computational sacrifice of this method is now evident; each shard is part of N -1 pairs and, therefore, redundantly deduplicated many times. While the stochastic nature of MinHash LSH may entail that more than one deduplication of a single shard is beneficial, it is hardly compute efficient. Nevertheless, this step outputs a set of groups containing duplicate documents, for each shard-pair, which are combined in the next step.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::12::para::2",
+          "section_id": "2303.17183::section::12",
+          "text": "Merging of duplicate groups combines the duplicate groups by identifying connected components. The naive approach would keep one document from each of the found groups, but would allow for significantly more duplicate documents to slip through.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::12::para::3",
+          "section_id": "2303.17183::section::12",
+          "text": "Since we have deduplicated all shard pairs, each duplicate group may only contain documents from at most two shards, while a complete deduplication could find groups with documents from all shards. By merging groups from all shard pairs, we can approximate the behavior of a full deduplication. For instance, consider any groups G ij and G jk , including documents from shards S i , S j , and S j , S k respectively. With at least one common document in these groups, we can consider them part of the same group and hence merge them. This is equivalent to an undirected graph of document nodes, each node connected to the other nodes in its duplicate group. Additionally, whenever two groups share a document we merge these nodes and thus create a connection between the groups. This reduces the problem to identification of connected components, where only one document is kept from each component.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2303.17183::section::12::para::4",
+          "section_id": "2303.17183::section::12",
+          "text": "We have through this process evaded the memory constraints, and achieved thorough fuzzy deduplication of our data in the Nordic languages. Appendix B provides an overview of the selected sharding method for each language. While our solution satisfies the desiderata, there is ample room for improvement. Optimizations may include streaming data structures from disk, and specifically for inter-shard deduplication, part of the work required for each shard, e.g. computing fingerprints, could be reused for the succeeding deduplication.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::13",
+      "paper_id": "2303.17183",
+      "heading": "Language & Shard Merging",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::13::para::0",
+          "section_id": "2303.17183::section::13",
+          "text": "This stage is theoretically trivial and was merely a technical hurdle given the data size and a large number of files. At this point in the pipeline, the data is segmented into two levels, language, and shards. Here we merge all non-removed documents to the original unified dataset, divided only into the original categories. Now, the dataset is in its final format, with only documents deemed clean and unique, along with additional documentlevel metadata.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::13::para::1",
+          "section_id": "2303.17183::section::13",
+          "text": "While the absolute majority of the data was processed in the pipeline described, some deviations emerged for practical reasons. Examples of this are more data coming in after the deduplication step and additional filtering required after encountering errors or undesired behavior during tokenization or model training. We list these, mostly negligible, deviations in Appendix F.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::14",
+      "paper_id": "2303.17183",
+      "heading": "Results",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::14::para::0",
+          "section_id": "2303.17183::section::14",
+          "text": "In this section, we present our insights from the analysis of our collected data. More specifically, we visualize the impact of our different pipeline steps on the data. In our data collection, we created a dataset with 1.5TB from which 1.2TB remained after the data pipeline.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::14::para::1",
+          "section_id": "2303.17183::section::14",
+          "text": "Figure 2 shows how much data was marked to be removed by each individual filter. While some filters overlap more than others, this provides a hint of which filters were most vital. A large portion of the removed documents seems to have been filtered via the Stop Word and repetitive filters.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::14::para::2",
+          "section_id": "2303.17183::section::14",
+          "text": "Figure 2: The data size removed by each quality filter. Note that one document may be filtered by several filters.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::14::para::3",
+          "section_id": "2303.17183::section::14",
+          "text": "To gain an understanding of the impact of the fuzzy deduplication process, Figure 3 depicts the distribution over duplicate group sizes. While there are surprisingly large groups present, the majority of fuzzy duplicate documents removed were part of smaller groups. Roughly 7% of these duplicate documents originate from the generated mathematics datasets and compose some of the largest groups. For examples of documents removed and their corresponding group sizes, see Appendix E. Figure 4 shows the data size in GB remaining after each step in the data pipeline. This illustrates the importance of all steps, with the most prominent steps being quality-filtering and fuzzy deduplication. In total, almost 300GB (20%) was removed. Figures 5 and 6 show the same form of information, but for each language and category respectively. The pipeline steps removed similar fractions for each language, with the exception of code where little quality filtering and no deduplication were performed. The same exception for code is seen in the categories. Furthermore, the Web CC category was, by a large margin, affected most by the cleaning process.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2303.17183::section::14::para::4",
+          "section_id": "2303.17183::section::14",
+          "text": "Figure 5: Remaining data for each language after the individual pipeline steps. Note that documents removed by the language filter naturally are not included here, since only languages identified as supported are included.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2303.17183::section::14::para::5",
+          "section_id": "2303.17183::section::14",
+          "text": "The pie charts in Figures 7 and 8 give an overview of the language and category compositions of the final dataset. This shows the difficulty of collecting data for low-resource languages such as Icelandic. The largest portion of our dataset consists of English data, and can if desired be adjusted through subset weighting before training. Similarly, Web CC is the most prominent of our categories. Detailed language and category data sizes are shown in Table 2, with the corresponding fractions in Table 3. For information about individual sources with their collected and final sizes in GB, the number of documents, and mean document size, see Appendix C.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::15",
+      "paper_id": "2303.17183",
+      "heading": "Discussion",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::15::para::0",
+          "section_id": "2303.17183::section::15",
+          "text": "Our main guiding principles when collecting the Nordic Pile have been to ensure that the data is both representative and of high quality, while at the same time being of sufficient quantity to enable training of LLMs. To ensure that the models can generalize over a variety of different domains, and that they are useful for a range of different applications, we have collected texts that are representative of a variety of language styles and usages, knowledge domains, and social groups. The mix of editorial sources, such as newspaper articles or texts published on the homepages of governmental authorities and public sector organizations, and user-generated content such as blogs and forums assures a wide range of both styles and topics. In our work with the Nordic Pile, we have made significant efforts to both comply with GDPR and at the same time ensure that the data contains as representative and diverse content as possible.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::15::para::1",
+          "section_id": "2303.17183::section::15",
+          "text": "We have explicitly considered the potential advantages, disadvantages, and risks of including the individual datasets in the Nordic Pile. Advantages and disadvantages relate primarily to the quality of the text sources regarding technical processability. As an example, some datasets primarily contain text extracted from PDFs, but because of the pitfalls of PDF text extraction, such datasets were not included in the Nordic Pile. Another reason for dismissing datasets is the occurrence of computergenerated texts, which was the case e.g. for a dataset containing subtitles from YouTube. Risks relate primarily to text sources that we know contain, or that are very likely to contain, large amounts of personal information. Such sources have not been included in the dataset. We have, however, not filtered potentially controversial text content, since that would affect the range of potential applications of a model trained on the data.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::15::para::2",
+          "section_id": "2303.17183::section::15",
+          "text": "Even if we have made considerable efforts to compile the Nordic Pile in a responsible, compli-ant, and transparent manner, it is clear that the current European legislation does not allow us to distribute and share the processed dataset. This is not a situation we are happy with, but we hope that this paper at least can provide some help for others that undertake their own data collection efforts. We also hope that this paper can help foster a discussion about how we can work with large-scale datasets for LLMs in the Nordic region, in anticipation of future European data initiatives that may facilitate efforts such as this.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::15::para::3",
+          "section_id": "2303.17183::section::15",
+          "text": "In summary, we have created a massive Nordic multilingual dataset consisting of 1.2TB of cleaned and filtered text. The dataset covers the major North Germanic languages Danish, Icelandic, Norwegian, and Swedish, as well as a sizable portion of high-quality English data. The data contains a large variety of genres, domains and topics, and is thoroughly cleaned, filtered and deduplicated in order to ensure that the resulting dataset will provide a high-quality foundation on which to build state-of-the-art Nordic LLMs. In addition to being sufficiently large for training a multi-billion parameter language model, the Nordic Pile dataset also contains a rich typological variety that we hypothesize will be useful for the model's performance in all of the Nordic languages.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::16",
+      "paper_id": "2303.17183",
+      "heading": "A Deduplication Algorithms",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::16::para::0",
+          "section_id": "2303.17183::section::16",
+          "text": "Exact Substring Matching identifies duplicate substrings across documents and removes them from the documents. A naive approach would be quadratic with respect to the number of documents, and the solution used by Lee et al. (2022) uses Suffix Arrays. All documents are concatenated to one massive sequence, for which the Suffix Array is created in linear time. This data structure enables identification of duplicate substrings with linear complexity. This can also be done over tokenized data which may reduce the compute required. Lee et al. (2022) finds and removes all duplicate substrings longer than 50 BPE tokens.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::16::para::1",
+          "section_id": "2303.17183::section::16",
+          "text": "MinHash LSH identifies approximate duplicates on the document-level, and is widely used in the literature, e.g. (Brown et al., 2020;Gao et al., 2021;Rae et al., 2021). The core idea of this method is to represent a pair of documents as C i and C j as sets s i and s j , which can be done in many ways (Cohen, 2016), and measure their similarity using the Jaccard Similarity (see Equation 2). We use this approach for fuzzy deduplication, as it is commonly seen in the literature and has available implementations which we could easily adapt and use 8 .",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::16::para::2",
+          "section_id": "2303.17183::section::16",
+          "text": "A naive approach would measure the similarity of each document pair and would result in a quadratic scaling for the hundreds of millions of documents. This algorithm addresses this and includes three primary steps:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::16::para::3",
+          "section_id": "2303.17183::section::16",
+          "text": "1. Shingling converts documents to integer sets through character-based n-grams. We use 10grams. This step also hashes each shingle to a 32-bit integer, simply to be able to work with integers in the next step, and should not be confused with the hash functions used there.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2303.17183::section::16::para::4",
+          "section_id": "2303.17183::section::16",
+          "text": "2. MinHashing converts each large integer set (document) to a small sequence of p integers, that preserves similarity. While this explanation does not provide strong intuition for why the algorithm works, the concrete steps to create these fingerprints are the following:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2303.17183::section::16::para::5",
+          "section_id": "2303.17183::section::16",
+          "text": "8 https://github.com/NVIDIA/Megatron-LM/tree/main/tools/openwebtext Create p hash functions, each acting as a permutation operation π of the integer set shinglesfoot_7 . Define the function h π (C) as the minimum value of the permuted (hashed) shingles sequence min π(C). For each π, h π (C) converts the shingle sequence to a single integer, resulting in a sequence of p integers for each document, often referred to as fingerprints. We use p = 10 hash functions, to achieve balance between computational cost and deduplication accuracy.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::17",
+      "paper_id": "2303.17183",
+      "heading": "Locality-Sensitive Hashing (LSH) finds",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::17::para::0",
+          "section_id": "2303.17183::section::17",
+          "text": "signature pairs that are likely created from similar documents. While MinHashing can significantly reduce the computational effort required to find duplicates, by comparing the fingerprints instead of shingles or even whole documents, it still suffers from squared complexity with respect to the number of documents. This step removes the need for comparing all document pairs through hash collisions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::17::para::1",
+          "section_id": "2303.17183::section::17",
+          "text": "First, the fingerprints are sliced into b smaller bands. Each band is then independently managed in its corresponding bin, where it can be compared with other documents' band in the same position. A hash-map is created for each bin, mapping a hashed fingerprint slice to a set (bucket) of documents. Whenever multiple bands are hashed to the same bucket, the corresponding documents are duplication candidates. We used b = 2 bands.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::17::para::2",
+          "section_id": "2303.17183::section::17",
+          "text": "Lastly, all candidates found are iterated and for each candidate pair, the Jaccard Similarity is computed. If the similarity exceeds the Jaccard Threshold the documents are considered duplicates. We used a threshold of 0.5. Now, duplicate documents are connected, and duplicate groups (connected components) can be formed. For each duplicate group, we remove all but one document.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::18",
+      "paper_id": "2303.17183",
+      "heading": "B Sharding per language C Data Sources",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::18::para::0",
+          "section_id": "2303.17183::section::18",
+          "text": "A complete overview of the sources of our dataset is illustrated in Table 5.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::19",
+      "paper_id": "2303.17183",
+      "heading": "D Quality Filter Configurations",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::19::para::0",
+          "section_id": "2303.17183::section::19",
+          "text": "Below follows an enumeration of the quality filters, these filter indices are shown as columns in Table 6, illustrating which filters were used for our different subsets. A row either refers to an entire category or one specific data source that required its own configuration.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::19::para::1",
+          "section_id": "2303.17183::section::19",
+          "text": "1. Alpha Present 2. Blacklist URLs 3. Digit Fraction 4. Document Length 5. Ellipsis To Word Ratio 6. Flagged Words 7. Hashtag To Word Ratio 8. Initial Bullet Point 9. Mean Line Length 10. Mean Word Length 11. Repetitive BSP 12. Repetitive Gopher 13. Stop Word 14. Supported Language 15. Trailing Ellipsis",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2303.17183::section::19::para::2",
+          "section_id": "2303.17183::section::19",
+          "text": "So, each data source is mapped to its own configuration if present, otherwise to its category's configuration with the following exceptions/modifications:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2303.17183::section::19::para::3",
+          "section_id": "2303.17183::section::19",
+          "text": "• The Articles category uses the Books configuration.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2303.17183::section::19::para::4",
+          "section_id": "2303.17183::section::19",
+          "text": "• The Wikipedia category uses the Web Sources configuration.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2303.17183::section::19::para::5",
+          "section_id": "2303.17183::section::19",
+          "text": "• Icelandic Gigaword uses the Books configuration.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2303.17183::section::19::para::6",
+          "section_id": "2303.17183::section::19",
+          "text": "• The Pile: ArXiv uses the stackexchange configuration.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2303.17183::section::19::para::7",
+          "section_id": "2303.17183::section::19",
+          "text": "• dn summarization uses the Books configuration.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2303.17183::section::19::para::8",
+          "section_id": "2303.17183::section::19",
+          "text": "• movie scripts uses the Books configuration.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2303.17183::section::19::para::9",
+          "section_id": "2303.17183::section::19",
+          "text": "• P3 uses the natural instructions configuration.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2303.17183::section::19::para::10",
+          "section_id": "2303.17183::section::19",
+          "text": "• OPUS uses the Web CC configuration.",
+          "paragraph_index": 10
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::20",
+      "paper_id": "2303.17183",
+      "heading": "E Fuzzy Duplicate Group Examples",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::20::para::0",
+          "section_id": "2303.17183::section::20",
+          "text": "Table 7 illustrates some examples of documents that are removed in the fuzzy deduplication step and shows typical documents that are similar but not identical.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2303.17183::section::21",
+      "paper_id": "2303.17183",
+      "heading": "F Data Pipeline Deviations",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2303.17183::section::21::para::0",
+          "section_id": "2303.17183::section::21",
+          "text": "• The Familjeliv data was included after the deduplication step and was, therefore, deduplicated in isolation. We believe the impact of this is minimal since this data was manually scraped by us and should not be present in other datasets using the same conversational format.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2303.17183::section::21::para::1",
+          "section_id": "2303.17183::section::21",
+          "text": "• The OPUS data which is composed of parallel sentences was cleaned and deduplicated in isolation prior to being formulated with prompt templates.",
+          "paragraph_index": 1
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2303.17183::citation::0",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Trafilatura: A Web Scraping Library and Command-Line Tool for Text Discovery and Extraction",
+      "cited_authors": [
+        "Adrien Barbaresi"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::1",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Jason Baumgartner",
+        "Savvas Zannettou",
+        "Brian Keegan",
+        "Megan Squire",
+        "Jeremy Blackburn"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::2",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "BigScience Language Openscience Open-access Multilingual (BLOOM) Language Model",
+      "cited_authors": [
+        "Bigscience"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::3",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "GPT-NeoX-20B: An open-source autoregressive language model",
+      "cited_authors": [
+        "Sidney Black",
+        "Stella Biderman",
+        "Eric Hallahan",
+        "Quentin Anthony",
+        "Leo Gao",
+        "Laurence Golding",
+        "Horace He",
+        "Connor Leahy",
+        "Kyle Mcdonell",
+        "Jason Phang",
+        "Michael Pieler",
+        "Usvsn Sai Prashanth",
+        "Shivanshu Purohit",
+        "Laria Reynolds",
+        "Jonathan Tow",
+        "Ben Wang",
+        "Samuel Weinbach"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::4",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "On the resemblance and containment of documents",
+      "cited_authors": [
+        "A Z Broder"
+      ],
+      "cited_year": 1997,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::5",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Language models are few-shot learners",
+      "cited_authors": [
+        "Tom Brown",
+        "Benjamin Mann",
+        "Nick Ryder",
+        "Melanie Subbiah",
+        "Jared D Kaplan",
+        "Prafulla Dhariwal",
+        "Arvind Neelakantan",
+        "Pranav Shyam",
+        "Girish Sastry",
+        "Amanda Askell",
+        "Sandhini Agarwal",
+        "Ariel Herbert-Voss",
+        "Gretchen Krueger",
+        "Tom Henighan",
+        "Rewon Child",
+        "Aditya Ramesh",
+        "Daniel Ziegler",
+        "Jeffrey Wu",
+        "Clemens Winter",
+        "Chris Hesse",
+        "Mark Chen",
+        "Eric Sigler",
+        "Mateusz Litwin",
+        "Scott Gray",
+        "Benjamin Chess",
+        "Jack Clark",
+        "Christopher Berner",
+        "Sam Mc-Candlish",
+        "Alec Radford",
+        "Ilya Sutskever",
+        "Dario Amodei"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::6",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Aakanksha Chowdhery",
+        "Sharan Narang",
+        "Jacob Devlin",
+        "Maarten Bosma",
+        "Gaurav Mishra",
+        "Adam Roberts",
+        "Paul Barham",
+        "Hyung Won Chung",
+        "Charles Sutton",
+        "Sebastian Gehrmann",
+        "Parker Schuh",
+        "Kensen Shi",
+        "Sasha Tsvyashchenko",
+        "Joshua Maynez",
+        "Abhishek Rao",
+        "Parker Barnes",
+        "Yi Tay",
+        "Noam Shazeer",
+        "Emily Vinodkumar Prabhakaran",
+        "Nan Reif",
+        "Ben Du",
+        "Reiner Hutchinson",
+        "James Pope",
+        "Jacob Bradbury",
+        "Michael Austin",
+        "Guy Isard",
+        "Pengcheng Gur-Ari",
+        "Toju Yin",
+        "Anselm Duke",
+        "Sanjay Levskaya",
+        "Sunipa Ghemawat",
+        "Henryk Dev",
+        "Xavier Michalewski",
+        "Vedant Garcia",
+        "Kevin Misra",
+        "Liam Robinson",
+        "Denny Fedus",
+        "Daphne Zhou",
+        "David Ippolito",
+        "Hyeontaek Luan",
+        "Barret Lim",
+        "Alexander Zoph",
+        "Ryan Spiridonov",
+        "Sepassi ; Oleksandr",
+        "Katherine Polozov",
+        "Zongwei Lee",
+        "Xuezhi Zhou",
+        "Brennan Wang",
+        "Mark Saeta",
+        "Orhan Diaz",
+        "Michele Firat",
+        "Jason Catasta",
+        "Kathy Wei",
+        "Douglas Meier-Hellstern",
+        "Eck"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::7",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Min-Hash Sketches",
+      "cited_authors": [
+        "Edith Cohen"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::8",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "The pile: An 800gb dataset of diverse text for language modeling",
+      "cited_authors": [
+        "Leo Gao",
+        "Stella Biderman",
+        "Sid Black",
+        "Laurence Golding",
+        "Travis Hoppe",
+        "Charles Foster",
+        "Jason Phang",
+        "Horace He",
+        "Anish Thite",
+        "Noa Nabeshima",
+        "Shawn Presser",
+        "Connor Leahy"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::9",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Scaling laws for neural machine translation",
+      "cited_authors": [
+        "Behrooz Ghorbani",
+        "Orhan Firat",
+        "Markus Freitag",
+        "Ankur Bapna",
+        "Maxim Krikun",
+        "Xavier Garcia",
+        "Ciprian Chelba",
+        "Colin Cherry"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::10",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Jordan Hoffmann",
+        "Sebastian Borgeaud",
+        "Arthur Mensch",
+        "Elena Buchatskaya",
+        "Trevor Cai",
+        "Eliza Rutherford",
+        "Diego De Las",
+        "Lisa Anne Casas",
+        "Johannes Hendricks",
+        "Aidan Welbl",
+        "Tom Clark",
+        "Eric Hennigan",
+        "Katie Noland",
+        "George Millican",
+        "Bogdan Van Den Driessche",
+        "Aurelia Damoc",
+        "Simon Guy",
+        "Karen Osindero",
+        "Erich Simonyan",
+        "Jack W Elsen",
+        "Oriol Rae",
+        "Laurent Vinyals",
+        "Sifre"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::11",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "a. Fasttext.zip: Compressing text classification models",
+      "cited_authors": [
+        "Armand Joulin",
+        "Edouard Grave",
+        "Piotr Bojanowski",
+        "Matthijs Douze",
+        "Hérve Jégou",
+        "Tomas Mikolov"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:1612.03651",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::12",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Bag of tricks for efficient text classification",
+      "cited_authors": [
+        "Armand Joulin",
+        "Edouard Grave",
+        "Piotr Bojanowski",
+        "Tomas Mikolov"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": "arXiv:1607.01759",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::13",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Bag of tricks for efficient text classification",
+      "cited_authors": [
+        "Armand Joulin",
+        "Edouard Grave",
+        "Piotr Bojanowski",
+        "Tomas Mikolov"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": "arXiv:1607.01759",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::14",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "The bigscience ROOTS corpus: A 1.6TB composite multilingual dataset",
+      "cited_authors": [
+        "Lucile Hugo Laurenc ¸on",
+        "Thomas Saulnier",
+        "Christopher Wang",
+        "Albert Akiki",
+        "Teven Villanova Del Moral",
+        "Leandro Le Scao",
+        "Chenghao Von Werra",
+        "Eduardo González Mou",
+        "Huu Ponferrada",
+        "Jörg Nguyen",
+        "Mario Frohberg",
+        "Quentin Šaško",
+        "Angelina Lhoest",
+        "Gérard Mcmillan-Major",
+        "Stella Dupont",
+        "Anna Biderman",
+        "Loubna Rogers",
+        "Francesco De Ben Allal",
+        "Giada Toni",
+        "Olivier Pistilli",
+        "Somaieh Nguyen",
+        "Maraim Nikpoor",
+        "Pierre Masoud",
+        "Javier Colombo",
+        "Paulo De La Rosa",
+        "Tristan Villegas",
+        "Shayne Thrush",
+        "Sebastian Longpre",
+        "Leon Nagel",
+        "Manuel Weber",
+        "Jian Romero Muñoz",
+        "Daniel Zhu",
+        "Zaid Van Strien",
+        "Khalid Alyafeai",
+        "Almubarak",
+        "Minh Vu",
+        "Itziar Chien",
+        "Aitor Gonzalez-Dios",
+        "Kyle Soroa",
+        "Manan Lo",
+        "Pedro Ortiz Dey",
+        "Aaron Suarez",
+        "Shamik Gokaslan",
+        "David Bose",
+        "Long Ifeoluwa Adelani",
+        "Hieu Phan",
+        "Ian Tran",
+        "Suhas Yu",
+        "Jenny Pai",
+        "Violette Chim",
+        "Suzana Lepercq",
+        "Margaret Ilic",
+        "Sasha Mitchell",
+        "Yacine Luccioni",
+        "Jernite"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::15",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Deduplicating training data makes language models better",
+      "cited_authors": [
+        "Katherine Lee",
+        "Daphne Ippolito",
+        "Andrew Nystrom",
+        "Chiyuan Zhang",
+        "Douglas Eck",
+        "Chris Callison-Burch",
+        "Nicholas Carlini"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::16",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Suffix arrays: A new method for on-line string searches",
+      "cited_authors": [
+        "Udi Manber",
+        "Gene Myers"
+      ],
+      "cited_year": 1993,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::17",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "A monolingual approach to contextualized word embeddings for mid-resource languages",
+      "cited_authors": [
+        "Pedro Javier",
+        "Ortiz Suárez",
+        "Laurent Romary",
+        "Benoît Sagot"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::18",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Jack W Rae",
+        "Sebastian Borgeaud",
+        "Trevor Cai",
+        "Katie Millican",
+        "Jordan Hoffmann",
+        "Francis Song",
+        "John Aslanides",
+        "Sarah Henderson",
+        "Roman Ring",
+        "Susannah Young",
+        "Eliza Rutherford",
+        "Tom Hennigan",
+        "Jacob Menick",
+        "Albin Cassirer",
+        "Richard Powell",
+        "George Van Den Driessche",
+        "Lisa Anne Hendricks",
+        "Maribeth Rauh",
+        "Po-Sen Huang",
+        "Amelia Glaese",
+        "Johannes Welbl",
+        "Sumanth Dathathri",
+        "Saffron Huang",
+        "Jonathan Uesato",
+        "F J John",
+        "Irina Mellor",
+        "Antonia Higgins",
+        "Nathan Creswell",
+        "Amy Mcaleese",
+        "Erich Wu",
+        "Elsen",
+        "M Siddhant",
+        "Elena Jayakumar",
+        "David Buchatskaya",
+        "Esme Budden",
+        "Karen Sutherland",
+        "Michela Simonyan",
+        "L Paganini",
+        "Lena Sifre",
+        "Martens",
+        "Lorraine Xiang",
+        "Adhiguna Li",
+        "Aida Kuncoro",
+        "Elena Nematzadeh",
+        "Domenic Gribovskaya",
+        "Angeliki Donato",
+        "Arthur Lazaridou",
+        "Jean-Baptiste Mensch",
+        "Maria Lespiau",
+        "N K Tsimpoukelli",
+        "Doug Grigorev",
+        "Thibault Fritz",
+        "Mantas Sottiaux",
+        "Tobias Pajarskas",
+        "Zhitao Pohlen",
+        "Daniel Gong",
+        "Cyprien Toyama",
+        "Yujia De Masson D'autume",
+        "Tayfun Li",
+        "Vladimir Terzi",
+        "Igor Mikulik",
+        "Aidan Babuschkin",
+        "Diego Clark",
+        "De Las",
+        "Aurelia Casas",
+        "Chris Guy",
+        "James Jones",
+        "Matthew G Bradbury",
+        "Blake A Johnson",
+        "Laura Hechtman",
+        "Iason Weidinger",
+        "William S Gabriel",
+        "Edward Isaac",
+        "Simon Lockhart",
+        "Laura Osindero",
+        "Chris Rimell",
+        "Oriol Dyer",
+        "Kareem W Vinyals",
+        "Jeff Ayoub",
+        "L L Stanway",
+        "Bennett"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::19",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Exploring the limits of transfer learning with a unified text-to-text transformer",
+      "cited_authors": [
+        "Colin Raffel",
+        "Noam Shazeer",
+        "Adam Roberts",
+        "Katherine Lee",
+        "Sharan Narang",
+        "Michael Matena",
+        "Yanqi Zhou",
+        "Wei Li",
+        "Peter J Liu"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::20",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Analysing mathematical reasoning abilities of neural models",
+      "cited_authors": [
+        "David Saxton",
+        "Edward Grefenstette",
+        "Felix Hill",
+        "Pushmeet Kohli"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::21",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Asynchronous pipelines for processing huge corpora on medium to low resource infrastructures",
+      "cited_authors": [
+        "Pedro Javier",
+        "Ortiz Suárez",
+        "Benoît Sagot",
+        "Laurent Romary"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::22",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Proceedings of the Fourth International Conference on Language Resources and Evaluation (LREC'04)",
+      "cited_authors": [
+        "Jörg Tiedemann",
+        "Lars Nygaard"
+      ],
+      "cited_year": 2004,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::23",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "CCNet: Extracting high quality monolingual datasets from web crawl data",
+      "cited_authors": [
+        "Guillaume Wenzek",
+        "Marie-Anne Lachaux",
+        "Alexis Conneau",
+        "Vishrav Chaudhary",
+        "Francisco Guzmán",
+        "Armand Joulin",
+        "Edouard Grave"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2303.17183::citation::24",
+      "paper_id": "2303.17183",
+      "raw_text": null,
+      "cited_title": "Aditya Barua, and Colin Raffel. 2021. mT5: A massively multilingual pre-trained text-to-text transformer",
+      "cited_authors": [
+        "Linting Xue",
+        "Noah Constant",
+        "Adam Roberts",
+        "Mihir Kale",
+        "Rami Al-Rfou",
+        "Aditya Siddhant"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

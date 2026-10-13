@@ -1,0 +1,142 @@
+[
+  {
+    "query": "What is GPT-3's parameter count and what capability does scaling to that size enable?",
+    "reference_answer": "GPT-3 has 175 billion parameters. Scaling to this size enables strong few-shot, task-agnostic performance without fine-tuning, showing that language models improve their few-shot ability as they scale up.",
+    "relevant_arxiv_ids": ["2005.14165"]
+  },
+  {
+    "query": "How does BERT's pre-training approach differ from a standard left-to-right language model?",
+    "reference_answer": "BERT uses masked language modeling and next-sentence prediction to pre-train a deep bidirectional Transformer, allowing it to condition on both left and right context, unlike a standard left-to-right language model.",
+    "relevant_arxiv_ids": ["1810.04805"]
+  },
+  {
+    "query": "What mechanism does the Transformer architecture use instead of recurrence, and why was that significant?",
+    "reference_answer": "The Transformer relies entirely on self-attention instead of recurrent or convolutional layers, allowing significantly more parallelization during training and enabling models to scale to much larger sizes.",
+    "relevant_arxiv_ids": ["1706.03762"]
+  },
+  {
+    "query": "How does RoBERTa improve on the original BERT training procedure?",
+    "reference_answer": "RoBERTa modifies BERT's pretraining by training longer, with bigger batches and more data, removing the next-sentence prediction objective, and dynamically changing the masking pattern applied to training data.",
+    "relevant_arxiv_ids": ["1907.11692"]
+  },
+  {
+    "query": "What problem does T5's text-to-text framework aim to unify?",
+    "reference_answer": "T5 reframes every NLP task as a text-to-text problem, using the same model, objective, and decoding process regardless of whether the task is translation, classification, or summarization.",
+    "relevant_arxiv_ids": ["1910.10683"]
+  },
+  {
+    "query": "What role does human feedback play in training InstructGPT, and what was the result compared to raw GPT-3?",
+    "reference_answer": "InstructGPT uses supervised fine-tuning on human demonstrations followed by reinforcement learning from human feedback (RLHF). This produced a much smaller (1.3B) model whose outputs were preferred by humans over the 175B GPT-3.",
+    "relevant_arxiv_ids": ["2203.02155"]
+  },
+  {
+    "query": "What distinguishes Llama 2's release from earlier large language models?",
+    "reference_answer": "Llama 2 is an open-source family of models (7B-70B parameters) that includes instruction/chat-tuned variants (Llama 2-Chat), released with a permissive license to make high-performing LLMs more openly available.",
+    "relevant_arxiv_ids": ["2307.09288"]
+  },
+  {
+    "query": "How does SCAR reduce the amount of data needed for instruction tuning?",
+    "reference_answer": "SCAR selects instruction-response pairs based on style consistency, allowing a model to reach comparable or better performance using only a small fraction of the original training data.",
+    "relevant_arxiv_ids": ["2406.10882"]
+  },
+  {
+    "query": "What is AAAR-1.0 designed to assess about AI systems in the context of research?",
+    "reference_answer": "AAAR-1.0 is a benchmark designed to assess how well AI systems can assist with real research tasks, evaluating capabilities relevant to supporting or automating parts of the research process.",
+    "relevant_arxiv_ids": ["2410.22394"]
+  },
+  {
+    "query": "How does CEC-Zero approach Chinese error correction?",
+    "reference_answer": "CEC-Zero is a Chinese error correction solution built on a large language model, aiming to identify and correct errors in Chinese text using the LLM's own generative and reasoning capabilities.",
+    "relevant_arxiv_ids": ["2505.09082"]
+  },
+  {
+    "query": "What does the paper on selective paraphrase generation let users control?",
+    "reference_answer": "The paper introduces a user-controllable approach to selective paraphrase generation, allowing users to specify which parts of a sentence should be paraphrased and which should remain unchanged, rather than paraphrasing the whole sentence uniformly.",
+    "relevant_arxiv_ids": ["2008.09290"]
+  },
+  {
+    "query": "What is dual-critique prompting and what problem does it address in large language models?",
+    "reference_answer": "Dual-critique prompting is a technique for making large language models more robust against inductive (misleading) instructions, using a self-critique mechanism where the model evaluates and revises its own response before finalizing it.",
+    "relevant_arxiv_ids": ["2305.13733"]
+  },
+  {
+    "query": "How is ChatGPT used to enhance programming eTextbooks?",
+    "reference_answer": "The paper uses ChatGPT to generate counterfactual-thinking-inspired questions for programming eTextbooks, aiming to deepen student understanding by prompting them to reason about alternative scenarios in code behavior.",
+    "relevant_arxiv_ids": ["2306.00551"]
+  },
+  {
+    "query": "What self-supervised method does the paper on dialogue summarization use to enhance semantic understanding?",
+    "reference_answer": "The paper applies self-supervised learning methods to improve semantic understanding for abstractive dialogue summarization, using auxiliary self-supervised objectives to help the model better capture dialogue structure and meaning without requiring additional labeled data.",
+    "relevant_arxiv_ids": ["2209.00278"]
+  },
+  {
+    "query": "How does 'Flipping the Dialogue' train and evaluate user language models?",
+    "reference_answer": "The paper trains and evaluates language models that simulate the USER side of a dialogue rather than the assistant side, flipping the typical roles to study or generate more realistic user behavior in conversational systems.",
+    "relevant_arxiv_ids": ["2510.06552"]
+  },
+  {
+    "query": "What rehearsal policy does GRASP propose for online continual learning?",
+    "reference_answer": "GRASP proposes a rehearsal policy for online continual learning that selects which past examples to replay in an efficient way, aiming to reduce catastrophic forgetting without the computational cost of naive full-memory rehearsal.",
+    "relevant_arxiv_ids": ["2308.13646"]
+  },
+  {
+    "query": "What is the central idea behind the Generative Video Transformer's approach of treating objects as words?",
+    "reference_answer": "The Generative Video Transformer explores treating objects in a video as if they were words in a sequence, applying transformer-style sequence modeling to object-level representations to generate or reason about video content.",
+    "relevant_arxiv_ids": ["2107.09240"]
+  },
+  {
+    "query": "What limitation does the paper on two-tower multimodal systems find for instrument recognition?",
+    "reference_answer": "The paper evaluates two-tower multimodal systems for musical instrument recognition and finds that while the systems can effectively listen to (process) audio, they struggle to read (process) the associated text or symbolic information as well, limiting overall multimodal performance.",
+    "relevant_arxiv_ids": ["2407.18058"]
+  },
+  {
+    "query": "What is Jacobian-driven role attribution used for in prompt optimization?",
+    "reference_answer": "J6 uses Jacobian-driven role attribution to determine how different components or tokens of a prompt contribute to multiple objectives simultaneously, enabling more targeted multi-objective prompt optimization for large language models.",
+    "relevant_arxiv_ids": ["2508.12086"]
+  },
+  {
+    "query": "What task is Llama-Mob instruction-tuned to perform?",
+    "reference_answer": "Llama-Mob is an instruction-tuned version of Llama-3-8B specialized for city-scale mobility prediction, adapting a general-purpose LLM to forecast movement patterns at an urban scale.",
+    "relevant_arxiv_ids": ["2410.23692"]
+  },
+  {
+    "query": "What technique does the paper on making text unlearnable use to protect personal data?",
+    "reference_answer": "The paper exploits effective perturbation patterns to make text data unlearnable by models trained on it, aiming to protect personal data from being memorized or exploited by machine learning systems trained on scraped text.",
+    "relevant_arxiv_ids": ["2307.00456"]
+  },
+  {
+    "query": "What robustness problem does the paper on reference-free dialogue evaluation investigate?",
+    "reference_answer": "The paper measures how robust reference-free dialogue evaluation systems are, examining whether their quality judgments remain stable and reliable under different conditions rather than being an artifact of specific test setups.",
+    "relevant_arxiv_ids": ["2501.06728"]
+  },
+  {
+    "query": "How does the Mixture-of-Expert Conformer handle streaming multilingual speech recognition?",
+    "reference_answer": "The Mixture-of-Expert Conformer applies a mixture-of-experts architecture within a Conformer model to handle streaming automatic speech recognition across multiple languages, routing input to specialized expert subnetworks for different languages or acoustic conditions.",
+    "relevant_arxiv_ids": ["2305.15663"]
+  },
+  {
+    "query": "What does naturalistic causal probing investigate about morpho-syntax in language models?",
+    "reference_answer": "The paper uses naturalistic causal probing techniques to investigate how language models represent and process morpho-syntactic information, examining causal relationships between internal representations and morpho-syntactic behavior rather than relying solely on correlational probing.",
+    "relevant_arxiv_ids": ["2205.07043"]
+  },
+  {
+    "query": "How does the paper on translating wordplay use multi-agent translation?",
+    "reference_answer": "The paper uses a multi-agent approach combining contrastive learning and phonetic-semantic embeddings to translate puns and wordplay, aiming to preserve both the meaning and the wordplay effect across languages.",
+    "relevant_arxiv_ids": ["2507.06506"]
+  },
+  {
+    "query": "How does reinforcement communication learning vary across different social network structures?",
+    "reference_answer": "The paper studies how agents using reinforcement learning develop communication strategies differently depending on the structure of the social network connecting them, showing that network topology influences the emergent communication patterns.",
+    "relevant_arxiv_ids": ["2007.09820"]
+  },
+  {
+    "query": "What text augmentation approach does the spear-phishing detection paper propose?",
+    "reference_answer": "The paper proposes text data augmentation techniques to improve the detection of spear-phishing emails, generating additional varied training examples to help models better generalize to novel phishing attempts.",
+    "relevant_arxiv_ids": ["2007.02033"]
+  },
+  {
+    "query": "How does the paper on entity linking use multi-view distillation to improve results?",
+    "reference_answer": "The paper improves entity linking by distilling knowledge from multiple views or representations of entities and mentions into a single model, aiming for more accurate linking than a single-view approach would achieve.",
+    "relevant_arxiv_ids": ["2305.17371"]
+  }
+]

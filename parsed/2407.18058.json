@@ -1,0 +1,1534 @@
+{
+  "arxiv_id": "2407.18058",
+  "title": "I can listen but cannot read: An evaluation of two-tower multimodal   systems for instrument recognition",
+  "authors": [
+    {
+      "name": "Yannis Vasilakis",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Rachel Bittner",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Johan Pauwels",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Music two-tower multimodal systems integrate audio and text modalities into a joint audio-text space, enabling direct comparison between songs and their corresponding labels. These systems enable new approaches for classification and retrieval, leveraging both modalities. Despite the promising results they have shown for zero-shot classification and retrieval tasks, closer inspection of the embeddings is needed. This paper evaluates the inherent zero-shot properties of joint audio-text spaces for the case-study of instrument recognition. We present an evaluation and analysis of two-tower systems for zero-shot instrument recognition and a detailed analysis of the properties of the pre-joint and joint embeddings spaces. Our findings suggest that audio encoders alone demonstrate good quality, while challenges remain within the text encoder or joint space projection. Specifically, two-tower systems exhibit sensitivity towards specific words, favoring generic prompts over musically informed ones. Despite the large size of textual encoders, they do not yet leverage additional textual context or infer instruments accurately from their descriptions. Lastly, a novel approach for quantifying the semantic meaningfulness of the textual space leveraging an instrument ontology is proposed. This method reveals deficiencies in the systems' understanding of instruments and provides evidence of the need for fine-tuning text encoders on musical data.",
+  "categories": [
+    "cs.SD",
+    "cs.CL",
+    "cs.IR",
+    "cs.LG",
+    "eess.AS"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2024-07-25T14:15:05"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "International Society for Music Information Retrieval Conference",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2024-07-25",
+  "citation_count": 5,
+  "reference_count": 53,
+  "fields_of_study": [
+    "Computer Science",
+    "Engineering"
+  ],
+  "sections": [
+    {
+      "id": "2407.18058::section::0",
+      "paper_id": "2407.18058",
+      "heading": "INTRODUCTION",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::0::para::0",
+          "section_id": "2407.18058::section::0",
+          "text": "Multiclass classification has been a heavily researched topic in Music Information Retrieval (MIR) with many concrete applications such as genre, instrument and emotion recognition [1][2][3][4]. Despite the success of Deep (DL) systems for such tasks, recurring deficiencies persist among these problems. These are: (1) the limited availability of large-scale annotated datasets curated by experts, (2) the restricted capability of these systems to infer only a set of predefined classes. This enables direct comparison between audio and textual data. We refer to embeddings obtained before joint-space projection as pre-joint space embeddings.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::0::para::1",
+          "section_id": "2407.18058::section::0",
+          "text": "Music is an ever-evolving art form and as a result, there is an inherent need to make these systems adaptable to new terms/classes [5][6][7] and infer task-agnostic representations that can be useful for a plethora of downstream tasks with representation learning [8][9][10]. Zero-shot learning (ZSL) is focused on estimating a classifier capable of inferring unseen, new classes without annotated examples [11][12][13][14]. ZSL is often achieved in either of two ways: (1) by decomposing each class into attributes and inferring unseen classes through their related attributes (e.g. genres decomposed into presence or absence of instruments [12]) or (2) using word embeddings from Language Models (LM) [12][13][14]. The success of contextualized Large Language Models (LLM) has driven the research community predominantly toward the second solution, as it doesn't require experts to define attributes and the mapping between classes and attributes [15][16][17].",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::0::para::2",
+          "section_id": "2407.18058::section::0",
+          "text": "As a result, ZSL for audio classification is primarily focused on connecting the audio and semantic representation spaces. This interconnection can happen in 2 main ways: (1) mapping the audio representations to text space [12,13], or (2) mapping both of the spaces to a new, joint audio-text space [14,[18][19][20]. The systems of the second category are named two-tower multimodal systems, where pre-trained audio models and LMs are used as the audio and text encoders respectively. Representations obtained from each modality are then mapped to a joint audio-text space and systems are jointly optimized such that the audio and text representation are close in the joint space (e.g. the phrase \"A rock song track\" is similar to the recording of a \"rock\" song). We will call such representations as embeddings from here on.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2407.18058::section::0::para::3",
+          "section_id": "2407.18058::section::0",
+          "text": "This work aims to better understand the properties of existing two-tower systems. We use instrument classification as a case-study to provide insights into the presence (or absence) of semantic properties in the audio, text or joint spaces in addition to reporting classification metrics. Concretely, we consider 3 systems: MusCALL [18], a CLAP [20,21] model trained on speech and music datasets, and a CLAP model trained on music data [21]. We evaluate the performance of these systems on instrument classification using the TinySOL dataset [22]. We would like to highlight that multimodal DL models typically excel at simple tasks and datasets like this.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2407.18058::section::0::para::4",
+          "section_id": "2407.18058::section::0",
+          "text": "Furthermore, a novel approach for quantifying the semantic meaningfulness of textual encoders for instrument recognition is proposed.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2407.18058::section::0::para::5",
+          "section_id": "2407.18058::section::0",
+          "text": "For reproducibility, our experiments are performed on open-source datasets and the code of our experiments is made publicly available 1 , such that they can be reproduced.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::1",
+      "paper_id": "2407.18058",
+      "heading": "Zero-shot transfer",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::1::para::0",
+          "section_id": "2407.18058::section::1",
+          "text": "ZSL focuses on estimating classifiers for novel, unseen classes without annotated examples. Two-tower systems are not primarily optimized for ZSL but due to the pretrained textual encoder, novel words or phrases can be interpreted during inference. This property is known as zeroshot transfer (ZST) [23].",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::1::para::1",
+          "section_id": "2407.18058::section::1",
+          "text": "Side-information can be used in multiple ways that fall into two categories: (1) decomposing classes into shared attributes and (2) using LMs to represent this information as a text embedding. Despite its success, the first solution requires experts to effectively estimate the relevance of attributes and several classes and is a costly activity. As a result and due to the remarkable results obtained through contextualized LLMs, research has focused on the second option.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::1::para::2",
+          "section_id": "2407.18058::section::1",
+          "text": "Generally, the methodology can be broken down into 3 components: (1) an audio encoder, (2) a textual encoder and (3) a projection to a common space. General purpose audio DL models that have been used as the audio encoder include VGGish [24], PANN [8], HTS-AT [9] and Audio Spectrogram Transformers [25]. For the textual encoder, distributional LMs like GloVE [26], Word2Vec [27] and contextualized LMs like BERT [28] have been thoroughly tested. As each modality produces heterogeneous representations, different methods of establishing comparability have been tested. This is predominantly achieved through projecting audio to text/semantic space [11][12][13] or a novel, joint audio-text space [18][19][20]. 1 https://github.com/YannisBilly/i_can_listen_ but_cannot_read",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::2",
+      "paper_id": "2407.18058",
+      "heading": "Two-tower multimodal systems",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::2::para::0",
+          "section_id": "2407.18058::section::2",
+          "text": "Multimodal systems aim to represent data with additional knowledge from multiple modalities. Examples are audio combined with images [29], text [12,30] or a combination thereof.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::2::para::1",
+          "section_id": "2407.18058::section::2",
+          "text": "Two-tower multimodal systems focus on combining the textual and audio modalities by projecting them in a joint audio-text space. In that space, words that are relevant to a specific song will produce embeddings that will be close in terms of some similarity metric. An illustration of a two-tower system is presented in Figure 1. Information flowing through the audio encoder or textual encoder is referred to as the audio and textual branch respectively. We are also interested in the embeddings obtained through the encoders before projecting them into the joint audio-text space. We will call these the pre-joint spaces from now on.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::2::para::2",
+          "section_id": "2407.18058::section::2",
+          "text": "The text used during training is usually a description of a song and will be referred to as a caption. The text used during inference will be referred to as a prompt.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2407.18058::section::2::para::3",
+          "section_id": "2407.18058::section::2",
+          "text": "MusCALL [18] combined a ResNET-50 for audio [31] with a Transformer for text encoding [32], optimized jointly over InfoNCE contrastive loss [33]. Additionally, a weighing mechanism based on caption-caption similarity was incorporated between negative audio-caption pairs. This is based on the premise that similar captions will be given to similar audio. The audio used is private but the training code is publicly available and used for this work.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2407.18058::section::2::para::4",
+          "section_id": "2407.18058::section::2",
+          "text": "MuLan [19] experimented with ResNET-50 as well as Audio Spectrogram Transformers [25] for audio encoding and a pretrained BERT model for the text branch. Both were jointly optimized over the Contrastive Multiview Coding loss [34], which is a cross-modal extension of InfoNCE. Neither the data nor the code is available.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2407.18058::section::2::para::5",
+          "section_id": "2407.18058::section::2",
+          "text": "LAION-CLAP tested 6 different combinations of audio and text embedding models, the best one of which was HTS-AT with RoBERTa [35]. The latter is the one that will be used in this paper. The LAION-Audio-630k dataset was formed by combining AudioCaps, CLotho and Audioset.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2407.18058::section::2::para::6",
+          "section_id": "2407.18058::section::2",
+          "text": "Generally, research for two-tower systems is limited to testing different combinations of audio and text encoders, optimized jointly over a form of contrastive loss and modalitity fusion. We believe that closer inspection of their embeddings and evaluation protocol is needed.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::3",
+      "paper_id": "2407.18058",
+      "heading": "Dataset and models",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::3::para::0",
+          "section_id": "2407.18058::section::3",
+          "text": "We use the TinySOL dataset which contains 2913 audio clips with a single note played from a single instrument out of a set of 14 instrument classes. This dataset has been chosen as it has consistent recording settings without noise, it is a simple dataset for instrument recognition and finally, confounding factors (compression, sampling rate etc) are minimized. We consider 3 models in total:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::3::para::1",
+          "section_id": "2407.18058::section::3",
+          "text": "1. Music/Speech CLAP: [20,21] A CLAP-based model trained on music/speech data 2 2. Music CLAP: [21] A CLAP-based model trained on music data 33. MusCALL: A version of [18], retrained on music data 4We use the two pretrained CLAP systems provided by LAION 5 . For this work, the original MusCALL implementation was retrained from scratch, as both the data and trained models used in the original paper are not publicly available. Instead, we train on the LPMusicCaps-MTT [36] dataset, which is built by leveraging the audio and 188 tags from Magna Tag A Tune [37] to artificially generate captions through a GPT-3.5 model. The audio is resampled to 44.1 and 16 KHz for CLAP and MusCALL respectively, and the pre-processing steps described in their respective code repositories are followed.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::4",
+      "paper_id": "2407.18058",
+      "heading": "Zero-shot transfer for instrument classification",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::4::para::0",
+          "section_id": "2407.18058::section::4",
+          "text": "Given an unseen audio segment x * , a text label l * and a two-tower system f (x), we want to model the likelihood P (l * |x * ) based on the embeddings provided by f (x). In the general case, f → R F is a function that represents a two-tower system and maps audio or text information to a joint audio-text space, where F is the dimension of the joint space. Also, let δ : (R F x R F ) → R be a function that measures similarity between joint space embeddings. In this approach, we model the P (l * |x * ) based on δ, as in:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::4::para::1",
+          "section_id": "2407.18058::section::4",
+          "text": "Multiclass classification attributes the most probable class to each recording and equivalently, the one that has the maximum likelihood. Given our approximation, the output class for each recording is:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::4::para::2",
+          "section_id": "2407.18058::section::4",
+          "text": "for c ∈ C, where C = {c 1 , c 2 , • • • , c N } is the set of classes that we are interested in.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2407.18058::section::4::para::3",
+          "section_id": "2407.18058::section::4",
+          "text": "In our work, the embedding similarity function δ is the cosine similarity:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2407.18058::section::4::para::4",
+          "section_id": "2407.18058::section::4",
+          "text": "where ∥•∥ is the L 2 norm and e i ∈ R F are embeddings.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::5",
+      "paper_id": "2407.18058",
+      "heading": "Experiment 1: Are two-tower systems context dependent?",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::5::para::0",
+          "section_id": "2407.18058::section::5",
+          "text": "Two-tower systems are typically not trained on single words, but rather longer prompts. As a result, the embedding produced for a single-word text label (e.g. \"guitar\") can be very different from the embedding for a longer prompt, with additional context (e.g. \"a guitar track\"). When using two-tower models for classification, the class label can be wrapped in a prompt such as \"A <label> track\" [18], to better match the training distribution. Methods to introduce stochasticity in the prompts used during training have been empirically proven to lead to more robust results [38]. Retraining the systems and testing different ways of augmenting captions used for training is left for future work, but works in image-text [39] and videotext [40] two-tower systems provide some evidence for their usefulness. The impact of different approaches for giving additional context to a single-word text label during inference has not been well-explored. We explore the prompt sensitivity of each system by slightly changing the text prompt used for zero-shot classification in order to better understand to which extent these systems leverage contextual information. As far as we are aware, we are the first to evaluate the use of different types of prompts for two-tower systems during inference. Specifically, we evaluate 3 systems against 6 different prompts:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::5::para::1",
+          "section_id": "2407.18058::section::5",
+          "text": "1. MusCALL prompt: \"A <label> track\" 2. Generated definition: \"The <label> is a ...\" 3. Generated definitions without label words: \"The <removed> is a ...\"",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::5::para::2",
+          "section_id": "2407.18058::section::5",
+          "text": "4. Label word with random context: \"<label> <randomly selected lorem ipsum segment>\" 5. Musically informed #1: \"This is a recording of a <label>\" 6. Musically informed #2: \"Solo musical instrument sound of a <label>\"",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2407.18058::section::5::para::3",
+          "section_id": "2407.18058::section::5",
+          "text": "The first prompt proposed is the prompt that was used in MusCALL. The second prompt is generated using GPT-3.5 [41]. The third prompt is the same as the second but we removed all instances of the label itself to evaluate the influence of the context on its own. To evaluate if the systems are sensitive to specific words and to further evaluate if the context is useful, the fourth prompt adds random words alongside the label. Lastly, we test 2 musically informed prompts.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2407.18058::section::5::para::4",
+          "section_id": "2407.18058::section::5",
+          "text": "As a first metric, we consider Top-k accuracy with k = {1, 2, 3}. We calculate the cosine similarity between each recording and instrument prompt and sort them. We assign zero-shot class labels as described in Section 3.2 and check if the true label is present in the top-k assigned class labels. Furthermore, we calculate Receiver Operating Characteristic and Precision-Recall Area Under the Curve (ROC-AUC and PR-AUC respectively) following [42].",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2407.18058::section::5::para::5",
+          "section_id": "2407.18058::section::5",
+          "text": "Figure 2 presents the zero-shot instrument recognition results for the three models across the 6 prompts, as well as the audio-only alternatives that will be described in Section 3.4. Despite the focus on music data, Music CLAP doesn't display very different results from Music/Speech CLAP. While music-specific systems are generally expected to perform better, this is not the case for two-tower systems. This might be an indication that music requires special treatment, as the metrics approach the state of the art in audio-text [21] and image-text [43] two-tower systems. Top-1 accuracy is worse than random for 4 out of 6 textual prompts for MusCALL. This might be caused by the small size of training data used, the absence of instrumentspecific captions or their underrepresentation in the captions used, as well as the absence of single-note recordings in LPMusicCaps-MTT. While the metrics are low for Mus-CALL in most of the cases, a relatively large performance is still evident for the audio-only scenario. This implies that the problem lies in the audio-text alignment or the text branch.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2407.18058::section::5::para::6",
+          "section_id": "2407.18058::section::5",
+          "text": "The performance of CLAP models seems to be heavily correlated with the instrument labels themselves. Removing the label from definitions provides evidence that relevant context cannot be leveraged properly. Also, using musically informed prompts doesn't always result in greater or even comparable results. Specifically, top-1 accuracy drops when using the second musically informed prompt for CLAP models, despite the prompt being a more precise description of what is occurring in the audio.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2407.18058::section::5::para::7",
+          "section_id": "2407.18058::section::5",
+          "text": "These results suggest that CLAP models do not leverage extra context in the input prompt effectively. Both models performed worse when using relevant context without the instrument word, suggesting that the textual encoders put a lot more emphasis on the presence of specific words rather than the meaning of the prompts themselves. In addition, using a generic prompt provided better results than a musically informed one in most cases. Furthermore, any kind of context added at the prompts seems to harm the performance in most of the cases and provide more evidence that the model's text encoder cannot properly decompose the sentence to its constituents and use these semantically. Despite this observation, using definitions (prompt 2) seems promising for Music CLAP and for every metric apart from top-1 accuracy.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2407.18058::section::5::para::8",
+          "section_id": "2407.18058::section::5",
+          "text": "In the following experiments, we will consider only the \"MusCALL prompt\" as it leads to the highest top-1 accuracy, when model accuracy surpasses random choice.",
+          "paragraph_index": 8
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::6",
+      "paper_id": "2407.18058",
+      "heading": "Experiment 2: Inspecting the cosine similarity distributions",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::6::para::0",
+          "section_id": "2407.18058::section::6",
+          "text": "As a next experiment, we calculate the cosine similarity between the joint space embeddings of each recording from TinySOL and the MusCALL prompt for each instrument, then compare the similarities of positive pairs vs negative pairs. We define a positive pair as an audio-label pair where the label corresponds to the instrument in the recording, and the negative pairs as all other pairs. Figure 3a presents histograms of similarities for positive and negative pairs when using text prompts. If the audio-text coherence is good, positive and negative histograms should be well separated.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::6::para::1",
+          "section_id": "2407.18058::section::6",
+          "text": "Positive and negative similarity distributions overlap greatly, as can be seen in Figure 3a. As a result, retrieval is far from optimal. Fundamentally, a caption is a multifaceted sentence. We suspect that treating a sentence as only one embedding point (mean of word embeddings) is fundamentally problematic and greatly hinders the semantic properties of the joint space. A hypothesis that needs Figure 3: Histograms of audio and label embeddings for positive and negative pairs. When using textual prompts (a), the alignment is problematic, as can be seen from the overlap between positive and negative distributions.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::6::para::2",
+          "section_id": "2407.18058::section::6",
+          "text": "testing is that by using composite sentences, a model cannot properly infer the relative embeddings of the sentence constituents.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2407.18058::section::6::para::3",
+          "section_id": "2407.18058::section::6",
+          "text": "To further evaluate if the audio encoder produces meaningful representations, we use the mean of intra-class song embeddings as the label embedding. This label embedding takes the role of the prompt embedding in the previous experiment. We generate the embeddings in joint audio-text space for each song. Then, we collect the songs that belong to k-th class c k and estimate the mean of the embeddings. The latter serves as the optimal embedding that the text label would have to be mapped to in order to maximize performance and will be referred to as the \"audio-only\" label. Note that this embedding is only optimal in the case of TinySOL data.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2407.18058::section::6::para::4",
+          "section_id": "2407.18058::section::6",
+          "text": "The resulting histograms for positive and negative pairs are shown in Figure 3b. They are well separated, indicating that the audio-encoder itself produces meaningful, separable embeddings.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2407.18058::section::6::para::5",
+          "section_id": "2407.18058::section::6",
+          "text": "Audio embeddings seem to be of good quality before and after the projection to the joint audio-text space, as the metrics are almost equal before and after projection in Fig -Figure 4: The histogram of top-2 class similarities for every song in TinySOL. The CLAP models tend to be not very confident while the metrics are greater than the overconfident MusCALL with the worst metrics. ure 2. The metrics almost double when using any audioonly labels, which further provides evidence that the problem resides in the text branch, or joint-space projection and there remains a large performance gap to bridge.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::7",
+      "paper_id": "2407.18058",
+      "heading": "Experiment 3: How confident are two-tower systems in their prediction?",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::7::para::0",
+          "section_id": "2407.18058::section::7",
+          "text": "We calculate the histogram of the difference between the top-2 candidate classes for each recording [44] to quantify the classification confidence. The similarity between each audio and instrument embeddings is estimated and they are sorted in descending order. The difference between top-2 similarities for each song is then calculated and a histogram of that difference is plotted in Figure 4.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::7::para::1",
+          "section_id": "2407.18058::section::7",
+          "text": "MusCALL seems to be overly confident in its prediction, which is unwarranted given the metrics reported. The opposite can be stated for CLAP models, where despite their better performance, the difference has a median value of 0.05-0.08.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::8",
+      "paper_id": "2407.18058",
+      "heading": "Experiment 4: Quantitative evaluation of the text branch",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::8::para::0",
+          "section_id": "2407.18058::section::8",
+          "text": "While there are datasets that can be used to quantify the semantic properties and/or quality of a LM, there isn't one that focuses on music. To overcome this lack of text data for the case of instrument recognition, we can utilize instrument ontologies, which encompass semantic similarity of instruments at multiple levels. We propose to leverage them to quantify the semantic similarity between different instruments and instrument families. In this experiment we use the instrument ontology by Henry Doktorskifoot_5 (HDIO). As every instrument ontology has its limitations [45], repeating the same experiment with other ontologies is left for future work.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::8::para::1",
+          "section_id": "2407.18058::section::8",
+          "text": "We extract the tree based on HDIO and form every possible triplet of TinySOL instrument labels in the tree for a total of 364 = 14 3 combinations of positive word pairs without repetition. The triplets are of the form (<an-chor>, <positive>, <negative>) where the <anchor> label has to be more semantically similar according to HDIO to the <positive> than the <negative>, e.g (\"violin\", \"violoncello\", \"trumpet\"). Subsequently, every (<anchor>, <positive>) pair that is linked through the root node of HDIO is excluded. The number of remaining triplets is 273. As a way to quantify semantic meaningfulness with respect to musical instruments, we calculate cosine similarity between the (<anchor>, <positive>) and (<an-chor>, <negative>) pairs for each system. Triplets for which the similarity is higher for the first pair than the second are considered \"correct\", and triplets where this is not the case are considered \"incorrect\". We compute the accuracy score as the percentage of correct triples. We repeat this procedure with every valid triplet from the full ontology, as opposed to just using the instrument labels appearing in TinySOL. This gives us ≈ 443k triplets.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::8::para::2",
+          "section_id": "2407.18058::section::8",
+          "text": "The accuracy for triplets from TinySOL and the full HDIO ontology are both presented in Figure 5. We see that half of the triplets are \"incorrect\" and this means that abstract semantic relations between instruments are not effectively captured in the textual branch, indicating a need for fine-tuning textual encoders on music related data. Note that the accuracy is roughly the same as we would obtain by creating arbitrary triplets, though it is important to highlight that several instruments and instrument categories are words that are not frequently used in English. Closer examination of the validity and usefulness of specific triplet cases (e.g. \"stringed\", \"plucked\", \"violin\") is left for future work.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::9",
+      "paper_id": "2407.18058",
+      "heading": "Experiment 5: Does joint space mapping introduce noise?",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::9::para::0",
+          "section_id": "2407.18058::section::9",
+          "text": "To further examine the origins of the problematic embedding alignment, we repeat zero-shot evaluation with audioonly labels described in Sections 3.4 and semantic mean-ingfulness evaluation described in 3.6 with the embeddings in the audio space and text space before the joint audio-text space mapping.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::9::para::1",
+          "section_id": "2407.18058::section::9",
+          "text": "A minor performance increment can be seen when using the joint embedding instead of the pre-joint audio embedding, as can be seen in the last two columns of Figure 2, apart from MusCALL where the metrics remain almost the same. We believe that the reduction in dimensionality of the joint space compared to the separate spaces is the underlying cause of these increments.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::9::para::2",
+          "section_id": "2407.18058::section::9",
+          "text": "On the other hand, the accuracy based on HDIO remains the same, except for a decrement observed for Music CLAP and TinySOL subset of HDIO triplets, as can be seen in Figure 5. This could be an indication that the MLP can effectively map knowledge to the joint space. This is a further hint that potentially the problem lies in the LM used and fine-tuning might be needed to enforce musical semantics to be better represented.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2407.18058::section::10",
+      "paper_id": "2407.18058",
+      "heading": "CONCLUSIONS AND FUTURE WORK",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2407.18058::section::10::para::0",
+          "section_id": "2407.18058::section::10",
+          "text": "In this paper, we evaluated 3 two-tower multimodal systems for instrument classification. We provided a zeroshot classification analysis and an elaborate evaluation of the audio and text embeddings in the pre-joint and joint audio-text spaces. We also proposed a novel way to quantify the semantic meaningfulness of text embeddings based on triplets derived from an instrument ontology.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2407.18058::section::10::para::1",
+          "section_id": "2407.18058::section::10",
+          "text": "Generally, experiments showed that audio encoders are of good quality and hence, the alignment issue might be traced back to the text branch and/or the joint audio-text space mapping. Therefore, a solution could be to freeze the audio encoder and map the text information to audio space. Also, further attention to modality imbalance [46] can be placed with weighing in negative and positive examples [18,[47][48][49][50]. Additionally, to avoid sensitivity towards instrument labels and the inability to leverage context, we propose to use text augmentation over captions or masking/removing the words from them. It is important to state that the relation between sentence and word embeddings is not as straightforward as with bag-of-words Language Models [51] and as a result, the way to utilize captions or put additional emphasis on their constituents have to be further tested.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2407.18058::section::10::para::2",
+          "section_id": "2407.18058::section::10",
+          "text": "As a result, using two-tower systems might not be very useful for multi-class scenarios, given the large overlap between positive and negative histograms of cosine similarities shown in our experiments. We believe that it is essential for a music terminology similarity corpus to be established. The benefits will be two-fold: (1) it will provide a useful way of quantifying the semantic meaningfulness of the textual branch for two-tower model and (2) it can serve as a baseline to quantify the need for music-informed finetuning. Last but not least, genre and emotion ontologies can be used to further evaluate the semantic meaningfulness of language models.",
+          "paragraph_index": 2
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2407.18058::figure::0",
+      "paper_id": "2407.18058",
+      "figure_number": "Figure 1 :",
+      "caption": "Figure 1: Figure of a pipeline for two-tower multimodal systems. A separate model for each modality is used and their individual representations are projected to a joint audio-text space through a Multi-Layer Perceptron (MLP).This enables direct comparison between audio and textual data. We refer to embeddings obtained before joint-space projection as pre-joint space embeddings.",
+      "page_number": 1,
+      "bounding_box": {
+        "page": 1,
+        "x": 310.12,
+        "y": 204.31,
+        "width": 232.43,
+        "height": 99.21
+      },
+      "grobid_ref_id": "fig_0",
+      "image_path": "extracted_images\\2407.18058_figure_0.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2407.18058::figure::1",
+      "paper_id": "2407.18058",
+      "figure_number": "Figure 2 :",
+      "caption": "Figure 2: Metrics for 6 textual prompts (See Section 3.3), 2 audio based label embeddings (See Section 3.4) and the 3 twotower multimodal systems. The top row contains top-1 through top-3 accuracy and the bottom ROC-AUC and PR-AUC. The red line represents random choice.",
+      "page_number": 4,
+      "bounding_box": {
+        "page": 4,
+        "x": 79.37,
+        "y": 48.71,
+        "width": 438.8,
+        "height": 292.54
+      },
+      "grobid_ref_id": "fig_1",
+      "image_path": "extracted_images\\2407.18058_figure_1.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2407.18058::figure::2",
+      "paper_id": "2407.18058",
+      "figure_number": null,
+      "caption": "(a) Histogram of cosine similarity between TinySOL data and MusCALL prompts in joint audio-text space. (b) Histogram of cosine similarity between TinySOL audio data and the mean of intra-class embeddings in joint audio-text space.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_2",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2407.18058::figure::3",
+      "paper_id": "2407.18058",
+      "figure_number": "Figure 5 :",
+      "caption": "Figure5: Semantic meaningfulness quantification leveraging Henry Doktorski's instrument ontology. We evaluated the systems over valid triplets obtained through TinySOL labels, as well as every available triplet obtained from the ontology's labels. Accuracy ranges from 49-59% which stresses that the models do not properly understand musical instruments in depth.",
+      "page_number": 6,
+      "bounding_box": {
+        "page": 6,
+        "x": 66.62,
+        "y": 48.72,
+        "width": 209.2,
+        "height": 125.52
+      },
+      "grobid_ref_id": "fig_3",
+      "image_path": "extracted_images\\2407.18058_figure_3.png",
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [],
+  "equations": [
+    {
+      "id": "2407.18058::equation::0",
+      "paper_id": "2407.18058",
+      "latex": "P (l * |x * ) ∝ \\delta (f (x * ), f (l * ))",
+      "equation_number": "(1)",
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2407.18058::equation::1",
+      "paper_id": "2407.18058",
+      "latex": "c * = argmax c \\in C \\delta (f (x * ), f (c))",
+      "equation_number": "(2)",
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2407.18058::equation::2",
+      "paper_id": "2407.18058",
+      "latex": "\\delta (e 1 , e 2 ) = e 1 • e 2 ∥e 1 ∥ • ∥e 2 ∥ (",
+      "equation_number": "3",
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2407.18058::equation::3",
+      "paper_id": "2407.18058",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2407.18058::citation::0",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "References"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::1",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Music genre classification: A review of deep-learning and traditional machine-learning approaches",
+      "cited_authors": [
+        "N Ndou",
+        "R Ajoodha",
+        "A Jadhav"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::2",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "A survey of music emotion recognition",
+      "cited_authors": [
+        "D Han",
+        "Y Kong",
+        "J Han",
+        "G Wang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::3",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Music Classification: Beyond Supervised Learning, Towards Real-world Applications",
+      "cited_authors": [
+        "M Won",
+        "J Spijkervet",
+        "K Choi"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::4",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "A survey of audio-based music classification and annotation",
+      "cited_authors": [
+        "Z Fu",
+        "G Lu",
+        "K M Ting",
+        "D Zhang"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::5",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Classification as culture: Types and trajectories of music genres",
+      "cited_authors": [
+        "J C Lena",
+        "R A Peterson"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::6",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Categorical ambiguity in cultural fields: The effects of genre fuzziness in popular music",
+      "cited_authors": [
+        "A Van Venrooij",
+        "V Schmutz"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::7",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Audio based disambiguation of music genre tags",
+      "cited_authors": [
+        "R Hennequin",
+        "J Royo-Letelier",
+        "M Moussallam"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::8",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "PANNs: Large-scale pretrained audio neural networks for audio pattern recognition",
+      "cited_authors": [
+        "Q Kong",
+        "Y Cao",
+        "T Iqbal",
+        "Y Wang",
+        "W Wang",
+        "M D Plumbley"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::9",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "HTS-AT: A hierarchical tokensemantic audio transformer for sound classification and detection",
+      "cited_authors": [
+        "K Chen",
+        "X Du",
+        "B Zhu",
+        "Z Ma",
+        "T Berg-Kirkpatrick",
+        "S Dubnov"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::10",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Towards learning universal audio representations",
+      "cited_authors": [
+        "L Wang",
+        "P Luc",
+        "Y Wu",
+        "A Recasens",
+        "L Smaira",
+        "A Brock",
+        "A Jaegle",
+        "J.-B Alayrac",
+        "S Dieleman",
+        "J Carreira",
+        "A Van Den Oord"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::11",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Zero-shot audio classification with factored linear and nonlinear acoustic-semantic projections",
+      "cited_authors": [
+        "H Xie",
+        "O J Räsänen",
+        "T Virtanen"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::12",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Zero-shot learning for audio-based music classification and tagging",
+      "cited_authors": [
+        "J Choi",
+        "J Lee",
+        "J Park",
+        "J Nam"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::13",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Zero-shot audio classification via semantic embeddings",
+      "cited_authors": [
+        "H Xie",
+        "T Virtanen"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::14",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Zero-shot audio classification based on class label embeddings",
+      "cited_authors": [
+        "H Xie",
+        "V Tuomas"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::15",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "What does a platypus look like? generating customized prompts for zero-shot image classification",
+      "cited_authors": [
+        "S Pratt",
+        "I Covert",
+        "R Liu",
+        "A Farhadi"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::16",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Improving zero-shot generalization and robustness of multi-modal models",
+      "cited_authors": [
+        "Y Ge",
+        "J Ren",
+        "A Gallagher",
+        "Y Wang",
+        "M.-H Yang",
+        "H Adam",
+        "L Itti",
+        "B Lakshminarayanan",
+        "J Zhao"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::17",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Finetune like you pretrain: Improved finetuning of zero-shot vision models",
+      "cited_authors": [
+        "S Goyal",
+        "A Kumar",
+        "S Garg",
+        "Z Kolter",
+        "A Raghunathan"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::18",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Contrastive audio-language learning for music",
+      "cited_authors": [
+        "I Manco",
+        "E Benetos",
+        "E Quinton",
+        "G Fazekas"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::19",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "MuLan: A joint embedding of music audio and natural language",
+      "cited_authors": [
+        "Q Huang",
+        "A Jansen",
+        "J Lee",
+        "R Ganti",
+        "J Y Li",
+        "D P W Ellis"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::20",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "CLAP: learning audio concepts from natural language supervision",
+      "cited_authors": [
+        "B Elizalde",
+        "S Deshmukh",
+        "M A Ismail",
+        "H Wang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::21",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Large-scale contrastive languageaudio pretraining with feature fusion and keywordto-caption augmentation",
+      "cited_authors": [
+        "Y Wu",
+        "K Chen",
+        "T Zhang",
+        "Y Hui",
+        "T Berg-Kirkpatrick",
+        "S Dubnov"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::22",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "TinySOL: An audio dataset of isolated musical notes (5.0)",
+      "cited_authors": [
+        "C Emanuele",
+        "D Ghisi",
+        "V Lostanlen",
+        "F Lévy",
+        "J Fineberg",
+        "Y Maresz"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::23",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "LiT: Zero-shot transfer with locked-image text tuning",
+      "cited_authors": [
+        "X Zhai",
+        "X Wang",
+        "B Mustafa",
+        "A Steiner",
+        "D Keysers",
+        "A Kolesnikov",
+        "L Beyer"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::24",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Very deep convolutional networks for large-scale image recognition",
+      "cited_authors": [
+        "K Simonyan",
+        "A Zisserman"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::25",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "AST: Audio Spectrogram Transformer",
+      "cited_authors": [
+        "Y Gong",
+        "Y.-A Chung",
+        "J Glass"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::26",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "GloVe: Global vectors for word representation",
+      "cited_authors": [
+        "J Pennington",
+        "R Socher",
+        "C Manning"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::27",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Efficient estimation of word representations in vector space",
+      "cited_authors": [
+        "T Mikolov",
+        "K Chen",
+        "G S Corrado",
+        "J Dean"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::28",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "BERT: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "J Devlin",
+        "M.-W Chang",
+        "K Lee",
+        "K Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::29",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Zeroshot audio classification using image embeddings",
+      "cited_authors": [
+        "D Dogan",
+        "H Xie",
+        "T Heittola",
+        "T Virtanen"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::30",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Joint music and language attention models for zero-shot music tagging",
+      "cited_authors": [
+        "X Du",
+        "Z Yu",
+        "J Lin",
+        "B Zhu",
+        "Q Kong"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::31",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "A powerful generative model using random weights for the deep image representation",
+      "cited_authors": [
+        "K He",
+        "Y Wang",
+        "J Hopcroft"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::32",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Attention is all you need",
+      "cited_authors": [
+        "A Vaswani",
+        "N M Shazeer",
+        "N Parmar",
+        "J Uszkoreit",
+        "L Jones",
+        "A N Gomez",
+        "L Kaiser",
+        "I Polosukhin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::33",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Representation learning with contrastive predictive coding",
+      "cited_authors": [
+        "A Van Den Oord",
+        "Y Li",
+        "O Vinyals"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::34",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Contrastive multiview coding",
+      "cited_authors": [
+        "Y Tian",
+        "D Krishnan",
+        "P Isola"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::35",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "RoBERTa: A robustly optimized BERT pretraining approach",
+      "cited_authors": [
+        "Y Liu",
+        "M Ott",
+        "N Goyal",
+        "J Du",
+        "M Joshi",
+        "D Chen",
+        "O Levy",
+        "M Lewis",
+        "L Zettlemoyer",
+        "V Stoyanov"
+      ],
+      "cited_year": 1907,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::36",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "LP-MusicCaps: LLM-based pseudo music captioning",
+      "cited_authors": [
+        "S Doh",
+        "K Choi",
+        "J Lee",
+        "J Nam"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::37",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Evaluation of algorithms using games: The case of music tagging",
+      "cited_authors": [
+        "E Law",
+        "K West",
+        "M I Mandel",
+        "M Bay",
+        "J S Downie"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::38",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Toward universal text-to-music retrieval",
+      "cited_authors": [
+        "S Doh",
+        "M Won",
+        "K Choi",
+        "J Nam"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::39",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Deep supervised cross-modal retrieval",
+      "cited_authors": [
+        "L Zhen",
+        "P Hu",
+        "X Wang",
+        "D Peng"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::40",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Modality-balanced embedding for video retrieval",
+      "cited_authors": [
+        "X Wang",
+        "B Ke",
+        "X Li",
+        "F Liu",
+        "M Zhang",
+        "X Liang",
+        "Q Xiao"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::41",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Language models are few-shot learners",
+      "cited_authors": [
+        "T Brown",
+        "B Mann",
+        "N Ryder",
+        "M Subbiah",
+        "J D Kaplan",
+        "P Dhariwal",
+        "A Neelakantan",
+        "P Shyam",
+        "G Sastry",
+        "A Askell",
+        "S Agarwal",
+        "A Herbert-Voss",
+        "G Krueger",
+        "T Henighan",
+        "R Child",
+        "A Ramesh",
+        "D Ziegler",
+        "J Wu",
+        "C Winter",
+        "C Hesse",
+        "M Chen",
+        "E Sigler",
+        "M Litwin",
+        "S Gray",
+        "B Chess",
+        "J Clark",
+        "C Berner",
+        "S Mccandlish",
+        "A Radford",
+        "I Sutskever",
+        "D Amodei"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::42",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Evaluation of cnn-based automatic music tagging models",
+      "cited_authors": [
+        "M Won",
+        "A Ferraro",
+        "D Bogdanov",
+        "X Serra"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::43",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Lafter: Labelfree tuning of zero-shot classifier using language and unlabeled image collections",
+      "cited_authors": [
+        "M J Mirza",
+        "L Karlinsky",
+        "W Lin",
+        "H Possegger",
+        "M Kozinski",
+        "R Feris",
+        "H Bischof"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::44",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Data Classification: Algorithms and Applications, 1st",
+      "cited_authors": [
+        "C C Aggarwal"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::45",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Knowledge representation issues in musical instrument ontology design",
+      "cited_authors": [
+        "M Şefki Kolozali",
+        "G Barthet",
+        "M B Fazekas",
+        "Sandler"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::46",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Modality-balanced embedding for video retrieval",
+      "cited_authors": [
+        "X Wang",
+        "B Ke",
+        "X Li",
+        "F Liu",
+        "M Zhang",
+        "X Liang",
+        "Q.-E Xiao",
+        "Y Yu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::47",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Improving multimodal speech recognition by data augmentation and speech representations",
+      "cited_authors": [
+        "D Oneaţȃ",
+        "H Cucu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::48",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Active learning by acquiring contrastive examples",
+      "cited_authors": [
+        "K Margatina",
+        "G Vernikos",
+        "L Barrault",
+        "N Aletras"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::49",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Towards proper contrastive self-supervised learning strategies for music audio representation",
+      "cited_authors": [
+        "J Choi",
+        "S Jang",
+        "H Cho"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::50",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Learning audio-visual representations with active contrastive coding",
+      "cited_authors": [
+        "S Ma",
+        "Z Zeng",
+        "D Mcduff",
+        "Y Song"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b50",
+      "in_text_context": null
+    },
+    {
+      "id": "2407.18058::citation::51",
+      "paper_id": "2407.18058",
+      "raw_text": null,
+      "cited_title": "Factors affecting sentence similarity and paraphrasing identification",
+      "cited_authors": [
+        "M Alian",
+        "A Awajan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b51",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

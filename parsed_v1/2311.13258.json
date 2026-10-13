@@ -1,0 +1,2624 @@
+{
+  "arxiv_id": "2311.13258",
+  "title": "ViStruct: Visual Structural Knowledge Extraction via Curriculum Guided   Code-Vision Representation",
+  "authors": [
+    {
+      "name": "Yangyi Chen",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Xingyao Wang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Manling Li",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Derek Hoiem",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Heng Ji",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "State-of-the-art vision-language models (VLMs) still have limited performance in structural knowledge extraction, such as relations between objects. In this work, we present ViStruct, a training framework to learn VLMs for effective visual structural knowledge extraction. Two novel designs are incorporated. First, we propose to leverage the inherent structure of programming language to depict visual structural information. This approach enables explicit and consistent representation of visual structural information of multiple granularities, such as concepts, relations, and events, in a well-organized structured format. Second, we introduce curriculum-based learning for VLMs to progressively comprehend visual structures, from fundamental visual concepts to intricate event structures. Our intuition is that lower-level knowledge may contribute to complex visual structure understanding. Furthermore, we compile and release a collection of datasets tailored for visual structural knowledge extraction. We adopt a weakly-supervised approach to directly generate visual event structures from captions for ViStruct training, capitalizing on abundant image-caption pairs from the web. In experiments, we evaluate ViStruct on visual structure prediction tasks, demonstrating its effectiveness in improving the understanding of visual structures. The code is public at \\url{https://github.com/Yangyi-Chen/vi-struct}.",
+  "categories": [
+    "cs.CV",
+    "cs.CL",
+    "cs.LG"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2023-11-22T09:23:34"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "Conference on Empirical Methods in Natural Language Processing",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2023-11-22",
+  "citation_count": 16,
+  "reference_count": 92,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2311.13258::section::0",
+      "paper_id": "2311.13258",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::0::para::0",
+          "section_id": "2311.13258::section::0",
+          "text": "Vision-language models (VLMs) exhibit impressive performance across various multimodal downstream tasks (Li et al., 2019a;Tan and Bansal, 2019;Chen et al., 2023c;Wang et al., 2022a), such as visual question answering (Antol et al., 2015;Yuan et al., 2023b), image captioning (Karpathy and Fei-Fei, 2015), visual event extraction (Li et al., 2022b;Wang et al., 2022c), chart understanding (Zhou et al., 2023), and multimedia misinformation detection (Fung et al., 2021;Luo et al., 2021). The recipe lies in the pre-training on web-scale data, enabling substantial enhancements in vision-language representation (Radford et al., 2021;Li et al., 2022a).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::0::para::1",
+          "section_id": "2311.13258::section::0",
+          "text": "However, recent evaluations expose the limitations of existing VLMs models in capturing visual structural information (Hendricks and Nematzadeh, 2021;Zhao et al., 2022;Yüksekgönül et al., 2022), rendering them ineffective for visual structural knowledge extraction. For example, Yüksekgönül et al. (2022) argue that VLMs represent images as bag-of-words, disregarding relations among objects. In this work, we present ViStruct, a training framework for VLMs to improve their visual structural knowledge extraction ability. There are two key challenges in multi-granularity visual structural knowledge learning: (1) capturing the structures at each granularity, for which we propose code-vision representations, and (2) recognizing the dependencies between different granularities, for which we propose a curriculum pyramid to guide the knowledge learning.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::0::para::2",
+          "section_id": "2311.13258::section::0",
+          "text": "The motivation of employing code-vision rep-resentations is to mitigate the negative impact of commonly employed techniques such as contrastive learning (Radford et al., 2021) and imageconditioned language modeling (Li et al., 2023), which limit VLMs to focus solely on primary objects, resulting in \"bag-of-words\" representations. we draw inspiration from prior successful application of programming language in representing linguistic structures (Madaan et al., 2022;Wang et al., 2023b). We propose to extend this \"code for structure representation\" principle to multimodal settings for explicit representation of visual structures. Initial attempts to employ code representation in visual reasoning (Gupta and Kembhavi, 2023;Surís et al., 2023) focus solely on object information and lack perception abilities, but relying on the off-the-shelf object detectors as tools. As a result, we establish a multi-granularity code representation framework to capture structured visual information, including visual concepts, attributes, relations, and events (see Figure 1).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.13258::section::0::para::3",
+          "section_id": "2311.13258::section::0",
+          "text": "To further capture the interdependencies among various granularities, we propose the curriculum guided visual structural knowledge learning. Our intuition is that foundational knowledge (such as concepts) may enhance comprehension of more complex visual structures (such as visual events). Thus, unlike previous work that involves pretraining VLMs on a mixture of tasks, we build a visual structural knowledge pyramid (see Figure 2), aligning with the pedagogical strategy of progressively addressing simpler to more complex tasks during training (Soviany et al., 2022;Wang et al., 2022b). However, in contrast to conventional curriculum learning methods that focus on arranging data samples to facilitate training for a specific task (Jiang et al., 2014a;Spitkovsky et al., 2010b), our objective is to enable VLMs to understand visual structures comprehensively at all levels. To accomplish this, we incorporate a replay buffer mechanism that selectively reserves a small amount of data at each level to preserve lower-level knowledge throughout the training process.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2311.13258::section::0::para::4",
+          "section_id": "2311.13258::section::0",
+          "text": "Moreover, we curate an extensive collection of datasets for ViStruct, called ViStruct Suite. This suite includes multi-level structural knowledge, aligned with the curriculum pyramid. We first collect existing labeled datasets and large-scale unlabeled image-caption pairs. Then, we adopt a weakly-supervised approach to facilitate the creation of visual event structure labels from captions in a scalable manner. To ensure consistent class label definitions, we automate the alignment of all concepts from various datasets to WordNet (Miller, 1995) and FrameNet (Baker et al., 1998) synsets, with minimal manual assistance.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2311.13258::section::0::para::5",
+          "section_id": "2311.13258::section::0",
+          "text": "For downstream task evaluation, we find that ViStruct consistently outperforms various baselines on three downstream structure prediction tasks (visual relation detection, scene graph classification, and situation recognition). In addition, we find that code representation and curriculum learning both provide consistent gains on downstream tasks and demonstrate their effectiveness on zero-shot visual structure prediction.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2311.13258::section::0::para::6",
+          "section_id": "2311.13258::section::0",
+          "text": "Parsing visual data into various levels of detail has been a longstanding problem. To the best of our knowledge, we are the first to extract multigranularity visual structured knowledge via codevision representation learning, which effectively captures the hierarchy among different levels of visual knowledge, offering a comprehensive and compositional understanding of overall structure.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2311.13258::section::0::para::7",
+          "section_id": "2311.13258::section::0",
+          "text": "2 Related Work",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::1",
+      "paper_id": "2311.13258",
+      "heading": "Vision-Language Models (VLMs) for Visual Knowledge Extraction",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::1::para::0",
+          "section_id": "2311.13258::section::1",
+          "text": "Visual knowledge extraction has been long optimized as separate tasks for each granularity of extraction, such as object detection, relation detection, scene graph parsing, situation recognition and event extraction, as further detailed in Appendix B. Recent years witness great success through VLMs to obtain knowledge of visual concepts (Sadhu et al., 2021) and events (Wen et al., 2021;Deshpande et al., 2022;Li et al., 2022c). The primary goal of VLMs is learning representations from multiple modalities to capture visual details and their alignment with text semantics (Gan et al., 2022;Uppal et al., 2022;Wang et al., 2022c), and the corresponding research can be broadly classified into three stages. The initial stage of VLMs primarily relies on off-the-shelf object detectors to represent visual modality (Li et al., 2019b;Tan and Bansal, 2019;Lu et al., 2019;Li et al., 2020a) and learn the alignment across modalities (Li et al., 2020c(Li et al., , 2021b)).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::1::para::1",
+          "section_id": "2311.13258::section::1",
+          "text": "The second phase of VLMs aims to eliminate the use of resource-intensive object detectors and address the issue of unseen objects (Dou et al., 2022;Huang et al., 2020;Kim et al., 2021;Huang et al., 2021;Xu et al., 2021;Yang et al., 2022;Yao et al., 2022). Large-scale multimodal data is required and emphasized to better align two modalities (Li et al., 2021a;Radford et al., 2021;Jia et al., 2021).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::1::para::2",
+          "section_id": "2311.13258::section::1",
+          "text": "The current stage of VLMs moves towards a more unified pre-training goal to perform various tasks without task-specific adaptations (Wang et al., 2021(Wang et al., , 2022a;;Li et al., 2023;Chen et al., 2023b) by leveraging the capacity of large language models (Yuan et al., 2023a;Touvron et al., 2023). Some research leverages programming language (Gupta and Kembhavi, 2023;Surís et al., 2023;Yuan et al., 2023b), but lacks perception ability and relies on pre-trained object detectors. Although we witness great success of existing VLMs on benchmark evaluations, in-depth diagnostic investigations have exposed their shortcomings in fundamental visual concept identification (Hendricks and Nematzadeh, 2021;Zhao et al., 2022;Yüksekgönül et al., 2022), raising doubts about whether current VLMs are overemphasizing objects to represent images while ignoring other visual structures, akin to the initial stage VLMs, making them inadequate in structural knowledge extraction. Thus, in this work, we design a training framework to improve VLMs' visual structural knowledge extraction.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::2",
+      "paper_id": "2311.13258",
+      "heading": "Curriculum Learning",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::2::para::0",
+          "section_id": "2311.13258::section::2",
+          "text": "Curriculum learning has proven to be a useful technique for improving the learning process by gradually exposing the learner to more challenging examples (Bengio et al., 2009;Karras et al., 2018;Wang et al., 2020;Su et al., 2021;Platanios et al., 2019;Yu et al., 2022). However, it has been studied mainly in a more limited form, ordering and presenting examples to train a single task (Bengio et al., 2009;Spitkovsky et al., 2010a;Kumar et al., 2010;Jiang et al., 2014b;Graves et al., 2017). In this work, we propose the first task-level, multifaceted, multimodal approach to curriculum learn-ing for visual structural knowledge learning.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::3",
+      "paper_id": "2311.13258",
+      "heading": "ViStruct",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::3::para::0",
+          "section_id": "2311.13258::section::3",
+          "text": "We propose ViStruct that learns a vision-language model that takes images as input and generates a set of structural knowledge, such as concepts, relations, and events involved in the images (see Figure 2). We first define a code-vision representation (Sec. 3.1), which serves as the output to decode visual structural knowledge as code blocks. We then propose a curriculum pyramid to guide the training objectives from low-level towards high-level semantics (Sec. 3.2). To train the model, we construct a comprehensive multi-granularity dataset ViStruct Suite (Sec. 3.3), and optimize the model only on information that describe relavant visual strcutural information (Sec. 3.4).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::4",
+      "paper_id": "2311.13258",
+      "heading": "Code-Vision Representation",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::4::para::0",
+          "section_id": "2311.13258::section::4",
+          "text": "Visual structural information depicts both visual knowledge elements (such as visual concepts, locations, attributes) and complex structural connections between them (such as relations, and visual events with associated arguments). To encode visual structural knowledge, the first question is to define the appropriate structured representation. Such a representation is required to not only have robust capabilities for illustrating structures and their intricate interconnections, but also be unified and consistent across multiple levels of semantic granularity. It is also expected to be adaptable and extendable to accommodate other future semantic granularities. In order to address these requirements, we leverage the inherent capabilities of programming language (PL). We adopt Python as the PL in this paper due to its straightforwardness and popularity, allowing us to effectively harness its structured representation power and well-resourced data for code-vision pretraining. Similar to PL, we 3. define ViStruct including both class definition and instantiation of visual structural information.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::5",
+      "paper_id": "2311.13258",
+      "heading": "Class Definition of Visual Structural Information.",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::5::para::0",
+          "section_id": "2311.13258::section::5",
+          "text": "To define a general set of multi-granularity visual structures, we combine two external knowledge resources: WordNet (Miller, 1995) for basic visual concepts and relations; and FrameNet (Baker et al., 1998) for visual events. Class definitions in PL provide a unified and structured way to represent the visual structures, semantic roles, and human-written definitions in WordNet and FrameNet. Table 1 details the structure-class mapping we defined. For each visual concept, we define object location loc for object grounding, and attributes for object properties, as shown in the \"horse\" example in Figure 3. On top of that, we define visual events, which have visual concepts as participants, characterized by their semantic roles (such as agent and create_entity in the example visual event \"building\" in Figure 3). As discussed in Sec. 3.4, these definitions are used to warm up the model through finetuning.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::6",
+      "paper_id": "2311.13258",
+      "heading": "Instantiation of Visual Structural Information.",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::6::para::0",
+          "section_id": "2311.13258::section::6",
+          "text": "As shown in Figure 1, the multi-granularity visual Algorithm 1 The training algorithm described in Sec. 3.4. We omit the warm-up process for brevity.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::6::para::1",
+          "section_id": "2311.13258::section::6",
+          "text": "1: P θ ▷ a pre-trained vision-language model 2: D stage = [D CR , D OG , D OA , D OR , D E ] ▷ Stage-specific datasets defined in Sec. 3.2 3: D RB = {} ▷ Replay buffer in Sec. 3.2 4: for D s in D stage do 5:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::6::para::2",
+          "section_id": "2311.13258::section::6",
+          "text": "Finetune M using D train 7:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.13258::section::6::para::3",
+          "section_id": "2311.13258::section::6",
+          "text": "8: end for structural information of each image can be conveniently represented in a unified and structured manner. In this work, we consider the most salient visual structural information, including concepts, locations, attributes, relations, and visual events with associated arguments. The structure-code mapping is detailed in Table 2. It is noteworthy that our codevision representation can be effortlessly expanded to encompass supplementary visual details, such as affordance, object states, and similar aspects.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::7",
+      "paper_id": "2311.13258",
+      "heading": "Curriculum-Based Training for Knowledge Extraction with Replay Buffer",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::7::para::0",
+          "section_id": "2311.13258::section::7",
+          "text": "Existing vision-language pre-training approaches are mostly based on end-to-end training on a mixture of tasks (Li et al., 2023), which operates differently from the way humans learn. In human learning, for example, the well-validated Montessori method (Lillard et al., 2017) focuses on a curriculum of self-directed learning in stages, where demonstrated mastery of elementary concepts is required before advancing to those more complex.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::7::para::1",
+          "section_id": "2311.13258::section::7",
+          "text": "Based on this insight, we propose a curriculum pyramid that directs VLMs towards progressively learning to extract visual structural knowledge from simpler to more complex concepts. In particular, we introduce the replay buffer mechanism to prevent the forgetting of foundational structural knowledge obtained at the lower levels of the curriculum. The training algorithm is described in Alg. 1.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::7::para::2",
+          "section_id": "2311.13258::section::7",
+          "text": "Curriculum Pyramid. We present our curriculum pyramid in Figure 2. We categorize the process of learning complete visual structural knowledge into five levels, based on the assumption that knowledge acquisition at lower levels (such as concepts) can facilitate the acquisition of higher-level knowledge (such as visual events). For example, in Figure 1, identifying the \"horse\" and \"grass\" concepts Table 2: The correspondence between visual structural information and Python code representations. contributes to understanding the \"eat\" event with these two participants. Conditioned on an image input, we train the model to reconstruct masked visual structures represented using code (e.g., arguments). Specifically, we mask out targeted visual information in the code and treat this masked sequence along with the image as input to the model. For example (Figure 1), in object attributes learning stage, we mask out the target attributes: object = horse(loc=[pos_1, pos_2, pos_3, pos_4], attributes=[<mask>]). Then we train the model to generate the code sequence replacing the <mask> with \"brown\" and \"hungry\". Formally, given an image i, the code sequence s and a mask function mask(•) to mask different information for different stages. We use an auto-regressive loss to train the code-vision representation model on the dataset D, that is, we are minimizing the following loss function:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.13258::section::7::para::3",
+          "section_id": "2311.13258::section::7",
+          "text": "where θ refers to the model parameters, D is the dataset we used for training, which composed of a stage-specific dataset D specific ∈ {D CR , D OG , D OA , D OR , D E } for all the five stages in Figure 2 and a replay buffer D RB , that is, D = D specific ∪ D RB for each stage. We use Figure 1 as a running example to introduce each stage in the pyramid.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2311.13258::section::7::para::4",
+          "section_id": "2311.13258::section::7",
+          "text": "The initial stage involves basic Concept Recognition (CR), which applies VLMs to identify the most prominent objects in the images presented (e.g., horse and grass). In a recent study by Kamath et al. (2022); Whitehead et al. (2021), it is demonstrated that decoupling the acquisition of basic concepts from the learning of task-specific skills is effective. We adopt this approach and anticipate that VLMs will gain a range of fundamental visual concepts, including rare object categories, at this level. At the second level, VLMs are required to perform Object Grounding (OG), which involves the identification of objects with specific, concrete locations in the images. The third level places emphasis on Object Attribute (OA) detection, with the goal of inferring the attributes associated with particular objects (e.g., the horse is brown and hungry).",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2311.13258::section::7::para::5",
+          "section_id": "2311.13258::section::7",
+          "text": "The initial three levels facilitate the precise understanding of objects. We then comprehend the interaction between objects and the deep semantics embedded within the images. The fourth level centers on visual Object Relation (OR) detection, with the objective of identifying the basic relations between two objects (e.g., predict a walk-on relation between horse and grass). In the final level, the focus is on high-level comprehension of the images such as Event (E). Beyond the perceptual tasks, visual event detection requires VLMs to provide a summary of what is happening in the images and the participants involved in the event (e.g., the horse is eating grass).",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2311.13258::section::7::para::6",
+          "section_id": "2311.13258::section::7",
+          "text": "We highlight the flexibility of our curriculum pyramid that can be easily extended to incorporate new structural information at different levels with the goal of improving overall multimodal knowledge acquisition. This adaptability is facilitated by the flexible code-vision representations employed.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2311.13258::section::7::para::7",
+          "section_id": "2311.13258::section::7",
+          "text": "Replay Buffer. We aim to empower VLMs with the capacity to proficiently acquire and maintain structural knowledge across various levels, aligning with the underlying motivation of lifelong learning research (Biesialska et al., 2020;Wang et al., 2023a). Although the acquisition of lower-level knowledge remains vital for higher-level knowledge attainment, directly training VLMs on highlevel tasks can lead to catastrophic forgetting, especially when dealing with infrequent and rare concepts. To prevent this, we build the replay buffer by random sampling at the level of the curriculum pyramid. During training, VLMs utilize the data samples specific to their respective level (i.e., samples from previous stages stored in the replay buffer). The amount of data we sampled from each stage can be found in Table 7 in the Appendix.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::8",
+      "paper_id": "2311.13258",
+      "heading": "ViStruct Suite Construction",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::8::para::0",
+          "section_id": "2311.13258::section::8",
+          "text": "We assemble a comprehensive dataset collection consisting of both labeled and unlabeled datasets for ViStruct corresponding to each level in the curriculum pyramid. The selected datasets along with their statistics are listed in Table 7 in the Appendix. To curate the object recognition dataset, we exclude rare classes with less than 500 samples and retain a total of 10,450 categories. On top of it, we add object grounding with 80.6M categories, object attributes with 14.6M attribute annotations, and object relations, using the resources in Table 7. For visual event understanding, we propose a weaklysupervised method to generate training data from the large-scale image-caption pairs in Table 7. As shown in Figure 4, for each image, we leverage the off-the-shelf semantic role labeling modelfoot_0 to perform semantic parsing on the paired caption. Aligning with ViStruct, we adopt the FrameNet for the event and corresponding argument definitions. More details are included in Appendix E.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::8::para::1",
+          "section_id": "2311.13258::section::8",
+          "text": "We gather the aforementioned datasets and conduct a subsequent post-processing procedure. To establish consistency with ViStruct across various datasets, we align all categories from different datasets to the WordNet and FrameNet synsets through the automatic mapping process implemented in the NLTK toolkit (Bird et al., 2009). In cases where multiple categories in a dataset are assigned to the same synset, we manually adjust the mapping based on our prior knowledge.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::9",
+      "paper_id": "2311.13258",
+      "heading": "Model Training",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::9::para::0",
+          "section_id": "2311.13258::section::9",
+          "text": "ViStruct is based on continued pretraining, and can work on any pre-trained VLMs. In this work, we adopt OFA-base (Wang et al., 2022a) as our backbone model since it offers a simple seq-to-seq modeling approach. We train the model by feeding images i and the masked sequence mask(s) as defined in Equation 3.2 as input to the encoder, and train the decoder to produce s conditioned on the encoder outputs. Before the curriculum training, we include a warm-up pretraining stage to facilitate the models' acquisition of fundamental code syntax structures and visual concepts with their definitions (see Appendix C). For the initial three levels in the curriculum, the model is trained for one epoch, while for the last two levels involving deep-semantic understanding, the model undergoes three epochs of training. Specifically, we introduce a focusing optimization trick that only optimize loss for the masked tokens (see Appendix D for more details).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::10",
+      "paper_id": "2311.13258",
+      "heading": "Experiment",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::10::para::0",
+          "section_id": "2311.13258::section::10",
+          "text": "We evaluate ViStruct on three structure prediction tasks, including visual relation detection (Yu et al., 2023), scene graph classification (Zellers et al., 2018;Yao et al., 2021), and situation recognition (Yatskar et al., 2016(Yatskar et al., , 2017)). We refer to Appendix A for implementation details.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::11",
+      "paper_id": "2311.13258",
+      "heading": "Visual Relation Detection",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::11::para::0",
+          "section_id": "2311.13258::section::11",
+          "text": "Dataset & Metrics. We evaluate the visual relation detection task on Visual Genome (Krishna et al., 2017). Following Krishna et al. (2019), we adopt the refined version that only contains 20 welldefined relation categories. Each image is annotated with identified objects and their relations. The task is to detect the relation between two given objects (provided along with their bounding boxes).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::11::para::1",
+          "section_id": "2311.13258::section::11",
+          "text": "For evaluation metrics, we measure two types of model performance following previous work (Yao et al., 2021). First, we report the micro-averaged recall in top K relation predictions (R@K). Second, we evaluate the marco-averaged recall of all 20 relation types across the top K predictions (mR@K), intending to measure the performance on long-tail relations. In our study, we select K=50, 100.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::11::para::2",
+          "section_id": "2311.13258::section::11",
+          "text": "Baselines. We compare ViStruct against three types of baseline methods. (1) Task-specific models: We consider the Neural motifs (Zellers et al., 2018) (Motif) that incorporates task-specific designs (e.g., off-the-shelf object detectors); (2) Extra supervision-enhanced methods: We consider the distant supervision method proposed in Yao et al. (2021), which introduces extra signals for pretraining (Motif+P) and denoising (Motif+D); (3) Ablations of ViStruct: We aim to measure the separate gains of two designs within ViStruct. Specifically, we quantify the gains of code-vision representations by measuring the performance of the backbone model OFA-base, which is trained on the same datasets but with natural language (i.e.,",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.13258::section::11::para::3",
+          "section_id": "2311.13258::section::11",
+          "text": "Method R@50 R@100 mR@50 mR@100 Mean Motif* 67.93 70.20 52.65 55.41 61.55 Motif+P* 73.22 75.04 60.44 63.67 68.09 Motif+D* 76.28 77.98 60.20 63.61 69.52 ViStruct-Text 73.39 75.16 63.27 67.42 69.81 ViStruct-Mix 74.71 76.32 61.41 68.26 70.10 ViStruct 75.71 78.53 63.71 70.71 72.17",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2311.13258::section::11::para::4",
+          "section_id": "2311.13258::section::11",
+          "text": "Table 3: The results (%) of the visual relation detection. * denotes results from Yao et al. (2021).",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2311.13258::section::11::para::5",
+          "section_id": "2311.13258::section::11",
+          "text": "image-conditioned language generation) (ViStruct-Text). In assessing curriculum learning ablation, we measure the performance of pre-training on the ViStruct Suite mixture (ViStruct-Mix).",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2311.13258::section::11::para::6",
+          "section_id": "2311.13258::section::11",
+          "text": "Experimental Results. As shown in Baselines. We adopt the same baselines Sec. 4.1.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2311.13258::section::11::para::7",
+          "section_id": "2311.13258::section::11",
+          "text": "Experimental Results. As shown in Table 4, ViStruct consistently outperforms baseline methods. Additionally, the performance gap between ViStruct and baseline methods including taskspecific models and two ablations increases compared to the results in Table 3. This can be attributed to ( 1) the extensive coverage of fundamental visual concepts in ViStruct, aligning with the requirements of scene graph classification for object category identification, and (2) the carefully arranged curriculum that guides the model to progressively comprehend the visual structures, preventing the model from overfitting on the large Method R@50 R@100 mR@50 mR@100 Mean Motif* 31.14 31.92 23.53 25.27 27.97 Motif+P* 34.11 34.88 26.51 27.94 30.86 Motif+D* 35.93 36.47 28.07 30.09 32.64 ViStruct-Text 30.55 31.04 26.26 28.73 29.15 ViStruct-Mix 32.34 33.65 26.22 27.87 30.02 ViStruct 34.72 35.27 30.51 32.26 33.19",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2311.13258::section::11::para::8",
+          "section_id": "2311.13258::section::11",
+          "text": "Table 4: The results (%) of the scene graph classification. * denotes results from Yao et al. (2021).",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2311.13258::section::11::para::9",
+          "section_id": "2311.13258::section::11",
+          "text": "dataset of visual concepts.",
+          "paragraph_index": 9
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::12",
+      "paper_id": "2311.13258",
+      "heading": "Situation Recognition",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::12::para::0",
+          "section_id": "2311.13258::section::12",
+          "text": "Dataset & Metrics. We evaluate ViStruct on SWiG dataset (Pratt et al., 2020). Each image in the dataset is annotated with the major activity and corresponding participants (a.k.a., objects). The models must sequentially predict both the activity and the participants involved. Following Cho et al. (2022), we measure whether the gold-standard activity is predicted in the top-1 (Top-1 Predicted Verb) and top-5 (Top-5 Predicted Verb) model predictions. The evaluation of participant prediction entails two aspects: Value-all examines whether all predicted participants for an activity are correct, while Value evaluates the accuracy of each predicted participant in their assigned role. Participant prediction is considered correct if it matches any of the ground truth annotations. All metrics are calculated on a per-verb-specific basis and subsequently averaged across all verbs.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::12::para::1",
+          "section_id": "2311.13258::section::12",
+          "text": "Baselines. We compare ViStruct against three types of baseline methods. (1) Traditional taskspecific models: We include GraphNet (Li et al., 2017), CAQ w/ RE-VGG (Cooray et al., 2020), and Kernel GraphNet (Suhail and Sigal, 2019), as studied in Cho et al. (2022); (2) State-of-the-art task-specific models based on Transformers: We consider the CoFormer model that consists of two interactive modules (Cho et al., 2022).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::12::para::2",
+          "section_id": "2311.13258::section::12",
+          "text": "(3) Ablations of ViStruct: We consider the same ablations of ViStruct introduced in Sec. 4.1.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.13258::section::12::para::3",
+          "section_id": "2311.13258::section::12",
+          "text": "Experimental Results. As shown in Table 5, ViStruct demonstrates substantial enhancements in both activity and participant detection, which can be attributed to its weakly-supervised training approach utilizing web-scale data. Our approach effectively utilizes the captions to generate visual event structures depicted in the web images. The benefit lies in the increased inclusivity of infrequent events and visual concepts, facilitated by the extensive volume of image-caption pairs. In addition, we observe the concrete gains associated with the utilization of curriculum learning. In alignment with the conclusion in Sec. 4.2, curriculum learning aids the VLMs to focus on high-level visual structure comprehension in the later stages, while simultaneously mitigating the risk of overfitting.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2311.13258::section::12::para::4",
+          "section_id": "2311.13258::section::12",
+          "text": "5 Further Analysis",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::13",
+      "paper_id": "2311.13258",
+      "heading": "Curriculum Learning",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::13::para::0",
+          "section_id": "2311.13258::section::13",
+          "text": "We conduct an ablation study to measure the performance of models trained at each stage of the curriculum on the visual relation detection task. We also compare the results of directly pre-training on the mixture of ViStruct Suite (ViStruct-Mix). As shown in Figure 5, as the training progresses, the evaluation metrics regarding two aspects continue to increase, gradually surpassing the performance of ViStruct-Mix, especially for the long-tail relation types. This demonstrates the benefits of the curriculum learning paradigm for generalization in low-resource settings.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::14",
+      "paper_id": "2311.13258",
+      "heading": "Zero-shot Capability",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::14::para::0",
+          "section_id": "2311.13258::section::14",
+          "text": "We evaluate ViStruct on the zero-shot visual relation detection task. The results are presented in Table 6. We compare with the results of training on natural language (ViStruct-Text) introduced in Sec. 4.1, and show that the code-vision representation exhibits significantly better zero-shot performance (i.e., 2.4x better on average). The codevision representation naturally facilitates the zeroshot visual structure prediction ability, owing to the unified format in both the pre-training and the downstream tasks.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::15",
+      "paper_id": "2311.13258",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::15::para::0",
+          "section_id": "2311.13258::section::15",
+          "text": "We present a visual structural knowledge extraction framework ViStruct as a new step towards multi-granularity semantic parsing of visual data. First, we utilize the inherent structured of programming language to represent visual structural knowledge of different levels in a unified way. To capture the interdependencies among various granularities, we then leverage linguistic cues and propose a curriculum learning pyramid that guides the models to effectively acquire visual structural knowledge of each level. Results show significant and consistent improvements on structure prediction tasks across all levels.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::16",
+      "paper_id": "2311.13258",
+      "heading": "Limitations and Future Work",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::16::para::0",
+          "section_id": "2311.13258::section::16",
+          "text": "This paper utilizes the programming language to represent visual structures, with a focus on knowledge representation. However, due to the constrained capability of the base model, direct code generation is not feasible, resulting in reduced performance in downstream tasks. One potential solution is to integrate more advanced vision-language models, such as BLIP-2 with more capacity. By doing so, the trained models can effectively generate code representations of visual structures for diverse images in downstream tasks.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::17",
+      "paper_id": "2311.13258",
+      "heading": "A Adaptation of Downstream Tasks",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::17::para::0",
+          "section_id": "2311.13258::section::17",
+          "text": "All evaluations are conducted within the supervised learning paradigm, involving training models using the training dataset, and selecting superior models as dictated by key performance indicators in the validation dataset. The ultimate performance of these models is evaluated on the testing dataset. We enumerate the specifics of adapting to downstream tasks as detailed below.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::18",
+      "paper_id": "2311.13258",
+      "heading": "A.1 Visual Relation Detection",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::18::para::0",
+          "section_id": "2311.13258::section::18",
+          "text": "In this task, the models are provided with groundtruth annotations of the object bounding boxes and their respective categories. The requirement is for these models to effectively predict the visual interrelations between each pair of objects in the images.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::18::para::1",
+          "section_id": "2311.13258::section::18",
+          "text": "In our implementation, each object pair is supplied with their respective annotated bounding boxes, in conjunction with a mask prompt as input parameters for the ViStruct. ViStruct is then tasked with predicting the visual relation between the specified objects. Assuming the pair of objects provided are a horse and grass, the inputs introduced to ViStruct would be as follows:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::18::para::2",
+          "section_id": "2311.13258::section::18",
+          "text": "# Generate Concepts object1 = horse( location=[bounding_box], attribute=None ) object2 = grass( location=[bounding_box], attribute=None ) # Generate Relations <mask>(sub=object1, obj=object2)",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2311.13258::section::18::para::3",
+          "section_id": "2311.13258::section::18",
+          "text": "Correspondingly, ViStruct is trained to predict the ground truth relation: \"walk_on\" as output. We meticulously select and refine appropriate verbalizers for every unique relation to ensure that each relation within the label space can be represented by a single, meaningful token in the OFA model.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::19",
+      "paper_id": "2311.13258",
+      "heading": "A.2 Scene Graph Classification",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::19::para::0",
+          "section_id": "2311.13258::section::19",
+          "text": "In this task, the models are provided with the bounding boxes and are required to forecast both the classifications of the objects and their corresponding visual relations. We treat it as a multitask learning problem, training ViStruct to perform both the object recognition task and the visual relation detection task. For the object recognition task, we input the mask prompt with annotated location to ViStruct: # Generate Concepts object1 = <mask>( location= [bounding_box], attribute=None ) ViStruct is then trained to predict the ground truth object categories, for example, the \"horse\". The visual relation detection task is trained in the same vain as in Sec. A.1.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::20",
+      "paper_id": "2311.13258",
+      "heading": "A.3 Situation Recognition",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::20::para::0",
+          "section_id": "2311.13258::section::20",
+          "text": "In this task, the models are required to predict the visual event (a.k.a, the activity) in the image with corresponding participants. We treat it as two different tasks, namely the visual event prediction and the event role prediction. For the visual event prediction, we input the prompt as:",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::21",
+      "paper_id": "2311.13258",
+      "heading": "# Generate Visual Event with Arguments",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::21::para::0",
+          "section_id": "2311.13258::section::21",
+          "text": "ViStruct is trained to predict the visual event, for example, \"eat\". For the event role prediction task, the models are provided with the ground-truth or predictive visual event with a mask prompt as input:",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::22",
+      "paper_id": "2311.13258",
+      "heading": "# Generate Visual Event with Arguments eat(ingestor=<mask>)",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::22::para::0",
+          "section_id": "2311.13258::section::22",
+          "text": "ViStruct is then trained to predict the object for the argument \"ingestor\". Specifically, in this task, we perform an automatic mapping to convert each potential visual event and object to a single token in the OFA model for training and evaluation. The automatic mapping is based on the word embedding of the OFA model. We select the most similar token, measured by the cosine similarity, with the target verbalizers of visual events and objects.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::23",
+      "paper_id": "2311.13258",
+      "heading": "B Visual Structure Learning",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::23::para::0",
+          "section_id": "2311.13258::section::23",
+          "text": "Several studies have been conducted consecutively on learning multimodal structural knowledge, commencing with visual concept recognition as a basic task (Deng et al., 2009;Davoodi et al., 2023;Kamath et al., 2022), progressing to object grounding (Yu and Ballard, 2004;Shao et al., 2019;Krasin et al., 2017), object attribute detection (Chen et al., 2023a;Patil and Abhyankar, 2023;Bravo et al., 2022), object-object relation detection (Krishna et al., 2016), and finally visual event understanding (Yatskar et al., 2016(Yatskar et al., , 2017;;Cho et al., 2022; Type Pretraining Task Source #Sample #B_Sample Supervised Object Recognition ImageNet21K 1M 104K Object Grounding Object365, OpenImages, COCO 2.5M 1M Attribute Detection LSA 0.5M 0.1M Relation Detection OpenImages, Visual Genome 0.5M 0.1M Unsupervised Event Detection COCO, SBU, CC3M 4M -",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::23::para::1",
+          "section_id": "2311.13258::section::23",
+          "text": "Table 7: The datasets included in ViStruct Suite. #B_Sample denotes the number of samples in the replay buffer.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::23::para::2",
+          "section_id": "2311.13258::section::23",
+          "text": "Figure 6: The focusing optimization trick prioritizes the semantic content of generated code (highlighted portion) while disregarding the code's syntactic structure. Li et al., 2020bLi et al., , 2022b)). In this work, we design a curriculum learning pyramid that progressively teaches VLMs the aforementioned structural knowledge and assemble a dataset collection that encompasses multi-level structural knowledge.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::24",
+      "paper_id": "2311.13258",
+      "heading": "C Warm-up Pretraining",
+      "section_type": null,
+      "order": 24,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::24::para::0",
+          "section_id": "2311.13258::section::24",
+          "text": "Prior to engaging in multimodal structural knowledge learning, a warm-up stage is implemented to facilitate the models' acquisition of fundamental code syntax structures and visual concepts with their definitions. To accomplish this, we integrate code training data (Kocetkov et al., 2022), code-formulated class definitions of WordNet and FrameNet synsets, and all datasets within the ViStruct Suite, then subject the models to a single training epoch.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::25",
+      "paper_id": "2311.13258",
+      "heading": "D Focusing Optimization",
+      "section_type": null,
+      "order": 25,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::25::para::0",
+          "section_id": "2311.13258::section::25",
+          "text": "Through our analysis, we observe that the code output contains redundant information regarding the syntax structure, which can be quickly learned during the warm-up stage. Consequently, we propose to focus solely on the semantic content of the generated code, meaning that the loss computation will be limited to the semantic content exclusively. As depicted in Figure 6, this approach can direct models to prioritize structural knowledge and accelerate the training process.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2311.13258::section::26",
+      "paper_id": "2311.13258",
+      "heading": "E Details of ViStruct Suite",
+      "section_type": null,
+      "order": 26,
+      "paragraphs": [
+        {
+          "id": "2311.13258::section::26::para::0",
+          "section_id": "2311.13258::section::26",
+          "text": "The selected datasets along with their statistics are listed in Table 7. For object recognition, we utilize the pre-processed ImageNet-21K (Ridnik et al., 2021). To curate the dataset, we exclude rare classes that consist of less than 500 samples and retain a total of 10,450 categories, each with a sample size of 100. For object grounding, we leverage object detection datasets, including COCO (Lin et al., 2014), OpenImages (Krasin et al., 2017), and Ob-ject365 (Shao et al., 2019), which contain 80, 600, 365 categories respectively. For object attribute detection, we adopt the open-vocabulary LSA (Pham et al., 2022) that contains 14.6M attribute annotations in total. For visual object relations detection, we adopt the OpenImages (Krasin et al., 2017) and Visual Genome (Krishna et al., 2016). We adopt the training split of these labeled datasets to avoid data contamination.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2311.13258::section::26::para::1",
+          "section_id": "2311.13258::section::26",
+          "text": "For visual event understanding, we propose a weakly-supervised method to generate training data from the large-scale image-caption pairs in COCO (Lin et al., 2014), SBU Captions (Ordonez et al., 2011), and CC3M (Sharma et al., 2018). As shown in Figure 4, for each image, we leverage the off-the-shelf semantic role labeling modelfoot_1 to perform semantic parsing on the paired caption. Aligning with ViStruct, we adopt the FrameNet for the event and corresponding argument definitions.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2311.13258::section::26::para::2",
+          "section_id": "2311.13258::section::26",
+          "text": "We gather the aforementioned datasets and conduct a subsequent post-processing procedure. To establish consistency with ViStruct across various datasets, we align all categories from different datasets to the WordNet and FrameNet synsets through the automatic mapping process implemented in the NLTK toolkit (Bird et al., 2009). In cases where multiple categories in a dataset are assigned to the same synset, we manually adjust the mapping based on our prior knowledge.",
+          "paragraph_index": 2
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2311.13258::citation::0",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "VQA: visual question answering",
+      "cited_authors": [
+        "Stanislaw Antol",
+        "Aishwarya Agrawal",
+        "Jiasen Lu",
+        "Margaret Mitchell",
+        "Dhruv Batra",
+        "C Lawrence Zitnick",
+        "Devi Parikh"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/ICCV.2015.279",
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::1",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Framenet: A knowledge base for natural language processing",
+      "cited_authors": [
+        "Collin F Baker",
+        "Charles J Fillmore",
+        "John B Lowe"
+      ],
+      "cited_year": 1998,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::2",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Curriculum learning",
+      "cited_authors": [
+        "Yoshua Bengio",
+        "Jérôme Louradour",
+        "Ronan Collobert",
+        "Jason Weston"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::3",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Continual lifelong learning in natural language processing: A survey",
+      "cited_authors": [
+        "Magdalena Biesialska",
+        "Katarzyna Biesialska",
+        "Marta R Costa-Jussà"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.coling-main.574",
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::4",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Natural language processing with Python: analyzing text with the natural language toolkit",
+      "cited_authors": [
+        "Steven Bird",
+        "Ewan Klein",
+        "Edward Loper"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::5",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Open-vocabulary attribute detection",
+      "cited_authors": [
+        "Alejandra María",
+        "Sudhanshu Bravo",
+        "Simon Mittal",
+        "Thomas Ging",
+        "Brox"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.48550/arXiv.2211.12914",
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::6",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "2023a. Ovarnet: Towards open-vocabulary object attribute recognition",
+      "cited_authors": [
+        "Keyan Chen",
+        "Xiaolong Jiang",
+        "Yao Hu",
+        "Xu Tang",
+        "Yan Gao",
+        "Jianqi Chen",
+        "Weidi Xie"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.48550/arXiv.2301.09506",
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::7",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Dress: Instructing large vision-language models to align and interact with humans via natural language feedback",
+      "cited_authors": [
+        "Yangyi Chen",
+        "Karan Sikka",
+        "Michael Cogswell",
+        "Ji Heng",
+        "Ajay Divakaran"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2311.10081",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::8",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "2023c. Measuring and improving chain-of-thought reasoning in vision-language models",
+      "cited_authors": [
+        "Yangyi Chen",
+        "Karan Sikka",
+        "Michael Cogswell",
+        "Ji Heng",
+        "Ajay Divakaran"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2309.04461",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::9",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Collaborative transformers for grounded situation recognition",
+      "cited_authors": [
+        "Junhyeong Cho",
+        "Youngseok Yoon",
+        "Suha Kwak"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR52688.2022.01904",
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::10",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Attention-based context aware reasoning for situation recognition",
+      "cited_authors": [
+        "Thilini Cooray",
+        "Ngai-Man",
+        "Wei Cheung",
+        "Lu"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR42600.2020.00479",
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::11",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Classification of natural images inspired by the human visual system",
+      "cited_authors": [
+        "Paria Davoodi",
+        "Mehdi Ezoji",
+        "Naser Sadeghnejad"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/j.neucom.2022.10.055",
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::12",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Imagenet: A large-scale hierarchical image database",
+      "cited_authors": [
+        "Jia Deng",
+        "Wei Dong",
+        "Richard Socher",
+        "Li-Jia Li",
+        "Kai Li",
+        "Li Fei-Fei"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::13",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Deep multi-modal structural equations for causal effect estimation with unstructured proxies",
+      "cited_authors": [
+        "Kaiwen Shachi Deshpande",
+        "Dhruv Wang",
+        "Zheng Sreenivas",
+        "Volodymyr Li",
+        "Kuleshov"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::14",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "An empirical study of training end-to-end vision-and-language transformers",
+      "cited_authors": [
+        "Zi-Yi Dou",
+        "Yichong Xu",
+        "Zhe Gan",
+        "Jianfeng Wang",
+        "Shuohang Wang",
+        "Lijuan Wang",
+        "Chenguang Zhu",
+        "Pengchuan Zhang",
+        "Lu Yuan",
+        "Nanyun Peng",
+        "Zicheng Liu",
+        "Michael Zeng"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR52688.2022.01763",
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::15",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Infosurgeon: Cross-media fine-grained information consistency checking for fake news detection",
+      "cited_authors": [
+        "Yi Fung",
+        "Christopher Thomas",
+        "Revanth Gangi Reddy",
+        "Sandeep Polisetty",
+        "Heng Ji",
+        "Shih-Fu Chang",
+        "Kathleen Mckeown",
+        "Mohit Bansal",
+        "Avi Sil"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::16",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Vision-language pretraining: Basics, recent advances, and future trends",
+      "cited_authors": [
+        "Zhe Gan",
+        "Linjie Li",
+        "Chunyuan Li",
+        "Lijuan Wang",
+        "Zicheng Liu",
+        "Jianfeng Gao"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1561/0600000105",
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::17",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Automated Curriculum Learning for Neural Networks",
+      "cited_authors": [
+        "Alex Graves",
+        "Marc G Bellemare",
+        "Jacob Menick",
+        "Remi Munos",
+        "Koray Kavukcuoglu"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": "arXiv:1704.03003",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::18",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Visual programming: Compositional visual reasoning without training",
+      "cited_authors": [
+        "Tanmay Gupta",
+        "Aniruddha Kembhavi"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::19",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Probing image-language transformers for verb understanding",
+      "cited_authors": [
+        "Lisa",
+        "Anne Hendricks",
+        "Aida Nematzadeh"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.findings-acl.318",
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::20",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Seeing out of the box: End-to-end pre-training for visionlanguage representation learning",
+      "cited_authors": [
+        "Zhicheng Huang",
+        "Zhaoyang Zeng",
+        "Yupan Huang",
+        "Bei Liu",
+        "Dongmei Fu",
+        "Jianlong Fu"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR46437.2021.01278",
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::21",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Pixel-bert: Aligning image pixels with text by deep multi-modal transformers",
+      "cited_authors": [
+        "Zhicheng Huang",
+        "Zhaoyang Zeng",
+        "Bei Liu",
+        "Dongmei Fu",
+        "Jianlong Fu"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::22",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Scaling up visual and vision-language representation learning with noisy text supervision",
+      "cited_authors": [
+        "Chao Jia",
+        "Yinfei Yang",
+        "Ye Xia",
+        "Yi-Ting Chen",
+        "Zarana Parekh",
+        "Hieu Pham",
+        "Quoc V Le",
+        "Yun-Hsuan Sung",
+        "Zhen Li",
+        "Tom Duerig"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::23",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Easy samples first: Selfpaced reranking for zero-example multimedia search",
+      "cited_authors": [
+        "Lu Jiang",
+        "Deyu Meng",
+        "Teruko Mitamura",
+        "Alexander G Hauptmann"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/2647868.2654918",
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::24",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Easy Samples First: Self-paced Reranking for Zero-Example Multimedia Search",
+      "cited_authors": [
+        "Lu Jiang",
+        "Deyu Meng",
+        "Teruko Mitamura",
+        "Alexander G Hauptmann"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/2647868.2654918",
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::25",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Webly supervised concept expansion for general purpose vision models",
+      "cited_authors": [
+        "Amita Kamath",
+        "Christopher Clark",
+        "Tanmay Gupta",
+        "Eric Kolve",
+        "Derek Hoiem",
+        "Aniruddha Kembhavi"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-031-20059-5_38",
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::26",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Deep visualsemantic alignments for generating image descriptions",
+      "cited_authors": [
+        "Andrej Karpathy",
+        "Li Fei-Fei"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR.2015.7298935",
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::27",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Progressive growing of gans for improved quality, stability, and variation",
+      "cited_authors": [
+        "Tero Karras",
+        "Timo Aila",
+        "Samuli Laine",
+        "Jaakko Lehtinen"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::28",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Vilt: Vision-and-language transformer without convolution or region supervision",
+      "cited_authors": [
+        "Wonjae Kim",
+        "Bokyung Son",
+        "Ildoo Kim"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::29",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "The stack: 3 tb of permissively licensed source code",
+      "cited_authors": [
+        "Denis Kocetkov",
+        "Raymond Li",
+        "Loubna Ben Allal",
+        "Jia Li",
+        "Chenghao Mou",
+        "Carlos Muñoz Ferrandis",
+        "Yacine Jernite",
+        "Margaret Mitchell",
+        "Sean Hughes",
+        "Thomas Wolf"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2211.15533",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::30",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Openimages: A public dataset for large-scale multi-label and multiclass image classification",
+      "cited_authors": [
+        "Ivan Krasin",
+        "Tom Duerig",
+        "Neil Alldrin",
+        "Vittorio Ferrari",
+        "Sami Abu-El-Haija",
+        "Alina Kuznetsova",
+        "Hassan Rom",
+        "Jasper Uijlings",
+        "Stefan Popov",
+        "Andreas Veit",
+        "Serge Belongie",
+        "Victor Gomes",
+        "Abhinav Gupta",
+        "Chen Sun",
+        "Gal Chechik",
+        "David Cai",
+        "Zheyun Feng",
+        "Dhyanesh Narayanan",
+        "Kevin Murphy"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::31",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Scene graph prediction with limited labels",
+      "cited_authors": [
+        "Ranjay Krishna",
+        "Vincent S Chen",
+        "Paroma Varma",
+        "Michael S Bernstein",
+        "Christopher Ré",
+        "Li Fei-Fei"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/ICCV.2019.00267",
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::32",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Visual genome: Connecting language and vision using crowdsourced dense image annotations",
+      "cited_authors": [
+        "Ranjay Krishna",
+        "Yuke Zhu",
+        "Oliver Groth",
+        "Justin Johnson",
+        "Kenji Hata",
+        "Joshua Kravitz",
+        "Stephanie Chen",
+        "Yannis Kalantidis",
+        "Li-Jia Li",
+        "David A Shamma",
+        "Michael S Bernstein",
+        "Li Fei-Fei"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::33",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Visual genome: Connecting language and vision using crowdsourced dense image annotations",
+      "cited_authors": [
+        "Ranjay Krishna",
+        "Yuke Zhu",
+        "Oliver Groth",
+        "Justin Johnson",
+        "Kenji Hata",
+        "Joshua Kravitz",
+        "Stephanie Chen",
+        "Yannis Kalantidis",
+        "Li-Jia Li",
+        "David A Shamma"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::34",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Self-Paced Learning for Latent Variable Models",
+      "cited_authors": [
+        "M Kumar",
+        "Benjamin Packer",
+        "Daphne Koller"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::35",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Unicoder-vl: A universal encoder for vision and language by cross-modal pretraining",
+      "cited_authors": [
+        "Gen Li",
+        "Nan Duan",
+        "Yuejian Fang",
+        "Ming Gong",
+        "Daxin Jiang"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::36",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "BLIP-2: bootstrapping language-image pre-training with frozen image encoders and large language models",
+      "cited_authors": [
+        "Junnan Li",
+        "Dongxu Li",
+        "Silvio Savarese",
+        "Steven C H Hoi"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.48550/arXiv.2301.12597",
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::37",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "2022a. BLIP: bootstrapping language-image pre-training for unified vision-language understanding and generation",
+      "cited_authors": [
+        "Junnan Li",
+        "Dongxu Li",
+        "Caiming Xiong",
+        "Steven C H Hoi"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::38",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Align before fuse: Vision and language representation learning with momentum distillation",
+      "cited_authors": [
+        "Junnan Li",
+        "Ramprasaath Selvaraju",
+        "Akhilesh Gotmare",
+        "Shafiq Joty",
+        "Caiming Xiong",
+        "Steven Chu",
+        "Hong Hoi"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::39",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Visualbert: A simple and performant baseline for vision and language",
+      "cited_authors": [
+        "Liunian Harold",
+        "Li",
+        "Mark Yatskar",
+        "Cho-Jui Da Yin",
+        "Kai-Wei Hsieh",
+        "Chang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::40",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "A simple and performant baseline for vision and language",
+      "cited_authors": [
+        "Liunian Harold",
+        "Li",
+        "Mark Yatskar",
+        "Cho-Jui Da Yin",
+        "Kai-Wei Hsieh",
+        "Chang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1908.03557",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::41",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Unsupervised vision-and-language pre-training without parallel images and captions",
+      "cited_authors": [
+        "Liunian Harold",
+        "Li",
+        "Haoxuan You",
+        "Zhecan Wang",
+        "Alireza Zareian",
+        "Shih-Fu Chang",
+        "Kai-Wei Chang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.naacl-main.420",
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::42",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Clip-event: Connecting text and images with event structures",
+      "cited_authors": [
+        "Manling Li",
+        "Ruochen Xu",
+        "Shuohang Wang",
+        "Luowei Zhou",
+        "Xudong Lin",
+        "Chenguang Zhu",
+        "Michael Zeng",
+        "Ji Heng",
+        "Shih-Fu Chang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::43",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Clip-event: Connecting text and images with event structures",
+      "cited_authors": [
+        "Manling Li",
+        "Ruochen Xu",
+        "Shuohang Wang",
+        "Luowei Zhou",
+        "Xudong Lin",
+        "Chenguang Zhu",
+        "Michael Zeng",
+        "Ji Heng",
+        "Shih-Fu Chang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::44",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Cross-media structured common space for multimedia event extraction",
+      "cited_authors": [
+        "Manling Li",
+        "Alireza Zareian",
+        "Qi Zeng",
+        "Spencer Whitehead",
+        "Di Lu",
+        "Ji Heng",
+        "Shih-Fu Chang"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.acl-main.230",
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::45",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Situation recognition with graph neural networks",
+      "cited_authors": [
+        "Ruiyu Li",
+        "Makarand Tapaswi",
+        "Renjie Liao",
+        "Jiaya Jia",
+        "Raquel Urtasun",
+        "Sanja Fidler"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/ICCV.2017.448",
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::46",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Oscar: Object-semantics aligned pretraining for vision-language tasks",
+      "cited_authors": [
+        "Xiujun Li",
+        "Xi Yin",
+        "Chunyuan Li",
+        "Pengchuan Zhang",
+        "Xiaowei Hu",
+        "Lei Zhang",
+        "Lijuan Wang",
+        "Houdong Hu",
+        "Li Dong",
+        "Furu Wei",
+        "Yejin Choi",
+        "Jianfeng Gao"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-030-58577-8_8",
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::47",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Montessori preschool elevates and equalizes child outcomes: A longitudinal study",
+      "cited_authors": [
+        "A S Lillard",
+        "M J Heise",
+        "E M Richey",
+        "X Tong",
+        "A Hart",
+        "P M Bray"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::48",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Microsoft COCO: common objects in context",
+      "cited_authors": [
+        "Tsung-Yi Lin",
+        "Michael Maire",
+        "Serge J Belongie",
+        "James Hays",
+        "Pietro Perona",
+        "Deva Ramanan",
+        "Piotr Dollár",
+        "C Lawrence Zitnick"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-319-10602-1_48",
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::49",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Vilbert: Pretraining task-agnostic visiolinguistic representations for vision-and-language tasks",
+      "cited_authors": [
+        "Jiasen Lu",
+        "Dhruv Batra",
+        "Devi Parikh",
+        "Stefan Lee"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::50",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "NewsCLIPpings: Automatic Generation of Out-of-Context Multimodal Media",
+      "cited_authors": [
+        "Grace Luo",
+        "Trevor Darrell",
+        "Anna Rohrbach"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.emnlp-main.545",
+      "external_id": null,
+      "grobid_ref_id": "b50",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::51",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Language models of code are few-shot commonsense learners",
+      "cited_authors": [
+        "Aman Madaan",
+        "Shuyan Zhou",
+        "Uri Alon",
+        "Yiming Yang",
+        "Graham Neubig"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b51",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::52",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Wordnet: A lexical database for english",
+      "cited_authors": [
+        "George A Miller"
+      ],
+      "cited_year": 1995,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/219717.219748",
+      "external_id": null,
+      "grobid_ref_id": "b52",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::53",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Im2text: Describing images using 1 million captioned photographs",
+      "cited_authors": [
+        "Vicente Ordonez",
+        "Girish Kulkarni",
+        "Tamara L Berg"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b53",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::54",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Generating comprehensive scene graphs with integrated multiple attribute detection",
+      "cited_authors": [
+        "Charulata Patil",
+        "Aditya Abhyankar"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/s00138-022-01361-3",
+      "external_id": null,
+      "grobid_ref_id": "b54",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::55",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Improving closed and open-vocabulary attribute prediction using transformers",
+      "cited_authors": [
+        "Khoi Pham",
+        "Kushal Kafle",
+        "Zhe Lin",
+        "Zhihong Ding",
+        "Scott Cohen",
+        "Quan Tran",
+        "Abhinav Shrivastava"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-031-19806-9_12",
+      "external_id": null,
+      "grobid_ref_id": "b55",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::56",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Competence-based curriculum learning for neural machine translation",
+      "cited_authors": [
+        "Otilia Emmanouil Antonios Platanios",
+        "Graham Stretcu",
+        "Barnabas Neubig",
+        "Tom Poczos",
+        "Mitchell"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/N19-1119",
+      "external_id": null,
+      "grobid_ref_id": "b56",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::57",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Grounded situation recognition",
+      "cited_authors": [
+        "Sarah M Pratt",
+        "Mark Yatskar",
+        "Luca Weihs",
+        "Ali Farhadi",
+        "Aniruddha Kembhavi"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-030-58548-8_19",
+      "external_id": null,
+      "grobid_ref_id": "b57",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::58",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Learning transferable visual models from natural language supervision",
+      "cited_authors": [
+        "Alec Radford",
+        "Jong Wook Kim",
+        "Chris Hallacy",
+        "Aditya Ramesh",
+        "Gabriel Goh",
+        "Sandhini Agarwal",
+        "Girish Sastry",
+        "Amanda Askell",
+        "Pamela Mishkin",
+        "Jack Clark"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b58",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::59",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Imagenet-21k pretraining for the masses",
+      "cited_authors": [
+        "Tal Ridnik",
+        "Emanuel Ben-Baruch",
+        "Asaf Noy",
+        "Lihi Zelnik-Manor"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b59",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::60",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Ram Nevatia, and Aniruddha Kembhavi. 2021. Visual semantic role labeling for video understanding",
+      "cited_authors": [
+        "Arka Sadhu",
+        "Tanmay Gupta",
+        "Mark Yatskar"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b60",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::61",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Objects365: A large-scale, high-quality dataset for object detection",
+      "cited_authors": [
+        "Shuai Shao",
+        "Zeming Li",
+        "Tianyuan Zhang",
+        "Chao Peng",
+        "Gang Yu",
+        "Xiangyu Zhang",
+        "Jing Li",
+        "Jian Sun"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/ICCV.2019.00852",
+      "external_id": null,
+      "grobid_ref_id": "b61",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::62",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Conceptual captions: A cleaned, hypernymed, image alt-text dataset for automatic image captioning",
+      "cited_authors": [
+        "Piyush Sharma",
+        "Nan Ding",
+        "Sebastian Goodman",
+        "Radu Soricut"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b62",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::63",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Curriculum learning: A survey",
+      "cited_authors": [
+        "Petru Soviany",
+        "Tudor Radu",
+        "Paolo Ionescu",
+        "Nicu Rota",
+        "Sebe"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/s11263-022-01611-x",
+      "external_id": null,
+      "grobid_ref_id": "b63",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::64",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Baby steps: How \"less is more\" in unsupervised dependency parsing",
+      "cited_authors": [
+        "I Valentin",
+        "Hiyan Spitkovsky",
+        "Dan Alshawi",
+        "Jurafsky"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b64",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::65",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "From baby steps to leapfrog: How \"less is more\" in unsupervised dependency parsing",
+      "cited_authors": [
+        "I Valentin",
+        "Hiyan Spitkovsky",
+        "Daniel Alshawi",
+        "Jurafsky"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b65",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::66",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Dialogue response selection with hierarchical curriculum learning",
+      "cited_authors": [
+        "Yixuan Su",
+        "Deng Cai",
+        "Qingyu Zhou",
+        "Zibo Lin",
+        "Simon Baker",
+        "Yunbo Cao",
+        "Shuming Shi",
+        "Nigel Collier",
+        "Yan Wang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.acl-long.137",
+      "external_id": null,
+      "grobid_ref_id": "b66",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::67",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Mixturekernel graph attention network for situation recognition",
+      "cited_authors": [
+        "Mohammed Suhail",
+        "Leonid Sigal"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/ICCV.2019.01046",
+      "external_id": null,
+      "grobid_ref_id": "b67",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::68",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Vipergpt: Visual inference via python execution for reasoning",
+      "cited_authors": [
+        "Dídac Surís",
+        "Sachit Menon",
+        "Carl Vondrick"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2303.08128",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b68",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::69",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "LXMERT: Learning cross-modality encoder representations from transformers",
+      "cited_authors": [
+        "Hao Tan",
+        "Mohit Bansal"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D19-1514",
+      "external_id": null,
+      "grobid_ref_id": "b69",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::70",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Open foundation and fine-tuned chat models",
+      "cited_authors": [
+        "Hugo Touvron",
+        "Louis Martin",
+        "Kevin Stone",
+        "Peter Albert",
+        "Amjad Almahairi",
+        "Yasmine Babaei",
+        "Nikolay Bashlykov",
+        "Soumya Batra",
+        "Prajjwal Bhargava",
+        "Shruti Bhosale"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2307.09288",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b70",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::71",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Multimodal research in vision and language: A review of current and emerging trends",
+      "cited_authors": [
+        "Shagun Uppal",
+        "Sarthak Bhagat",
+        "Devamanyu Hazarika",
+        "Navonil Majumder",
+        "Soujanya Poria",
+        "Roger Zimmermann",
+        "Amir Zadeh"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/j.inffus.2021.07.009",
+      "external_id": null,
+      "grobid_ref_id": "b71",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::72",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Curriculum based cascade learning for image classification",
+      "cited_authors": [
+        "Junwen Wang",
+        "Katayoun Farrahi",
+        "Mahesan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b72",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::73",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "2023a. A comprehensive survey of continual learning: Theory, method and application",
+      "cited_authors": [
+        "Liyuan Wang",
+        "Xingxing Zhang",
+        "Hang Su",
+        "Jun Zhu"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.48550/arXiv.2302.00487",
+      "external_id": null,
+      "grobid_ref_id": "b73",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::74",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "OFA: unifying architectures, tasks, and modalities through a simple sequence-to-sequence learning framework",
+      "cited_authors": [
+        "Peng Wang",
+        "An Yang",
+        "Rui Men",
+        "Junyang Lin",
+        "Shuai Bai",
+        "Zhikang Li",
+        "Jianxin Ma",
+        "Chang Zhou",
+        "Jingren Zhou",
+        "Hongxia Yang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b74",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::75",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "2022b. A survey on curriculum learning",
+      "cited_authors": [
+        "Xin Wang",
+        "Yudong Chen",
+        "Wenwu Zhu"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/TPAMI.2021.3069908",
+      "external_id": null,
+      "grobid_ref_id": "b75",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::76",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Code4struct: Code generation for few-shot event structure prediction",
+      "cited_authors": [
+        "Xingyao Wang",
+        "Sha Li",
+        "Heng Ji"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b76",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::77",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "2022c. Language models with image descriptors are strong few-shot video-language learners",
+      "cited_authors": [
+        "Zhenhailong Wang",
+        "Manling Li",
+        "Ruochen Xu",
+        "Luowei Zhou",
+        "Jie Lei",
+        "Xudong Lin",
+        "Shuohang Wang",
+        "Ziyi Yang",
+        "Chenguang Zhu",
+        "Derek Hoiem",
+        "Shih-Fu Chang",
+        "Mohit Bansal",
+        "Heng Ji"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b77",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::78",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Simvlm: Simple visual language model pretraining with weak supervision",
+      "cited_authors": [
+        "Zirui Wang",
+        "Jiahui Yu",
+        "Adams Wei Yu",
+        "Zihang Dai",
+        "Yulia Tsvetkov",
+        "Yuan Cao"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2108.10904",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b78",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::79",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Resin: A dockerlized schema-guided cross-document cross-lingual cross-media information extraction and event tracking system",
+      "cited_authors": [
+        "Haoyang Wen",
+        "Ying Lin",
+        "Tuan M Lai",
+        "Xiaoman Pan",
+        "Sha Li",
+        "Xudong Lin",
+        "Ben Zhou",
+        "Manling Li",
+        "Haoyu Wang",
+        "Hongming Zhang",
+        "Xiaodong Yu",
+        "Alexander Dong",
+        "Zhenhailong Wang",
+        "Yi R Fung",
+        "Piyush Mishra",
+        "Qing Lyu",
+        "Dídac Surís",
+        "Brian Chen",
+        "Susan W Brown",
+        "Martha Palmer",
+        "Chris Callison-Burch",
+        "Carl Vondrick",
+        "Jiawei Han",
+        "Dan Roth",
+        "Shih-Fu Chang",
+        "Heng Ji"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b79",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::80",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Separating skills and concepts for novel visual question answering",
+      "cited_authors": [
+        "Spencer Whitehead",
+        "Hui Wu",
+        "Heng Ji",
+        "Rogerio Feris",
+        "Kate Saenko"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b80",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::81",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "E2E-VLP: end-to-end vision-language pre-training enhanced by visual learning",
+      "cited_authors": [
+        "Haiyang Xu",
+        "Ming Yan",
+        "Chenliang Li",
+        "Bin Bi",
+        "Songfang Huang",
+        "Wenming Xiao",
+        "Fei Huang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.acl-long.42",
+      "external_id": null,
+      "grobid_ref_id": "b81",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::82",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Unitab: Unifying text and box outputs for grounded vision-language modeling",
+      "cited_authors": [
+        "Zhengyuan Yang",
+        "Zhe Gan",
+        "Jianfeng Wang",
+        "Xiaowei Hu",
+        "Faisal Ahmed",
+        "Zicheng Liu",
+        "Yumao Lu",
+        "Lijuan Wang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-031-20059-5_30",
+      "external_id": null,
+      "grobid_ref_id": "b82",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::83",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "PEVL: position-enhanced pre-training and prompt tuning for vision-language models",
+      "cited_authors": [
+        "Yuan Yao",
+        "Qianyu Chen",
+        "Ao Zhang",
+        "Wei Ji",
+        "Zhiyuan Liu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b83",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::84",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Visual distant supervision for scene graph generation",
+      "cited_authors": [
+        "Yuan Yao",
+        "Ao Zhang",
+        "Xu Han",
+        "Mengdi Li",
+        "Cornelius Weber",
+        "Zhiyuan Liu",
+        "Stefan Wermter",
+        "Maosong Sun"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/ICCV48922.2021.01552",
+      "external_id": null,
+      "grobid_ref_id": "b84",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::85",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Commonly uncommon: Semantic sparsity in situation recognition",
+      "cited_authors": [
+        "Mark Yatskar",
+        "Vicente Ordonez",
+        "Luke Zettlemoyer",
+        "Ali Farhadi"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR.2017.671",
+      "external_id": null,
+      "grobid_ref_id": "b85",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::86",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Situation recognition: Visual semantic role labeling for image understanding",
+      "cited_authors": [
+        "Mark Yatskar",
+        "Luke Zettlemoyer",
+        "Ali Farhadi"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR.2016.597",
+      "external_id": null,
+      "grobid_ref_id": "b86",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::87",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "On the integration of grounding language and learning objects",
+      "cited_authors": [
+        "Chen Yu",
+        "Dana H Ballard"
+      ],
+      "cited_year": 2004,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b87",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::88",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Multimedia curriculum learning for language acquisition",
+      "cited_authors": [
+        "Pengfei Yu",
+        "Heng Ji",
+        "Shih-Fu Chang",
+        "Kevin Duh"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b88",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::89",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Knowledge-augmented few-shot visual relation detection",
+      "cited_authors": [
+        "Tianyu Yu",
+        "Yangning Li",
+        "Jiaoyan Chen",
+        "Yinghui Li",
+        "Hai-Tao Zheng",
+        "Xi Chen",
+        "Qingbin Liu",
+        "Wenqiang Liu",
+        "Dongxiao Huang",
+        "Bei Wu",
+        "Yexin Wang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.48550/arXiv.2303.05342",
+      "external_id": null,
+      "grobid_ref_id": "b89",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::90",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Revisiting out-of-distribution robustness in nlp: Benchmark, analysis, and llms evaluations",
+      "cited_authors": [
+        "Lifan Yuan",
+        "Yangyi Chen",
+        "Ganqu Cui",
+        "Hongcheng Gao",
+        "Fangyuan Zou",
+        "Xingyi Cheng",
+        "Heng Ji",
+        "Zhiyuan Liu",
+        "Maosong Sun"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2306.04618",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b90",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::91",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Craft: Customizing llms by creating and retrieving from specialized toolsets",
+      "cited_authors": [
+        "Lifan Yuan",
+        "Yangyi Chen",
+        "Xingyao Wang",
+        "Yi R Fung",
+        "Hao Peng",
+        "Heng Ji"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2309.17428",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b91",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::92",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "When and why vision-language models behave like bags-of-words, and what to do about it?",
+      "cited_authors": [
+        "Mert Yüksekgönül",
+        "Federico Bianchi",
+        "Pratyusha Kalluri",
+        "Dan Jurafsky",
+        "James Zou"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.48550/arXiv.2210.01936",
+      "external_id": null,
+      "grobid_ref_id": "b92",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::93",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Neural motifs: Scene graph parsing with global context",
+      "cited_authors": [
+        "Rowan Zellers",
+        "Mark Yatskar",
+        "Sam Thomson",
+        "Yejin Choi"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR.2018.00611",
+      "external_id": null,
+      "grobid_ref_id": "b93",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::94",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Vl-checklist: Evaluating pre-trained visionlanguage models with objects, attributes and relations",
+      "cited_authors": [
+        "Tiancheng Zhao",
+        "Tianqi Zhang",
+        "Mingwei Zhu",
+        "Haozhan Shen",
+        "Kyusong Lee",
+        "Xiaopeng Lu",
+        "Jianwei Yin"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.48550/arXiv.2207.00221",
+      "external_id": null,
+      "grobid_ref_id": "b94",
+      "in_text_context": null
+    },
+    {
+      "id": "2311.13258::citation::95",
+      "paper_id": "2311.13258",
+      "raw_text": null,
+      "cited_title": "Enhanced chart understanding via visual language pretraining on plot table pairs",
+      "cited_authors": [
+        "Mingyang Zhou",
+        "Yi Fung",
+        "Long Chen",
+        "Christopher Thomas",
+        "Ji Heng",
+        "Shih-Fu Chang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2023.findings-acl.85",
+      "external_id": null,
+      "grobid_ref_id": "b95",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

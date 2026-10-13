@@ -1,0 +1,1741 @@
+{
+  "arxiv_id": "2110.04330",
+  "title": "KG-FiD: Infusing Knowledge Graph in Fusion-in-Decoder for Open-Domain   Question Answering",
+  "authors": [
+    {
+      "name": "Donghan Yu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Chenguang Zhu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yuwei Fang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Wenhao Yu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Shuohang Wang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yichong Xu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Xiang Ren",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yiming Yang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Michael Zeng",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Current Open-Domain Question Answering (ODQA) model paradigm often contains a retrieving module and a reading module. Given an input question, the reading module predicts the answer from the relevant passages which are retrieved by the retriever. The recent proposed Fusion-in-Decoder (FiD), which is built on top of the pretrained generative model T5, achieves the state-of-the-art performance in the reading module. Although being effective, it remains constrained by inefficient attention on all retrieved passages which contain a lot of noise. In this work, we propose a novel method KG-FiD, which filters noisy passages by leveraging the structural relationship among the retrieved passages with a knowledge graph. We initiate the passage node embedding from the FiD encoder and then use graph neural network (GNN) to update the representation for reranking. To improve the efficiency, we build the GNN on top of the intermediate layer output of the FiD encoder and only pass a few top reranked passages into the higher layers of encoder and decoder for answer generation. We also apply the proposed GNN based reranking method to enhance the passage retrieval results in the retrieving module. Extensive experiments on common ODQA benchmark datasets (Natural Question and TriviaQA) demonstrate that KG-FiD can improve vanilla FiD by up to 1.5% on answer exact match score and achieve comparable performance with FiD with only 40% of computation cost.",
+  "categories": [
+    "cs.CL",
+    "cs.LG"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2021-10-08T18:39:59"
+    },
+    {
+      "version": "v2",
+      "created": "2022-06-06T00:59:00"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "Annual Meeting of the Association for Computational Linguistics",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2021-10-08",
+  "citation_count": 111,
+  "reference_count": 53,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2110.04330::section::0",
+      "paper_id": "2110.04330",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::0::para::0",
+          "section_id": "2110.04330::section::0",
+          "text": "Open-Domain Question Answering (ODQA) is the task of answering natural language questions in open domains. A successful ODQA model relies on effective acquisition of world knowledge. A popular line of work treats a large collection of open-domain documents (such as Wikipedia articles) as the knowledge source, and design a ODQA system that consists of a retrieving module and a reading module. The retriever pulls out a small set of potentially relevant passages from the opensource documents for a given question, and the reader produces an answer based on the retrieved passages (Karpukhin et al., 2020;Guu et al., 2020;Izacard and Grave, 2020). An earlier example of this kind is DrQA (Chen et al., 2017), which used * Work done during internship at Microsoft.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::0::para::1",
+          "section_id": "2110.04330::section::0",
+          "text": "an traditional search engine based on the bag of words (BoW) document representation with TF-IDF term weighting, and a neural reader for extracting candidate answers for each query based on the dense embedding of the retrieved passages. With the successful development of Pre-trained Language Models (PLMs) in neural network research, dense embedding based passage retrieval (DPR) models (Karpukhin et al., 2020;Qu et al., 2021) have shown superior performance over BoW/TF-IDF based retrieval models due to utilization of contextualized word embedding in DPR, and generative QA readers (Lewis et al., 2020;Roberts et al., 2020) usually outperform extraction based readers (Devlin et al., 2019;Guu et al., 2020) due to the capability of the former in capturing lexical variants with a richer flexibility.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04330::section::0::para::2",
+          "section_id": "2110.04330::section::0",
+          "text": "The recently proposed Fusion-in-Decoder (FiD) model (Izacard and Grave, 2021) is representative of those methods with a DPR retriever and a generative reader, achieving the state-of-the-art results on ODQA evaluation benchmarks. FiD also significantly improved the scalability of the system over previous generative methods by encoding the retrieved passages independently instead of encoding the concatenation of all retrieved passages (which was typical in previous methods).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2110.04330::section::0::para::3",
+          "section_id": "2110.04330::section::0",
+          "text": "Inspired by the success of FiD, this paper aims further improvements of the state of the art of ODQA in the paradigm with a DPR retriever and a generative reader. Specifically, we point out two potential weaknesses or limitations of FiD as the rooms for improvements, and we propose a novel solution namely KG-FiD to address these issues with FiD. The two issues are:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2110.04330::section::0::para::4",
+          "section_id": "2110.04330::section::0",
+          "text": "Issue 1. The independent assumption among passages is not justified. Notice that both the DPR retriever and the generative reader of FiD perform independent encoding of the retrieved passages, which means that they cannot leverage the semantic relationship among passages for passage embedding and answer generation even if such relational knowledge is available. But we know that rich semantic connections between passages often provide clues for better answering questions (Min et al., 2019).",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2110.04330::section::0::para::5",
+          "section_id": "2110.04330::section::0",
+          "text": "Issue 2. Efficiency Bottleneck. For each input question, the FiD generative reader receives about 100 passages from the DPR module, with a relatively high computational cost. For example, the inference per question takes more than 6 trillion floating-point operations. Simply reducing the number of retrieved passages sent to the reader will not be a good solution as it will significantly decrease the model performance (Izacard and Grave, 2021). How to overcome such inefficient computation issue is a challenging question for the success of FiD in realistic ODQA settings.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2110.04330::section::0::para::6",
+          "section_id": "2110.04330::section::0",
+          "text": "We propose to address both of the above issues with FiD by leveraging an existing knowledge graph (KG) to establish relational dependencies among retrieved passages, and employing Graph Neural Networks (GNNs) to re-rank and prune retrieved passages for each query. We name our new approach as KG-FiD.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2110.04330::section::0::para::7",
+          "section_id": "2110.04330::section::0",
+          "text": "Specifically, KG-FiD employs a two-stage passage reranking by applying GNN to model structural and semantic information of passages. Both stages rerank the input passages and only a few top-reranked passages are fed into subsequent modules. The first stage reranks passages returned by the retriever, where we use the passage embeddings generated by DPR as the initial GNN node representation. This allows reranking a much larger set of initial candidate passages to enhance coverage of answers. The second stage performs joint passage reranking and answer generation, where the node embeddings are initialized by the embeddings of passage-question pairs output from the reader encoder. This stage operates on a smaller candidate set but aims for more accurate reranking and passage pruning.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2110.04330::section::0::para::8",
+          "section_id": "2110.04330::section::0",
+          "text": "To improve the efficiency, in the second-stage reranking, our GNN model adopts representations from the intermediate layer in the reader encoder instead of the final layer to initiate passage node embeddings. Then only a few top reranked passages will be passed into the higher layers of encoder and the decoder for answer generation, while other passages will not be further processed. This is coupled with a joint training of passage reranking and answer generation. As shown in Section 4.3, these strategies significantly reduce the computation cost while still maintaining a good QA performance.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2110.04330::section::0::para::9",
+          "section_id": "2110.04330::section::0",
+          "text": "Our experiments on ODQA benchmark datasets Natural Questions and TriviaQA demonstrate that KG-FiD can achieve comparable or better performance in answer prediction than FiD, with only 40% of the computation cost of FiD.",
+          "paragraph_index": 9
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::1",
+      "paper_id": "2110.04330",
+      "heading": "Related Work",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::1::para::0",
+          "section_id": "2110.04330::section::1",
+          "text": "ODQA with text corpus ODQA usually assumes that a large external knowledge source is accessible and can be leveraged to help answer prediction. For example, previous works (Chen et al., 2017;Karpukhin et al., 2020;Izacard and Grave, 2021) mainly use Wikipedia as knowledge source which contains millions of text passages. In this case, current ODQA models mainly contains a retriever to select related passages and a reader to generate the answer. Thus, the follow-up works mainly aim to: (1) Improve the retriever: from sparse retrieval based on TF-IDF or BM25 (Chen et al., 2017;Yang et al., 2019) to dense retrieval (Karpukhin et al., 2020) based on contextualized embeddings generated by pre-trained language models (PLMs). Moreover, some further improvement are also proposed such as better training strategy (Qu et al., 2021), reranking based on retrieved passages (Wang et al., 2018;Nogueira and Cho, 2019;Mao et al., 2021), and knowledge distillation from reader to retriever (Izacard and Grave, 2020); (2) Improve the reader: changing from Recurrent Neural Network (Chen et al., 2017) to PLMs such as extractive reader BERT (Karpukhin et al., 2020;Iyer et al., 2021;Guu et al., 2020) and generative reader BART and T5 (Izacard and Grave, 2021;Lewis et al., 2020). Besides, some works (Guu et al., 2020;Lewis et al., 2020;Sachan et al., 2021) have shown that additional unsupervised pre-training on retrieval-related language modeling tasks can further improve ODQA performance. However, none of these methods modeled the relationships among different passages.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::1::para::1",
+          "section_id": "2110.04330::section::1",
+          "text": "ODQA with knowledge graph Besides the unstructured text corpus, world knowledge also exists in knowledge graphs (KGs), which represent entities and relations in a structural way and have been used in a variety of NLP tasks (Xu et al., 2021b;Yu et al., 2020;Xu et al., 2021a). Some works (Berant et al., 2013;Sun et al., 2018Sun et al., , 2019;;Xiong et al., 2019) restrict the answer to be entities in the knowledge graph, while our work focus on more general ODQA setting where the answer can be any words or phrases. Under this setting, some recent efforts have been made to leverage knowledge graphs for ODQA (Min et al., 2019;Asai et al., 2020;Zhou et al., 2020). For example, UniK-QA (Oguz et al., 2020) transforms KG triplets into text sentences and combine them into text corpus, which loses structure information of KG. Other works use KG to build relationship among passages similar to ours. KAQA (Zhou et al., 2020) use passage graph to propagate passage retrieve scores and answer span scores. Graph-Retriever (Min et al., 2019) iteratively retrieve passages based on the relationship between passages, and also use passage graph to improve passage selection in an extractive reader. However, applying KG to improve the recent advanced FiD framework remains unstudied.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::2",
+      "paper_id": "2110.04330",
+      "heading": "Method",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::2::para::0",
+          "section_id": "2110.04330::section::2",
+          "text": "In the following sections, we first introduce how to apply KG to build a graph structure among the retrieved passages (Section 3.1). Then we show how we adopt the graph-based stage-1 reranking with DPR retriever to improve passage retrieval (Section 3.2). Next we introduce joint stage-2 reranking and answer generation in the reading module (Section 3.3). Finally we illustrate the improvement of efficiency by using intermediate layer representation for stage-2 reranking (Section 3.4). The overview of our framework is illustrated in Figure 1.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::3",
+      "paper_id": "2110.04330",
+      "heading": "Construct Passage Graph using KG",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::3::para::0",
+          "section_id": "2110.04330::section::3",
+          "text": "The intuition behind using KG is that there exists the structural relationship among the retrieved passages which can be captured by the KG. Similar to (Min et al., 2019), we construct the passage graph where vertices are passages of text and the edges represent the relationships that are derived from the external KGs as KG = {(e h , r, e t )}, where e h , r, e t are the head entity, relation and tail entity of a triplet respectively.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::3::para::1",
+          "section_id": "2110.04330::section::3",
+          "text": "First, we formalize the definition of a passage. Following previous works (Wang et al., 2019;Karpukhin et al., 2020), each article in the text corpus is split into multiple disjoint text blocks of 100 words called passages, which serve as the basic retrieval units. We assume there is a oneone mapping between the KG entities and articles in the text corpus. Specifically, we use English Wikipedia as the text corpus and English Wikidata (Vrandečić and Krötzsch, 2014) as the knowl-edge graph, since there exists an alignment between the two resourcesfoot_0 . For example, for the article titled with \"New York Yankees\", it contains passages such as \"The New York Yankees are an American professional baseball team ...\". The article also corresponds to a KG entity with the same name as \"New York Yankees\".",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04330::section::3::para::2",
+          "section_id": "2110.04330::section::3",
+          "text": "Then we define the mapping function e = f (p), where the KG entity e corresponds to the article which p belongs to. Note that one passage can only be mapped to one entity, but multiple passages could be mapped to the same entity. The final passage graph is defined as G = {(p i , p j )}, where passages p i and p j are connected if and only if their mapped entities are directly connected in the KG, i.e., (f (p i ), r, f (p j )) ∈ KG.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2110.04330::section::3::para::3",
+          "section_id": "2110.04330::section::3",
+          "text": "Since the total number of passages is very large, e.g., more than 20M in Wikipedia, constructing and maintaining a graph over all the passages is inefficient and memory-consuming. Thus, we build a passage graph on the fly for each question, based on the retrieved passages.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::4",
+      "paper_id": "2110.04330",
+      "heading": "Passage Retrieving & Stage-1 Reranking",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::4::para::0",
+          "section_id": "2110.04330::section::4",
+          "text": "DPR Retriever: Our framework applies DPR (Karpukhin et al., 2020) as the retriever, which uses a BERT based passage encoder to encode all the N passages in the text corpus {p 1 , p 2 , • • • , p N }. Suppose all the passage embeddings are fixed and stored in memory as M ∈ R N ×D where D is the hidden dimension:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::4::para::1",
+          "section_id": "2110.04330::section::4",
+          "text": "For an input question q, DPR applies another BERTbased question encoder to obtain its representation Q, then it builds on FAISS (Johnson et al., 2019) to conduct fast dot-product similarity search between Q and M , and returns N 1 (N 1 N ) passages with the highest similarity scores.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04330::section::4::para::2",
+          "section_id": "2110.04330::section::4",
+          "text": "Stage-1 Reranking: We see that the DPR retriever returns N 1 passages which are independently retrieved based on the similarity between the question and each passage, without considering inter-passage relationship. Thus instead of directly retrieving N 1 passages for the reader, we propose to first retrieve N 0 (N 0 > N 1 ) passages, then rerank them and output top-N 1 reranked passages into the reader.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2110.04330::section::4::para::3",
+          "section_id": "2110.04330::section::4",
+          "text": "Following Section 3.1, we construct a graph among the N 0 retrieved passages denoted as G 0 . We aim to rerank the retrieved passages based on both the structural information and the textual semantic information of them.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2110.04330::section::4::para::4",
+          "section_id": "2110.04330::section::4",
+          "text": "To represent the semantic information of passages, one can use another pre-trained language model to encode the passage texts, but this will not only include lots of additional model parameters, but also incur heavy computational cost as N 0 can be large. To avoid both additional memory and computation cost, we propose to reuse the offline passage embeddings M generated from the DPR retriever in Equation 1 as the initial node representation:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2110.04330::section::4::para::5",
+          "section_id": "2110.04330::section::4",
+          "text": "Then we employ a graph attention network (GAT) (Velickovic et al., 2018) with L g layers as GNN model to update representations for each node based on the passage graph and initial representation. The l-th layer of the GNN model updates the embedding of node i as follows:",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2110.04330::section::4::para::6",
+          "section_id": "2110.04330::section::4",
+          "text": "where h is usually a non-linear learnable function which aggregates the embeddings of the node itself and its neighbor nodes. The reranking score for each passage p r i is calculated by s",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2110.04330::section::4::para::7",
+          "section_id": "2110.04330::section::4",
+          "text": ", where Q is the question embedding also generated by the DPR retriever. Then we sort the retrieved passages by the reranking scores, and input the top-N 1 passages into the reader. The training loss of passage ranking for each question is:",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2110.04330::section::4::para::8",
+          "section_id": "2110.04330::section::4",
+          "text": "where y i = 1 if p r i is the gold passagefoot_1 that contains the answer, and 0 otherwise. As we only add a lightweight graph neural network and reuse the pre-computed and static DPR passage embeddings, our reranking module can process a large number of candidate passages efficiently for each question. In experiments, we set N 0 = 1000 and N 1 = 100.",
+          "paragraph_index": 8
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::5",
+      "paper_id": "2110.04330",
+      "heading": "Joint Stage-2 Reranking and Answer Generation",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::5::para::0",
+          "section_id": "2110.04330::section::5",
+          "text": "In this section, we briefly introduce the vanilla FiD reading module before illustrating our joint reranking method. We suppose the reader takes N 1 retrieved passages {p a 1 , p a 2 , • • • , p a N 1 } as input.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::5::para::1",
+          "section_id": "2110.04330::section::5",
+          "text": "Vanilla FiD Reading Module: We denote the hidden dimension as H and number of encoder layers and decoder layers as L, FiD reader first separately encodes each passage p a i concatenated with question q:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04330::section::5::para::2",
+          "section_id": "2110.04330::section::5",
+          "text": "where T p is the sequence length of a passage concatenated with the question. T5-Embed(•) is the initial embedding layer of T5 model (Raffel et al., 2019) and T5-Encoder l (•) is the l-th layer of its encoder module. Then the token embeddings of all passages output from the last layer of the encoder are concatenated and sent to the decoder to generate the answer tokens A:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2110.04330::section::5::para::3",
+          "section_id": "2110.04330::section::5",
+          "text": "Stage-2 Reranking: Note that vanilla FiD reader neglect the cross information among passages, and the joint modeling in the decoding process makes it vulnerable to the noisy irrelevant passages. Thus, we propose to leverage the passage graph to rerank the input N 1 passages during the encoding and only select top-N 2 (N 2 < N 1 ) reranked passages into the decoder, which is named as stage-2 reranking.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2110.04330::section::5::para::4",
+          "section_id": "2110.04330::section::5",
+          "text": "Similar to stage-1 reranking, the reranking model is based on both the structural information and the textual semantic information of passages. We denote the passage graph as G 1 , which is a subgraph of G 0 . To avoid additional computation and memory cost, we propose to reuse the encodergenerated question-aware passage representation from FiD reader for passage reranking as it is already computed in Equation 5. Specifically, the initial node embeddings Z (0) i for passage p a i comes from the first token embedding of the final layer in the FiD-Encoder, i.e., Z (0) i = P (L) i (0) ∈ R D . Then same as stage-1 reranking, we also employ a GAT (Velickovic et al., 2018) with L g layers as the graph neural network (GNN) model to update representations for each node based on the passage graph, similar to Equation 2:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2110.04330::section::5::para::5",
+          "section_id": "2110.04330::section::5",
+          "text": "where W is a trainable model parameter. After reranking, only the final top-N 2 (N 2 < N 1 ) passages are sent for decoding. Suppose their indices are {g 1 , g 2 , • • • , g N 2 }, the decoding process in Equation 6 becomes:",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2110.04330::section::5::para::6",
+          "section_id": "2110.04330::section::5",
+          "text": "where A is the generated answer. Similar to stage-1 reranking, the training loss of passage ranking for each question is:",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2110.04330::section::5::para::7",
+          "section_id": "2110.04330::section::5",
+          "text": "where y i = 1 if p a i is the gold passage that contains the answer, and 0 otherwise.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2110.04330::section::5::para::8",
+          "section_id": "2110.04330::section::5",
+          "text": "The passage reranking and answer generation are jointly trained. We denote the answer generation loss for each question is L a , then the final training loss of our reader module is L = L a + λL stage-2 r , where λ is a hyper-parameter which controls the weight of reranking task in the total loss.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2110.04330::section::5::para::9",
+          "section_id": "2110.04330::section::5",
+          "text": "Note that the first stage reranking is based on DPR embeddings, which are are high-level (one vector per passage) and not further trained. While the second stage is based on reader-generated passage-question embeddings, which are semanticlevel and trainable as part of the model output. Thus the second stage can better capture semantic information of passages and aims for more accurate reranking over a smaller candidate set. In the experiment, we set N 1 = 100 and N 2 = 20.",
+          "paragraph_index": 9
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::6",
+      "paper_id": "2110.04330",
+      "heading": "Improving Efficiency via Intermediate Representation in Stage-2 Reranking",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::6::para::0",
+          "section_id": "2110.04330::section::6",
+          "text": "Recall that in the stage-2 reranking, we take the passage representation from the last layer of reader encoder for passage reranking. In this section, we propose to further reduce the computation cost by taking the intermediate layer representation rather than the last layer. The intuition is that answer generation task is more difficult than passage reranking which only needs to predict whether the passage contains the answer or not. Thus we may not need the representation from the whole encoder module for passage reranking. Suppose we take the representation from the L 1th layer (1 ≤ L 1 < L), i.e., Z (0) i = P (L 1 ) i (0) for i ∈ {1, 2, • • • , N 1 }, and the reranking method remains the same. Then only the top N 2 (N 2 < N 1 ) reranked passages will go through the rest layers of FiD-encoder. Suppose their indices are",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::6::para::1",
+          "section_id": "2110.04330::section::6",
+          "text": "g N 2 are sent into the decoder for answer generation as in Equation 7. In Section 4.3, we demonstrate this can reduce 60% computation cost than the original FiD while keeping the on-par performance on two benchmark datasets.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::7",
+      "paper_id": "2110.04330",
+      "heading": "Analysis on Computational Complexity",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::7::para::0",
+          "section_id": "2110.04330::section::7",
+          "text": "Here we analyze the theoretical time complexity of our proposed KG-FiD compared to vanilla FiD. More practical computation cost comparison is shown in Appendix A.5. Because both the computations of DPR retrieving and stage-1 reranking are negligible compared to the reading part, we only analyze the reading module here.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::7::para::1",
+          "section_id": "2110.04330::section::7",
+          "text": "Suppose the length of answer sequence A is denoted as T a and the average length of the passage (concatenated with question) is T p . For vanilla FiD reader, the time complexity of the encoder module is O(L • N 1 • T 2 p ), where L, N 1 denote the number of encoder layers and the number of passages for reading. The square comes from the self-attention mechanism. The decoder time complexity is O(L•(N 1 •T p •T a +T 2 a )), where N 1 •T p •T a comes from the cross-attention mechanism. For our reading module, all the N 1 candidate passages are processed by the first L 1 layers of encoder. But only N 2 passages are processed by the remaining L -L 1 encoder layers and sent into the decoder. Thus, the encoder computation complexity becomes O((",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04330::section::7::para::2",
+          "section_id": "2110.04330::section::7",
+          "text": ", and the decoder computation takes O(L•(N 2 •T p •T a +T 2 a )). Because L 1 < L, N 2 < N 1 , both the encoding and decoding of our method is more efficient than vanilla FiD.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2110.04330::section::7::para::3",
+          "section_id": "2110.04330::section::7",
+          "text": "Furthermore, the answer is usually much shorter than the passage (which is the case in our experiments), i.e., T a T p . Then the decoding computation can be negligible compared to the encoding. In this case, the approximated ratio of saved computation cost brought by our proposed method is:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2110.04330::section::7::para::4",
+          "section_id": "2110.04330::section::7",
+          "text": "This shows that we can reduce more computation cost by decreasing L 1 or N 2 . For example, if setting L 1 = L/4, N 2 = N 1 /5, we can reduce about 60% of computation cost. More empirical results and discussions will be presented in Section 4.3.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::8",
+      "paper_id": "2110.04330",
+      "heading": "Experiment",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::8::para::0",
+          "section_id": "2110.04330::section::8",
+          "text": "In this section, we conduct extensive experiments on two most commonly-used ODQA benchmark datasets: Natural Questions (NQ) (Kwiatkowski et al., 2019) which is based on Google Search Queries, and TriviaQA (Joshi et al., 2017) which contains questions from trivia and quiz-league websites. We follow the same setting as (Izacard and Grave, 2021) to preprocess these datasets, which is introduced in Appendix A.1. All our experiments are conducted on 8 Tesla A100 40GB GPUs.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::9",
+      "paper_id": "2110.04330",
+      "heading": "Implementation Details",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::9::para::0",
+          "section_id": "2110.04330::section::9",
+          "text": "Knowledge Source: Following (Karpukhin et al., 2020;Izacard and Grave, 2021), we use the English Wikipedia as the text corpus, and apply the same preprocessing to divide them into disjoint passages with 100 words, which produces 21M passages in total. For the knowledge graph, we use English Wikidata. The number of aligned entities, relations and triplets among these entities are 2.7M, 974 and 14M respectively.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::9::para::1",
+          "section_id": "2110.04330::section::9",
+          "text": "Model Details: For the retrieving module, we use the DPR retriever (Karpukhin et al., 2020) which contains two BERT (base) models for encoding question and passage separately. For the GNN reranking models, we adopt 3-layer Graph Attention Networks (GAT) (Velickovic et al., 2018). For the reading module, same as (Izacard and Grave, 2021), we initialize it with the pretrained T5-base and T5-large models (Raffel et al., 2019), and we name the former one as KG-FiD (base) and the latter one as KG-FiD (large). Our implementation is based on the HuggingFace Transformers library (Wolf et al., 2019). For number of passages, we set N 0 = 1000, N 1 = 100, N 2 = 20. The training process of our method is introduced in Appendix A.3. More results about model design and hyper-parameter search is in Appendix A.4.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04330::section::9::para::2",
+          "section_id": "2110.04330::section::9",
+          "text": "Evaluation: We follow the standard evaluation metric of answer prediction in ODQA, which is the exact match score (EM) (Rajpurkar et al., 2016). A generated answer is considered correct if it matches any answer in the list of acceptable answers after normalization 3 . For all the experiments, we conduct 5 runs with different random seeds and report the averaged scores.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::10",
+      "paper_id": "2110.04330",
+      "heading": "Baseline Methods",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::10::para::0",
+          "section_id": "2110.04330::section::10",
+          "text": "We mainly compare KG-FiD with the baseline model FiD (Izacard and Grave, 2021). For other baselines, we compare with representative methods from each category: (1) not using external knowledge source: T5 (Roberts et al., 2020) and GPT-3 (Brown et al., 2020); (2) reranking-based methods: RIDER (Mao et al., 2021) and RECON-SIDER (Iyer et al., 2021); (3) leveraging knowledge graphs or graph information between passages: Graph-Retriever (Min et al., 2019), Path-Retriever (Asai et al., 2020), KAQA (Zhou et al., 2020), and UniK-QA (Oguz et al., 2020). We also compare with methods (4) with additional largescale pre-training: REALM (Guu et al., 2020), RAG (Lewis et al., 2020) and Joint Top-K (Sachan et al., 2021).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::11",
+      "paper_id": "2110.04330",
+      "heading": "Main Results",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::11::para::0",
+          "section_id": "2110.04330::section::11",
+          "text": "Comparison with Baselines: Table 1 shows the results of our method and all baselines. We see that our proposed model KG-FiD consistently and significantly improves FiD on both NQ and TriviaQA datasets over both base and large model. Specifically, for large model, KG-FiD improves FiD by 1.5% and 1.1% on two datasets respectively, which has larger improvement compared to base model. We think the reason is that more expressive reader will also benefit the stage-2 reranking since the initial passage embeddings are generated by the reader encoder module. We also see that our proposed method outperforms all the baseline methods except UniK-QA (Oguz et al., 2020). However, UniK-QA uses additional knowledge source Wikipedia-Table for retrieval, which is highly related with the NQ dataset and makes it unfair to directly compare with our method.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::11::para::1",
+          "section_id": "2110.04330::section::11",
+          "text": "Efficiency & Accuracy: Table 2 show the detailed comparison between our method and FiD in the large model version. The results of base model version is shown in Appendix A.4. Besides EM score, we also report the ratio of computation flops (#FLOPs) and inference latency (per question). The detailed calculation of #FLOPs is shown in Appendix A.5. From table 2, we see that (1) for KG-FiD, decreasing L 1 can improve the computation efficiency as analyzed in Section 3.4, while increasing L 1 can improve the model performance. We think the performance improvement comes from the noise reduction of passage filtering. For a larger L 1 , the passage embeddings for reranking will have a better quality so that the gold passages are less likely to be filtered out. (2) Simply reducing the number of passages N 1 into vanilla FiD reader can reduce computation cost, but the performance will also drop significantly (from 51.9 to 50.3 on NQ dataset).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04330::section::11::para::2",
+          "section_id": "2110.04330::section::11",
+          "text": "(3) Our model can achieve the performance on par with FiD with only 38% of computation cost. When consuming the same amount of computations (L 1 = 24), our model significantly outperforms FiD on both NQ and TriviaQA datasets. These experiments demonstrate that our model is very flexible and can improve both the efficiency and effectiveness by changing L 1 . 4.4 Ablation Study Effect of Each Reranking Stage: Since our proposed graph-based reranking method are applied in both retrieving stage (Section 3.2) and reading stage (Section 3.3). We conduct ablation study Model #FLOPs NQ TriviaQA EM Latency (s) EM Latency (s) FiD (N 1 =40) 0.40x 50.3 0.74 (0.45x) 67.5 0.73 (0.44x) FiD (N 1 =100) 1.00x 51.9 1.65 (1.00x) 68.7 1.66 (1.00x) KG-FiD (N 1 =100, L 1 =6) 0.38x 52.0 0.70 (0.42x) 68.9 0.68 (0.41x) KG-FiD (N 1 =100, L 1 =12) 0.55x 52.3 0.96 (0.58x) 69.2 0.94 (0.57x) KG-FiD (N 1 =100, L 1 =18) 0.72x 52.6 1.22 (0.74x) 69.8 1.22 (0.73x) KG-FiD (N 1 =100, L 1 =24) 0.90x 53.4 1.49 (0.90x) 69.8 1.48 (0.89x) Table 3: Ablation study of our graph-based reranking method in two stages. EM scores are reported over NQ and Trivia datasets with both base and large model version.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2110.04330::section::11::para::3",
+          "section_id": "2110.04330::section::11",
+          "text": "to validate the effectiveness of each one. Table 3 shows the experiment results by removing each module. We see the performance of KG-FiD drops when removing any of the two reranking modules, demonstrating both of them can improve model performance. Another thing we observe is that stage-1 reranking is more effective in base model while stage-2 reranking is more effective in large model. This is reasonable since stage-2 reranking relies on the effectiveness of reader encoder module, where the large model is usually better than the base model.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2110.04330::section::11::para::4",
+          "section_id": "2110.04330::section::11",
+          "text": "Passage Ranking Results: We additionally show that our proposed GNN reranking method can improve the passage retrieval results. This is demonstrated in Figure 2, where we report Hits@K metric over NQ test set, measuring the percentage of top-K retrieved passages that contain the gold passages (passages that contain the answer). We see that DPR+stage-1 reranking consistently outperforms DPR for all the K ∈ {10, 20, 50, 100}. With two stages of reranking, the retrieval results are further improved for K ∈ {10, 20} (We only cares about K ≤ 20 for stage-2 reranking since N 2 = 20). This shows that such reranking can increase the rank of gold passages which are previ- ously ranked lower by DPR retriever and improve the efficacy of passage pruning.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2110.04330::section::12",
+      "paper_id": "2110.04330",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2110.04330::section::12::para::0",
+          "section_id": "2110.04330::section::12",
+          "text": "This work tackles the task of Open-Domain Question Answering. We focus on the current best performed framework FiD and propose a novel KG-based reranking method to enhance the crossmodeling between passages and improve computation efficiency. Our two-stage reranking methods reuses the passage representation generated by DPR retriver and the reader encoder and apply graph neural networks to compute reranking scores. We further propose to use the intermediate layer of encoder to reduce computation cost while still maintaining good performance. Experiments on Natural Questions and TriviaQA show that our model can significantly improve original FiD by 1.5% exact match score and achieve on-par performance with FiD but reducing over 60% of computation cost.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04330::section::12::para::1",
+          "section_id": "2110.04330::section::12",
+          "text": "Model #FLOPs NQ TriviaQA EM Latency (s) EM Latency (s) FiD (N 1 =40) 0.40x 47.2 0.27 (0.47x) 64.1 0.27 (0.46x) FiD (N 1 =100) 1.00x 48.8 0.58 (1.00x) 66.2 0.59 (1.00x) KG-FiD (N 1 =100, L 1 =3) 0.38x 48.4 0.27 (0.47x) 65.6 0.26 (0.44x) KG-FiD (N 1 =100, L 1 =6) 0.56x 49.0 0.35 (0.60x) 66.1 0.34 (0.58x) KG-FiD (N 1 =100, L 1 =9) 0.73x 49.3 0.43 (0.74x) 66.3 0.43 (0.73x) KG-FiD (N 1 =100, L 1 =12) 0.91x 49.6 0.50 (0.86x) 66.7 0.49 (0.83x) Table 6: EM scores on NQ dev data of our model under different choices of filtered passage numbers and weights of reranking loss. search. We only consider the former part as the latter part depends on the corpus size and search methods and is usually very efficient. The question encoding flops by BERT-based model is about 4.4 Gigaflops (GFLOPs). For the reading part, the encoding of each question passage pair takes about 57/174 GFLOPs for base/large model, and the encoding of 100 passages takes 5772/17483 GFLOPs. The decoder part only costs 714.2/2534.5 GFLOPs for base/large model since the average length of answer is very small. In summary, vanilla FiD base/large model costs 6491.0/20022.0 GFLOPs.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04330::section::12::para::2",
+          "section_id": "2110.04330::section::12",
+          "text": "For our model, the computation cost of retrieving part is the same as vanilla FiD. Since we set N 0 = 1000 and N 1 = 100, the GAT (Velickovic et al., 2018) computation in stage-1 reranking takes about 3.5 GFLOPs, and the stage-2 reranking takes only 0.4/0.6 GFLOPs for base/large model. For the reader encoding part, the computation cost depends on L 1 and N 2 , which is analyzed in Section 3.5. For the reader decoding part, where cross attention takes most of the computation, KG-FiD only takes about N 2 /N 1 = 1/5 cost of vanilla FiD, which is 143.9/510.0 for base/large model respectively. The detailed flops are shown in Table 7 and 8. Model Retrieving Stage-1 Reranking Reader Encoding Stage-2 Reranking Reader Decoding All FiD 4.4 -5772.3 -714.2 6491.0 (1.00x) KG-FiD (L 1 =3) 4.4 3.5 2308.9 0.4 143.9 2461.1 (0.38x) KG-FiD (L 1 =6) 4.4 3.5 3463.4 0.4 143.9 3615.5 (0.56x) KG-FiD (L 1 =9) 4.4 3.5 4617.9 0.4 143.9 4770.0 (0.73x) KG-FiD (L 1 =12) 4.4 3.5 5772.3 0.4 143.9 5924.5 (0.91x) Table 8: #GFLOPs of FiD (large) and KG-FiD (large) over different stages in the model.",
+          "paragraph_index": 2
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2110.04330::figure::0",
+      "paper_id": "2110.04330",
+      "figure_number": "Figure 1 :",
+      "caption": "Figure 1: Overall Model Framework. Pi indicates the node of the passage originally ranked the i-th by the DPR retriever, with the article title below it. The left part shows passage retrieval by DPR, passage graph construction based on KG (Section 3.1) and stage-1 reranking (Section 3.2). The right part shows joint stage-2 reranking and answer generation in the reading module (Section 3.3 and 3.4).",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_0",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2110.04330::figure::1",
+      "paper_id": "2110.04330",
+      "figure_number": "Figure 2 :",
+      "caption": "Figure 2: Passage ranking results over NQ test set of DPR retriever and our proposed two-stage rerankings over base model.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_1",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2110.04330::table::0",
+      "paper_id": "2110.04330",
+      "table_number": "Table 1 :",
+      "caption": "Exact match score of different models over the test sets of NQ and TriviaQA datasets. means that additional knowledge source Wikipedia-Tables is used in this method.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "3 The normalization includes lowercasing and removing"
+        ],
+        [
+          "articles, punctuation and duplicated whitespace."
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2110.04330::table::1",
+      "paper_id": "2110.04330",
+      "table_number": "Table 2 :",
+      "caption": "Inference #FLOPs, Latency (second) and Exact match score of FiD (large) and KG-FiD (large). N 1 is the number of passages into the reader and L 1 is the number of intermediate layers used for stage-2 reranking as introduced in Section 3.4. The details of flop computation is introduced in Appendix A.5.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "Model",
+          "NQ",
+          "TriviaQA"
+        ],
+        [
+          "",
+          "base large base large"
+        ],
+        [
+          "FiD",
+          "48.8 51.9 66.2 68.7"
+        ],
+        [
+          "KG-FiD",
+          "49.6 53.4 66.7 69.8"
+        ],
+        [
+          "w/o Stage-1 49.3 53.1 66.2 69.5"
+        ],
+        [
+          "w/o Stage-2 49.4 52.3 66.5 69.2"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2110.04330::table::2",
+      "paper_id": "2110.04330",
+      "table_number": "Table 4 :",
+      "caption": "Inference #FLOPs, Latency (second) and Exact match score of FiD (base) and KG-FiD (base). N 1 is the number of passages into the reader and L 1 is the number of intermediate layers used for stage-2 reranking as introduced in Section 3.4. The details of flop computation is introduced in Appendix A.5.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_2",
+      "raw_data": [
+        [
+          "Model H@1 H@5 H@10 H@20"
+        ],
+        [
+          "GCN",
+          "49.1 69.7",
+          "75.7",
+          "79.9"
+        ],
+        [
+          "GAT",
+          "50.1 70.1",
+          "76.1",
+          "80.2"
+        ],
+        [
+          "#Layers",
+          "",
+          "",
+          ""
+        ],
+        [
+          "1",
+          "49.0 69.7",
+          "75.8",
+          "79.8"
+        ],
+        [
+          "2",
+          "49.6 70.0",
+          "76.0",
+          "80.2"
+        ],
+        [
+          "3",
+          "50.1 70.1",
+          "76.1",
+          "80.2"
+        ],
+        [
+          "4",
+          "49.5 69.9",
+          "76.1",
+          "80.1"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2110.04330::table::3",
+      "paper_id": "2110.04330",
+      "table_number": "Table 5 :",
+      "caption": "Passage Retrieval Results on NQ dev data of our model under different GNN types and number of layers.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_3",
+      "raw_data": [
+        [
+          "Model",
+          "N 2 =10 N 2 =20 N 2 =30"
+        ],
+        [
+          "KG-FiD",
+          "47.6",
+          "48.0",
+          "48.0"
+        ],
+        [
+          "",
+          "λ=0.01 λ=0.1 λ=1.0"
+        ],
+        [
+          "KG-FiD",
+          "47.7",
+          "48.0",
+          "46.6"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2110.04330::table::4",
+      "paper_id": "2110.04330",
+      "table_number": "Table 7 :",
+      "caption": "#GFLOPs of FiD (base) and KG-FiD (base) over different stages in the model.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_4",
+      "raw_data": [
+        [
+          "Model",
+          "Retrieving",
+          "Stage-1 Reranking",
+          "Reader Encoding",
+          "Stage-2 Reranking",
+          "Reader Decoding",
+          "All"
+        ],
+        [
+          "FiD",
+          "4.4",
+          "-",
+          "17483.2",
+          "-",
+          "2534.5",
+          "20022.0 (1.00x)"
+        ],
+        [
+          "KG-FiD (L 1 =6)",
+          "4.4",
+          "3.5",
+          "6993.3",
+          "0.6",
+          "510.0",
+          "7511.8 (0.38x)"
+        ],
+        [
+          "KG-FiD (L 1 =12)",
+          "4.4",
+          "3.5",
+          "10489.9",
+          "0.6",
+          "510.0",
+          "11008.4 (0.55x)"
+        ],
+        [
+          "KG-FiD (L 1 =18)",
+          "4.4",
+          "3.5",
+          "13986.5",
+          "0.6",
+          "510.0",
+          "14505.1 (0.72x)"
+        ],
+        [
+          "KG-FiD (L 1 =24)",
+          "4.4",
+          "3.5",
+          "17483.2",
+          "0.6",
+          "510.0",
+          "18001.7 (0.90x)"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2110.04330::equation::0",
+      "paper_id": "2110.04330",
+      "latex": "M i = BERT(p i ) for i \\in {1, 2, • • • N } (1)",
+      "equation_number": null,
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::1",
+      "paper_id": "2110.04330",
+      "latex": "E (0) i = M r i where {r i |i \\in {1, 2, • • • , N 0 }} is the set of retrieved passage indices.",
+      "equation_number": null,
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::2",
+      "paper_id": "2110.04330",
+      "latex": "E (l) i = h(E (l-1) i , {E (l-1) j } (i,j) \\in G 0 ) (",
+      "equation_number": "2",
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::3",
+      "paper_id": "2110.04330",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::4",
+      "paper_id": "2110.04330",
+      "latex": "stage-1 i = Q T E (Lg) i",
+      "equation_number": null,
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::5",
+      "paper_id": "2110.04330",
+      "latex": "L stage-1 r = - N 0 i=1 y i log exp(s stage-1 i ) N 0 j=1 exp(s stage-1 j )",
+      "equation_number": "(3)",
+      "grobid_ref_id": "formula_5",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::6",
+      "paper_id": "2110.04330",
+      "latex": "P (0) i = T5-Embed(q + p a i ) \\in R Tp \\times H ,",
+      "equation_number": "(4)",
+      "grobid_ref_id": "formula_6",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::7",
+      "paper_id": "2110.04330",
+      "latex": "P (l) i = T5-Encoder l (P (l-1) i ) \\in R Tp \\times H ,",
+      "equation_number": "(5)",
+      "grobid_ref_id": "formula_7",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::8",
+      "paper_id": "2110.04330",
+      "latex": "A = T5-Decoder [P (L) 1 ; P (L) 2 ; • • • ; P (L) N 1 ]",
+      "equation_number": "(6)",
+      "grobid_ref_id": "formula_8",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::9",
+      "paper_id": "2110.04330",
+      "latex": "Z (Lg) = GAT(Z (0) , G 1 ). The reranking score of passage p a i is calculated by s stage-2 i = W T Z (Lg) i",
+      "equation_number": null,
+      "grobid_ref_id": "formula_9",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::10",
+      "paper_id": "2110.04330",
+      "latex": "A = T5-Decoder [P (L) g 1 ; P (L) g 2 ; • • • ; P (L) g N 2 ] (",
+      "equation_number": "7",
+      "grobid_ref_id": "formula_10",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::11",
+      "paper_id": "2110.04330",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_11",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::12",
+      "paper_id": "2110.04330",
+      "latex": "L stage-2 r = - N 1 i=1 y i log exp(s stage-2 i ) N 1 j=1 exp(s stage-2 j )",
+      "equation_number": "(8)",
+      "grobid_ref_id": "formula_12",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::13",
+      "paper_id": "2110.04330",
+      "latex": "I g = {g 1 , g 2 , • • • , g N 2 }, for l \\ge L 1 + 1: P (l) i = T5-Encoder l (P (l-1) i ) if i \\in I g Stop-Computing else (",
+      "equation_number": "9",
+      "grobid_ref_id": "formula_13",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::14",
+      "paper_id": "2110.04330",
+      "latex": ") Then P (L) g 1 , P (L) g 2 , • • • , P",
+      "equation_number": "(L)",
+      "grobid_ref_id": "formula_14",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::15",
+      "paper_id": "2110.04330",
+      "latex": "L 1 • N 1 + (L -L 1 ) • N 2 ) • T 2 p )",
+      "equation_number": null,
+      "grobid_ref_id": "formula_15",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2110.04330::equation::16",
+      "paper_id": "2110.04330",
+      "latex": "S = 1 - (L 1 • N 1 + (L -L 1 ) • N 2 ) • T 2 p L • N 1 • T 2 p = (1 - L 1 L )(1 - N 2 N 1 )",
+      "equation_number": null,
+      "grobid_ref_id": "formula_16",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2110.04330::citation::0",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Learning to retrieve reasoning paths over wikipedia graph for question answering",
+      "cited_authors": [
+        "Akari Asai",
+        "Kazuma Hashimoto",
+        "Hannaneh Hajishirzi",
+        "Richard Socher",
+        "Caiming Xiong"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::1",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Semantic parsing on Freebase from question-answer pairs",
+      "cited_authors": [
+        "Jonathan Berant",
+        "Andrew Chou",
+        "Roy Frostig",
+        "Percy Liang"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::2",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Language models are few-shot learners",
+      "cited_authors": [
+        "B Tom",
+        "Benjamin Brown",
+        "Nick Mann",
+        "Melanie Ryder",
+        "Jared Subbiah",
+        "Prafulla Kaplan",
+        "Arvind Dhariwal",
+        "Pranav Neelakantan",
+        "Girish Shyam",
+        "Amanda Sastry",
+        "Sandhini Askell",
+        "Ariel Agarwal",
+        "Gretchen Herbert-Voss",
+        "Tom Krueger",
+        "Rewon Henighan",
+        "Aditya Child",
+        "Daniel M Ramesh",
+        "Jeffrey Ziegler",
+        "Clemens Wu",
+        "Christopher Winter",
+        "Mark Hesse",
+        "Eric Chen",
+        "Mateusz Sigler",
+        "Scott Litwin",
+        "Benjamin Gray",
+        "Jack Chess",
+        "Christopher Clark",
+        "Sam Berner",
+        "Alec Mc-Candlish",
+        "Ilya Radford",
+        "Dario Sutskever",
+        "Amodei"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::3",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Reading Wikipedia to answer opendomain questions",
+      "cited_authors": [
+        "Danqi Chen",
+        "Adam Fisch",
+        "Jason Weston",
+        "Antoine Bordes"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P17-1171",
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::4",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "BERT: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/N19-1423",
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::5",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Realm: Retrievalaugmented language model pre-training",
+      "cited_authors": [
+        "Kelvin Guu",
+        "Kenton Lee",
+        "Zora Tung",
+        "Panupong Pasupat",
+        "Ming-Wei Chang"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2002.08909",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::6",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "RECONSIDER: Improved reranking using span-focused cross-attention for open domain question answering",
+      "cited_authors": [
+        "Srinivasan Iyer",
+        "Sewon Min",
+        "Yashar Mehdad",
+        "Wen-Tau Yih"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.naacl-main.100",
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::7",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Distilling knowledge from reader to retriever for question answering",
+      "cited_authors": [
+        "Gautier Izacard",
+        "Edouard Grave"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2012.04584",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::8",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Leveraging passage retrieval with generative models for open domain question answering",
+      "cited_authors": [
+        "Gautier Izacard",
+        "Edouard Grave"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::9",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Billion-scale similarity search with gpus",
+      "cited_authors": [
+        "Jeff Johnson",
+        "Matthijs Douze",
+        "Hervé Jégou"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::10",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "TriviaQA: A large scale distantly supervised challenge dataset for reading comprehension",
+      "cited_authors": [
+        "Mandar Joshi",
+        "Eunsol Choi",
+        "Daniel Weld",
+        "Luke Zettlemoyer"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P17-1147",
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::11",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Dense passage retrieval for open-domain question answering",
+      "cited_authors": [
+        "Vladimir Karpukhin",
+        "Barlas Oguz",
+        "Sewon Min",
+        "Patrick Lewis",
+        "Ledell Wu",
+        "Sergey Edunov",
+        "Danqi Chen",
+        "Wen-Tau Yih"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.emnlp-main.550",
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::12",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Semisupervised classification with graph convolutional networks",
+      "cited_authors": [
+        "Thomas N Kipf",
+        "Max Welling"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::13",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Natural questions: A benchmark for question answering research",
+      "cited_authors": [
+        "Tom Kwiatkowski",
+        "Jennimaria Palomaki",
+        "Olivia Redfield",
+        "Michael Collins",
+        "Ankur Parikh",
+        "Chris Alberti",
+        "Danielle Epstein",
+        "Illia Polosukhin",
+        "Jacob Devlin",
+        "Kenton Lee",
+        "Kristina Toutanova",
+        "Llion Jones",
+        "Matthew Kelcey",
+        "Ming-Wei Chang",
+        "Andrew M Dai",
+        "Jakob Uszkoreit",
+        "Quoc Le",
+        "Slav Petrov"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1162/tacl_a_00276",
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::14",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Retrieval-augmented generation for knowledge-intensive NLP tasks",
+      "cited_authors": [
+        "S H Patrick",
+        "Ethan Lewis",
+        "Aleksandra Perez",
+        "Fabio Piktus",
+        "Vladimir Petroni",
+        "Naman Karpukhin",
+        "Heinrich Goyal",
+        "Mike Küttler",
+        "Wen-Tau Lewis",
+        "Tim Yih",
+        "Sebastian Rocktäschel",
+        "Douwe Riedel",
+        "Kiela"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::15",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Decoupled weight decay regularization",
+      "cited_authors": [
+        "Ilya Loshchilov",
+        "Frank Hutter"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::16",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Reader-guided passage reranking for opendomain question answering",
+      "cited_authors": [
+        "Yuning Mao",
+        "Pengcheng He",
+        "Xiaodong Liu",
+        "Yelong Shen",
+        "Jianfeng Gao",
+        "Jiawei Han",
+        "Weizhu Chen"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.findings-acl.29",
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::17",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Knowledge guided text retrieval and reading for open domain question answering",
+      "cited_authors": [
+        "Sewon Min",
+        "Danqi Chen",
+        "Luke Zettlemoyer",
+        "Hannaneh Hajishirzi"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1911.03868",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::18",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Passage re-ranking with bert",
+      "cited_authors": [
+        "Rodrigo Nogueira",
+        "Kyunghyun Cho"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1901.04085",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::19",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Unified open-domain question answering with structured and unstructured knowledge",
+      "cited_authors": [
+        "Barlas Oguz",
+        "Xilun Chen",
+        "Vladimir Karpukhin",
+        "Stan Peshterliev",
+        "Dmytro Okhonko",
+        "Michael Schlichtkrull",
+        "Sonal Gupta",
+        "Yashar Mehdad",
+        "Scott Yih"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2012.14610",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::20",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "RocketQA: An optimized training approach to dense passage retrieval for open-domain question answering",
+      "cited_authors": [
+        "Yingqi Qu",
+        "Yuchen Ding",
+        "Jing Liu",
+        "Kai Liu",
+        "Ruiyang Ren",
+        "Wayne Xin Zhao",
+        "Daxiang Dong",
+        "Hua Wu",
+        "Haifeng Wang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.naacl-main.466",
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::21",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Exploring the limits of transfer learning with a unified text-to-text transformer",
+      "cited_authors": [
+        "Colin Raffel",
+        "Noam Shazeer",
+        "Adam Roberts",
+        "Katherine Lee",
+        "Sharan Narang",
+        "Michael Matena",
+        "Yanqi Zhou",
+        "Wei Li",
+        "Peter J Liu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1910.10683",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::22",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "SQuAD: 100,000+ questions for machine comprehension of text",
+      "cited_authors": [
+        "Pranav Rajpurkar",
+        "Jian Zhang",
+        "Konstantin Lopyrev",
+        "Percy Liang"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D16-1264",
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::23",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "How much knowledge can you pack into the parameters of a language model?",
+      "cited_authors": [
+        "Adam Roberts",
+        "Colin Raffel",
+        "Noam Shazeer"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.emnlp-main.437",
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::24",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "End-to-end training of neural retrievers for open-domain question answering",
+      "cited_authors": [
+        "Devendra Sachan",
+        "Mostofa Patwary",
+        "Mohammad Shoeybi",
+        "Neel Kant",
+        "Wei Ping",
+        "William L Hamilton",
+        "Bryan Catanzaro"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.acl-long.519",
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::25",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "PullNet: Open domain question answering with iterative retrieval on knowledge bases and text",
+      "cited_authors": [
+        "Haitian Sun",
+        "Tania Bedrax-Weiss",
+        "William Cohen"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D19-1242",
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::26",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Open domain question answering using early fusion of knowledge bases and text",
+      "cited_authors": [
+        "Haitian Sun",
+        "Bhuwan Dhingra",
+        "Manzil Zaheer",
+        "Kathryn Mazaitis",
+        "Ruslan Salakhutdinov",
+        "William Cohen"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D18-1455",
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::27",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Graph attention networks",
+      "cited_authors": [
+        "Petar Velickovic",
+        "Guillem Cucurull",
+        "Arantxa Casanova",
+        "Adriana Romero",
+        "Pietro Liò",
+        "Yoshua Bengio"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::28",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Deep graph infomax",
+      "cited_authors": [
+        "Petar Velickovic",
+        "William Fedus",
+        "William L Hamilton",
+        "Pietro Liò",
+        "Yoshua Bengio",
+        "R",
+        "Devon Hjelm"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::29",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Wikidata: a free collaborative knowledgebase",
+      "cited_authors": [
+        "Denny Vrandečić",
+        "Markus Krötzsch"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::30",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "R 3: Reinforced ranker-reader for open-domain question answering",
+      "cited_authors": [
+        "Shuohang Wang",
+        "Mo Yu",
+        "Xiaoxiao Guo",
+        "Zhiguo Wang",
+        "Tim Klinger",
+        "Wei Zhang",
+        "Shiyu Chang",
+        "Gerry Tesauro",
+        "Bowen Zhou",
+        "Jing Jiang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::31",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Multi-passage BERT: A globally normalized BERT model for open-domain question answering",
+      "cited_authors": [
+        "Zhiguo Wang",
+        "Patrick Ng",
+        "Xiaofei Ma",
+        "Ramesh Nallapati",
+        "Bing Xiang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D19-1599",
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::32",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Huggingface's transformers: State-of-the-art natural language processing",
+      "cited_authors": [
+        "Thomas Wolf",
+        "Lysandre Debut",
+        "Victor Sanh",
+        "Julien Chaumond",
+        "Clement Delangue",
+        "Anthony Moi",
+        "Pierric Cistac",
+        "Tim Rault",
+        "Rémi Louf",
+        "Morgan Funtowicz"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1910.03771",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::33",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Improving question answering over incomplete KBs with knowledgeaware reader",
+      "cited_authors": [
+        "Wenhan Xiong",
+        "Mo Yu",
+        "Shiyu Chang",
+        "Xiaoxiao Guo",
+        "William Yang",
+        "Wang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P19-1417",
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::34",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "How powerful are graph neural networks?",
+      "cited_authors": [
+        "Keyulu Xu",
+        "Weihua Hu",
+        "Jure Leskovec",
+        "Stefanie Jegelka"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::35",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Chenguang Zhu, and Michael Zeng. 2021a. Does knowledge help general nlu? an empirical study",
+      "cited_authors": [
+        "Ruochen Xu",
+        "Yuwei Fang"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2109.00563",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::36",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "2021b. Fusing context into knowledge graph for commonsense question answering",
+      "cited_authors": [
+        "Yichong Xu",
+        "Chenguang Zhu",
+        "Ruochen Xu",
+        "Yang Liu",
+        "Michael Zeng",
+        "Xuedong Huang"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.findings-acl.102",
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::37",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "End-to-end open-domain question answering with BERTserini",
+      "cited_authors": [
+        "Wei Yang",
+        "Yuqing Xie",
+        "Aileen Lin",
+        "Xingyu Li",
+        "Luchen Tan",
+        "Kun Xiong",
+        "Ming Li",
+        "Jimmy Lin"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/N19-4013",
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::38",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Jaket: Joint pre-training of knowledge graph and language understanding",
+      "cited_authors": [
+        "Donghan Yu",
+        "Chenguang Zhu",
+        "Yiming Yang",
+        "Michael Zeng"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2010.00796",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04330::citation::39",
+      "paper_id": "2110.04330",
+      "raw_text": null,
+      "cited_title": "Knowledge-aided opendomain question answering",
+      "cited_authors": [
+        "Mantong Zhou",
+        "Zhouxing Shi",
+        "Minlie Huang",
+        "Xiaoyan Zhu"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2006.05244",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

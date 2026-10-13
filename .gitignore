@@ -1,0 +1,16 @@
+# Environment variables (API keys)
+.env
+
+# Python virtual environments & Conda
+.venv/
+venv/
+env/
+
+# Python cache & temporary files
+__pycache__/
+*.pyc
+*.pyo
+
+# Data files/PDFs downloaded by scripts
+pdfs/
+data/arxiv-metadata-oai-snapshot.json

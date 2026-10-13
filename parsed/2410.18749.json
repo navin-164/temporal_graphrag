@@ -1,0 +1,1614 @@
+{
+  "arxiv_id": "2410.18749",
+  "title": "Does Differential Privacy Impact Bias in Pretrained NLP Models?",
+  "authors": [
+    {
+      "name": "Md. Khairul Islam",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Andrew Wang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Tianhao Wang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yangfeng Ji",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Judy Fox",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Jieyu Zhao",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Differential privacy (DP) is applied when fine-tuning pre-trained large language models (LLMs) to limit leakage of training examples. While most DP research has focused on improving a model's privacy-utility tradeoff, some find that DP can be unfair to or biased against underrepresented groups. In this work, we show the impact of DP on bias in LLMs through empirical analysis. Differentially private training can increase the model bias against protected groups w.r.t AUC-based bias metrics. DP makes it more difficult for the model to differentiate between the positive and negative examples from the protected groups and other groups in the rest of the population. Our results also show that the impact of DP on bias is not only affected by the privacy protection level but also the underlying distribution of the dataset.",
+  "categories": [
+    "cs.CL",
+    "cs.AI",
+    "cs.LG"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2024-10-24T13:59:03"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2024-10-24",
+  "citation_count": 2,
+  "reference_count": 26,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2410.18749::section::0",
+      "paper_id": "2410.18749",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::0::para::0",
+          "section_id": "2410.18749::section::0",
+          "text": "The advent of transformer-based language models such as BERT (Devlin et al. 2019) has led to significant advancements in different NLP tasks. Much of the success of large language models ultimately derives from the vast amounts of data used to train these models. However, the use of a large training dataset raises concerns about data privacy, where the model can be used to detect the presence of sensitive information in the training data. To defend against these attacks, Differentially Private (DP) training techniques (Dwork et al. 2006;Abadi et al. 2016) have been used during the model training or fine-tuning process (Yu et al. 2021). These techniques ensure that a model does not leak sensitive training data. Otherwise, an attacker can extract the dataset (Carlini et al. 2021) using inference attacks.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::0::para::1",
+          "section_id": "2410.18749::section::0",
+          "text": "However, recent works in data privacy indicate that DP training may cause machine learning models to become more biased (Cummings et al. 2019;Bagdasaryan and Shmatikov 2019;Sanyal, Hu, and Yang 2022). However, most of these works focus on the computer vision domain or tabular datasets. With the wide usage of NLP models and the urgency to realize trustworthy NLP, we need to understand whether we can obtain an NLP model equipped with privacy and fairness, especially for the pre-trained language models. An NLP model is considered biased when the model is unable to perform on protected social groups equally as well Copyright © 2023, Association for the Advancement of Artificial Intelligence (www.aaai.org). All rights reserved.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.18749::section::0::para::2",
+          "section_id": "2410.18749::section::0",
+          "text": "as on others. For example, prior research has demonstrated a coreference resolution model can behave very differently for different demographic groups (Zhao et al. 2018;Rudinger et al. 2018). DP may introduce bias because it steers a model away from relying on a select few data points, causing that model to attend poorly to social groups that are underrepresented in the training data.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2410.18749::section::0::para::3",
+          "section_id": "2410.18749::section::0",
+          "text": "In this work, we explore the impact of differential privacy on model bias in the pre-trained BERT language model. The degree of which can be tuned by adjusting the privacy budget parameter. We train the model with different privacy budgets and measure the bias across six identity subgroups using multiple metrics. We consider bias in the context of the toxic language detection task, which has been shown to produce biased models (Davidson, Bhattacharya, and Weber 2019). We choose two popular datasets, Jigsaw Unintended Bias (Borkan et al. 2019) and the Measuring Hate Speech from UCBerkeley (Kennedy et al. 2020). We use both prediction and probability-based bias metrics to analyze the effect of DP on the bias from different perspectives. We then investigate them in each identity group for any discriminatory behavior against them.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2410.18749::section::0::para::4",
+          "section_id": "2410.18749::section::0",
+          "text": "Contributions: In this work, we present a detailed analysis of the impact of DP training on bias in fine-tuned language models. We present our results on two popular hate speech datasets by training our models at different privacy levels and analyzing how it affects the model bias. We show that DP training makes the model more biased in terms of AUC-based metrics. DP also has negative effects on the model's utility when adopted to pertained LLM. Our findings will give new insights into the privacy and bias tradeoff, which can help NLP researchers incorporate DP into their works.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::1",
+      "paper_id": "2410.18749",
+      "heading": "Related Work",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::1::para::0",
+          "section_id": "2410.18749::section::1",
+          "text": "Prior research has shown from a theoretical perspective that DP has a detrimental effect on model fairness (Cummings et al. 2019;Tran, Dinh, and Fioretto 2021). Cummings et al. (2019) assume the conditions of \"pure DP\" (Dwork et al. 2006), and demonstrate that such a model cannot achieve perfect equal opportunity between social groups. Tran, Dinh, and Fioretto (2021) finds that model fairness has a disproportionately negative impact on accuracy for certain social groups.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::1::para::1",
+          "section_id": "2410.18749::section::1",
+          "text": "In computer vision, recent works have empirically investigated the effects of DP on model fairness in models with more realistic privacy settings. Empirical analyses have found that DP can worsen accuracy for certain subgroups in image recognition tasks (Bagdasaryan and Shmatikov 2019;Sanyal, Hu, and Yang 2022) and synthetic data generation tasks (Ganev, Oprisanu, and De Cristofaro 2021). Uniyal et al. (2021) showed both DP-SGD and PATE have a disparate impact on the under-represented groups, but PATE has significantly less disproportionate impact on utility compared to DP-SGD. Bagdasaryan and Shmatikov (2019) also found that DP can worsen model bias in sentiment analysis. However, they only considered a single bias metric (accuracy degradation between privileged and unprivileged groups) on a single dataset using a glove-based model. In our paper, we analyze pre-trained BERT models on multiple datasets using multiple bias metrics.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.18749::section::1::para::2",
+          "section_id": "2410.18749::section::1",
+          "text": "Balancing between fairness and privacy can provide a significant impact in using private models in practice. Private-FairNR (Cummings et al. 2019) algorithm approximately satisfies fairness for a private learner sampling hypothesis. Lyu, He, and Li (2020) formally guaranteed the privacy of extracted text representation, while also helping model fairness. They aimed to protect the test phase privacy of end users while adopting local DP (LDP) with the Laplace mechanism.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::2",
+      "paper_id": "2410.18749",
+      "heading": "Model Bias in NLP",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::2::para::0",
+          "section_id": "2410.18749::section::2",
+          "text": "Evaluating biases in NLP models requires a metric over some demographic groups. In this section, we describe the terminology for those groups and the metrics for bias evaluation.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::3",
+      "paper_id": "2410.18749",
+      "heading": "Terminology",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::3::para::0",
+          "section_id": "2410.18749::section::3",
+          "text": "Protected attributes refer to sensitive attributes such as gender and race that should not be used to discriminate against individuals (Hardt, Price, and Srebro 2016). Bias occurs when a model experiences a degradation in performance when inferring examples of certain social groups implied by a protected attribute such as gender or race. In our calculations of bias, we refer to a subgroup as the social group whose bias we are measuring and background as the rest of the evaluation set (Borkan et al. 2019). Prediction-based bias metrics calculate the bias against the protected attributes using the model's predicted label (e.g. positive/negative), whereas Probability-based bias metrics use the prediction probability to calculate bias. These definitions of bias metrics are done following Czarnowska, Vyas, and Shah (2021).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::4",
+      "paper_id": "2410.18749",
+      "heading": "Protected Attributes",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::4::para::0",
+          "section_id": "2410.18749::section::4",
+          "text": "Bias in NLP has been well studied within the protected attributes of gender (Zhao et al. 2019;Ravfogel et al. 2020) and race (Dixon et al. 2018;Davidson, Bhattacharya, and Weber 2019). Following this line of research, we choose to examine bias for sensitive attributes gender and race. In gender attribute the identity subgroups are male/men, female/-women, and transgender. For race attribute the identity subgroups are white, black, and asian.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::5",
+      "paper_id": "2410.18749",
+      "heading": "Bias Evaluation Metrics",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::5::para::0",
+          "section_id": "2410.18749::section::5",
+          "text": "A \"degradation in performance\" indicative of model bias can be measured in different ways. We consider metrics such as equality of odds metrics because of their prolific use in other NLP model fairness literature (Hardt, Price, and Srebro 2016;Borkan et al. 2019;Pruksachatkun et al. 2021;Reddy et al. 2021) and Bias-AUC because of its use as the benchmark in the Jigsaw Unintended Bias competition. We summarize all the different bias evaluation metrics we consider in Table 1. The implementations follow Hardt, Price, and Srebro (2016); Borkan et al. (2019) and Reddy et al. (2021). More details about these metrics are in Appendix A.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::6",
+      "paper_id": "2410.18749",
+      "heading": "Differential Privacy",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::6::para::0",
+          "section_id": "2410.18749::section::6",
+          "text": "Differential privacy (Dwork et al. 2006) (DP) aims to preserve privacy by means of a quantifiable protection guarantee and acceptable utility in the context of statistical information disclosure. It is the de facto definition for privacy.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::6::para::1",
+          "section_id": "2410.18749::section::6",
+          "text": "Many differing definitions of Differential Privacy exist. In the context of our work, we use the notion of (ε, δ)-privacy. Following Dwork et al. (2006), if we have some arbitrary operation A with output space S and two datasets D, D ′ that differ in only a single record, then we can formulate (ε, δ)privacy as",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.18749::section::6::para::2",
+          "section_id": "2410.18749::section::6",
+          "text": "By limiting any effect due to the inclusion of one individual's data (by the parameter ϵ), the DP notion approximates the effect of \"opting-out\": whether an individual's data is included or not does not influence the result much, thus the fact that the individual participated in the data release is protected.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2410.18749::section::6::para::3",
+          "section_id": "2410.18749::section::6",
+          "text": "To satisfy DP, noise is added to the aggregated-level results such that an individual's information disclosure is bounded. Our implementation in this paper uses the Gaussian mechanism (Dwork and Roth 2014) to guarantee (ϵ, δ)-DP.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2410.18749::section::6::para::4",
+          "section_id": "2410.18749::section::6",
+          "text": "DP in machine learning: When training models with DP, perturbations are added to the gradients (i.e., clipping the gradients and then adding Gaussian noise) (Abadi et al. 2016). More specifically, during the t-th iteration the optimizer will compute noisy gradients as:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2410.18749::section::6::para::5",
+          "section_id": "2410.18749::section::6",
+          "text": "where B is a subsampled batch used to compute the gradients, w t-1 is current model before t-th iteration, σ is noise multiplier,",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2410.18749::section::6::para::6",
+          "section_id": "2410.18749::section::6",
+          "text": ", each gradient is clipped by C, so that ĝt i has bounded ℓ 2 -sensitivity and we can use the Gaussian mechanism to ensure DP), and g t is the (noisy) gradient used to update the model.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2410.18749::section::6::para::7",
+          "section_id": "2410.18749::section::6",
+          "text": "Training a model requires multiple training epochs. Our formulation of DP is amenable to this practice. If we have",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::7",
+      "paper_id": "2410.18749",
+      "heading": "Bias Metric Formulation Short form",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::7::para::0",
+          "section_id": "2410.18749::section::7",
+          "text": "Demographic Parity (Hardt, Price, and Srebro 2016) (Hardt, Price, and Srebro 2016) 0.5 × [EqOpp0 + EqOpp1] EqOdd Protected Accuracy (Reddy et al. 2021) p( Ŷ = y|Y = y, A = 1), y ∈ {0, 1} p-acc Subgroup AUC (Borkan et al. 2019) AU C(",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::7::para::1",
+          "section_id": "2410.18749::section::7",
+          "text": "Table 1: X, Y, A denote the input, label, and sensitive attribute (e.g. male, female). Ŷ and p are the model's prediction and the output probability. All metrics are in the range [0 -1] and a higher value is better (less bias). D + g and D - g are the set of positive and negative examples in the identity subgroup g. D + and D -are the set of positive and negative examples outside g. k operations that satisfy some ε privacy constraint, we can combine those operations and maintain DP for O( √ kϵ). So we refer to ϵ as the privacy budget of a privacy-preserving algorithm.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::8",
+      "paper_id": "2410.18749",
+      "heading": "Impact of DP Methods on Fairness:",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::8::para::0",
+          "section_id": "2410.18749::section::8",
+          "text": "The purpose of the Gaussian Mechanism is to introduce enough noise such that the contribution of individual data points to model decisionmaking is limited. However, a byproduct of this approach is that the distinguishing features of underrepresented social groups within the dataset can be \"smoothed over.\" Thus, we conjecture that the DP model attends disproportionately worse to the underrepresented social groups and is thus biased. Later we present evidence supporting the fact that DP reduces model fairness.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::9",
+      "paper_id": "2410.18749",
+      "heading": "Datasets",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::9::para::0",
+          "section_id": "2410.18749::section::9",
+          "text": "We choose two popular toxicity detection datasets for our study, Jigsaw Unintended Bias (Borkan et al. 2019) and UCBerkeley Hate Speech (Kennedy et al. 2020). Both datasets (1) have target labels so that we can use supervised learning, (2) are for text classification using NLP techniques, and (3) have annotated social groups for all examples.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::10",
+      "paper_id": "2410.18749",
+      "heading": "Jigsaw Unintended Bias",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::10::para::0",
+          "section_id": "2410.18749::section::10",
+          "text": "The Jigsaw Unintended Bias dataset was developed to learn and minimize any unintended bias against different identities that a machine learning model might learn when trying to predict toxicity 1 . Here toxicity is defined as anything rude or disrespectful that can make someone leave a discussion. The dataset has annotations for demographic groups by disability, gender, race or ethnicity, religion, and sexual orientation. The complete dataset has about 2 million examples. We report the label distribution for each identity in Table 2.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::10::para::1",
+          "section_id": "2410.18749::section::10",
+          "text": "Train/Validation/Test split: We undersampled the training dataset using a 2:1 ratio between the non-toxic and toxic labels. Due to computing resource limitations, we then halved the training set, making sure to preserve the 2:1 label 1 https://www.tensorflow.org/datasets/catalog/civil comments distribution. This yielded a training set with 144,334 nontoxic examples and 72,167 toxic examples. We use the preexisting splits from the source for the validation and test data. This yielded a test and a validation set each with 97,320 examples.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::11",
+      "paper_id": "2410.18749",
+      "heading": "UCBerkeley Hate Speech",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::11::para::0",
+          "section_id": "2410.18749::section::11",
+          "text": "This datasetfoot_0 is a collection of online comments from three major social media platforms (YouTube, Twitter, and Reddit) which were later labeled by human annotators through crowd-sourcing (Kennedy et al. 2020). It provides a unique way to measure hate speech at eight theorized qualitative from genocidal hate speech to counter speech. The dataset comes with annotations for the targeted group in the comment text.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::11::para::1",
+          "section_id": "2410.18749::section::11",
+          "text": "Pre-processing: The original dataset has 135,556 comments and the annotations for 'hatespeech' contain 3 classes: 0 for neutral or counter speech, 1 when the annotator is unclear, and 2 for hate speech. For the simplicity of the experiment, we dropped comments with label 1, converting the task to a binary classification where hate speech is a positive class and non-hate speech is negative. The dataset also had multiple annotations per comment. We aggregated the annotations for each comment. If any comment had the same label at least from 50% of the annotators, then it was chosen as true, otherwise false. After aggregation, we had 38,564 comments left. Additionally, the dataset contains transgender identity labels split into multiple groups (transgender men, transgender women, transgender unspecified). We combined them in a single transgender column for bias calculation.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.18749::section::11::para::2",
+          "section_id": "2410.18749::section::11",
+          "text": "Train/Validation/Test split: We randomly split the aggregated data into train, validation, and test sets using a 70:15:15 ratio.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::12",
+      "paper_id": "2410.18749",
+      "heading": "Experimental Setup",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::12::para::0",
+          "section_id": "2410.18749::section::12",
+          "text": "Model: We use the pre-trained BERT-base-uncased model from HuggingFace 3 to perform all our experiments in this section. For training the model on downstream tasks we choose only to train the last three layers (final encoder layer, pooler, classifier). The rest of the layers were frozen, yielding 7.6 M trainable parameters out of a total of 109M. We choose to train only these layers because: 1) DP is more effective when applied to fewer layers, and 2) we can utilize BERT's rich pre-trained embeddings. Input texts were tokenized using the BERT-base-uncased tokenizer from HuggingFace. The comment texts were generally not very lengthy, so we kept the maximum sequence length to 128 across both datasets. The batch size was set to 64.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::12::para::1",
+          "section_id": "2410.18749::section::12",
+          "text": "Optimization: We use the Adam optimizer with crossentropy loss and learning rate 10 -3 . We train each model for a maximum of 10 epochs. At each epoch, the trained model is evaluated on the validation set and saved if the F1 score improves. Early stopping patience was 3. We also used a learning rate scheduler ( ReduceLROnPlateau) to reduce the learning rate by a factor of 0.1 if the validation F1 score does not improve for more than one epoch.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.18749::section::12::para::2",
+          "section_id": "2410.18749::section::12",
+          "text": "Privacy: We use the Pytorch Opacus library (Yousefpour et al. 2021). It provides a privacy engine to train models with DP-SGD (Abadi et al. 2016). DP-SGD was chosen since it is the most widely used one in the related works (Bagdasaryan and Shmatikov 2019;Tran, Dinh, and Fioretto 2021;Anil et al. 2021), supports iterative training process (McMahan et al. 2018) and available as a framework. We use the make private with epsilon method offered by the library, which takes as input the model to be trained, optimizer, training data, number of epochs, target ϵ, target δ and maximum gradient norm. The target epsilon is the privacy budget we want to achieve. For a reasonable privacy guarantee, ϵ should be set below 10 (Abadi et al. 2016) and this setting has been followed in other applications of DP on NLP (Bagdasaryan and Shmatikov 2019;Anil et al. 2021;Lyu, He, and Li 2020). For our task, we experimented with 3 https://huggingface.co/bert-base-uncased five different target epsilons 0.5, 1.0, 3.0, 6.0, and 9.0. The smaller the value the more private the model is. This will show us the change in model behavior at different privacy levels.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2410.18749::section::12::para::3",
+          "section_id": "2410.18749::section::12",
+          "text": "Evaluation: We tune the training process using the F1 score on the validation set, then checkpoint the best model based on that, and finally use that model to evaluate the test set. We have presented the final test results in the next section. Each of the experiments has been run three times with arbitrarily chosen random seeds 2022, 42, and 888. The average score is reported.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::13",
+      "paper_id": "2410.18749",
+      "heading": "Overall Results",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::13::para::0",
+          "section_id": "2410.18749::section::13",
+          "text": "Here we present the impact of adding DP on the overall model utility for both datasets. Table 3 shows that for both datasets the model utility decreases with stricter privacy (smaller ϵ). However, for the UCBerkeley dataset, the false positive rate increases, and the recall drops significantly. This shows the model predicts fewer positive cases with added privacy. The recall drop is also significant for Jigsaw. This decrease in overall performance also impacts the performance of the identity subgroups.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::14",
+      "paper_id": "2410.18749",
+      "heading": "Prediction Based Metrics",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::14::para::0",
+          "section_id": "2410.18749::section::14",
+          "text": "Equality of Odds, parity, and protected accuracy are prediction-based bias metrics. They calculate the bias score based on the model's prediction. We present the results in Table 4 for both datasets. For each identity, we report the best and the worst results, as well as the privacy budget that achieves that result. The closer these scores are to 1, the less the bias is.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::14::para::1",
+          "section_id": "2410.18749::section::14",
+          "text": "Table 4 shows several trends depending on the dataset and metric. The equality of odds always improves with a strict privacy budget (small ϵ). However, this is due to a significant drop in recall (Figure 5) for most groups. They are reduced to a smaller score range. Thus the TPR difference becomes smaller, hence improving the EqOpp1 (Figure 3).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.18749::section::14::para::2",
+          "section_id": "2410.18749::section::14",
+          "text": "The trend in demographic parity is the opposite in both datasets. With a stricter privacy budget, parity decreased in the Jigsaw (2-3%) but increased in the UCBerkeley dataset",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2410.18749::section::14::para::3",
+          "section_id": "2410.18749::section::14",
+          "text": "Metric Jigsaw -Privacy Budget (ϵ) UCBerkeley -Privacy Budget (ϵ) ∞ ≤ 9.0 ≤ 6.0 ≤ 3.0 ≤ 1.0 ≤ 0.5 ∞ ≤ 9.0 ≤ 6.0 ≤ 3.0 ≤ 1.0 ≤ 0.5 Acc 0.911 0.887 0.886 0.884 0.871 0.870 0.807 0.787 0.787 0.785 0.779 0.772 F1 0.593 0.522 0.518 0.508 0.459 0.440 0.647 0.554 0.559 0.539 0.523 0.480 AUC 0.946 0.920 0.918 0.913 0.886 0.872 0.855 0.813 0.819 0.814 0.802 0.790 FPR 0.080 0.102 0.103 0.105 0.113 0.111 0.120 0.086 0.089 0.079 0.082 0.069 TPR 0.809 0.768 0.763 0.751 0.686 0.642 0.623 0.469 0.476 0.443 0.427 0.371 Table 4: Prediction Based Bias (Jigsaw). The privacy budget (ϵ) for each metric is mentioned in the parentheses. The trends are not monotonic and can be mixed. Smaller ϵ means stricter privacy.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2410.18749::section::14::para::4",
+          "section_id": "2410.18749::section::14",
+          "text": "(4-11%). An increase in this value indicates that the model's decision of whether the comment is toxic or not is more independent of the protected group (Hardt, Price, and Srebro 2016). We show in Section 8 that DP increases positive predictions in Jigsaw and decreases them in UCBerkeley. More positive predictions increase the probability of disparity among different subgroups of Jigsaw. Similarly in the UCBerkeley dataset, since there are fewer positive predictions from the model, the disparity based on positive outcomes decreases too.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2410.18749::section::14::para::5",
+          "section_id": "2410.18749::section::14",
+          "text": "The protected accuracy has mixed trends in the Jigsaw dataset, changing in either direction. In the UCBerkeley dataset, there is a 2-5% drop with DP training. The detailed plots for these metrics at each privacy budget and for each identity are in Appendix B.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::15",
+      "paper_id": "2410.18749",
+      "heading": "Probability Based Metrics",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::15::para::0",
+          "section_id": "2410.18749::section::15",
+          "text": "This section presents the bias calculated using the metrics presented by Borkan et al. (2019). These metrics are dependent on the model's prediction probability, hence better representing the bias in the model's confidence. They are also threshold agnostic, unlike prediction-based metrics.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::15::para::1",
+          "section_id": "2410.18749::section::15",
+          "text": "Figure 1 shows that for stricter privacy (smaller ϵ), both BNSP and BPSN drop significantly for most identities. A drop in BNSP means the scores for positive examples in these subgroups are lower than the scores for other negative examples in the background data. These examples would likely appear as false negatives within the subgroup at many thresholds (Borkan et al. 2019).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.18749::section::15::para::2",
+          "section_id": "2410.18749::section::15",
+          "text": "Similarly, a drop in BPSN means scores for negative examples in these subgroups are higher than scores for other positive examples in the background. These examples would likely appear as false positives within these subgroups at many thresholds (Borkan et al. 2019). A decrease in the subgroup AUC score shows that the model can not understand and separate the positive and negative examples within the subgroup. These drops between non-DP training and training with DP at ϵ ≤ 0.5 are highlighted in Table 5, showing an increase in bias at stricter privacy budgets, compared to non-DP training.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2410.18749::section::15::para::3",
+          "section_id": "2410.18749::section::15",
+          "text": "Figure 1 shows some interesting cases. In the Jigsaw dataset, white and black identities have much lower AUC and BPSN scores compared to others. Similarly in the UCBerkeley dataset, men and women have much lower AUC and BPSN scores than other identities. This shows that the DP models more often tend to label non-toxic comments mentioning these identities as toxic, compared to the non-DP models.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2410.18749::section::15::para::4",
+          "section_id": "2410.18749::section::15",
+          "text": "Figure 1: AUC based bias (Borkan et al. 2019). BNSP for Jigsaw and BPSN for UCBerkeley drop significantly with a much smaller ϵ. The larger the drop, the more biased the model w.r.t that metric.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2410.18749::section::15::para::5",
+          "section_id": "2410.18749::section::15",
+          "text": "Additionally, DP amplifies the difference in the AUC gap between white and Asian subgroups in Jigsaw and white and black subgroups in UCBerkeley. The non-DP model already had a gap in AUC between them, but DP increases it.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2410.18749::section::15::para::6",
+          "section_id": "2410.18749::section::15",
+          "text": "8 Discussion DP's Positive Impact on Equality of Odds and Opportunities. Equality of odds is a function of relative true positive and false positive rates between a subgroup and the background population. As such we investigate why the ad-dition of noise does not decrease relative TPR (recall) and FPR. DP adds noise in the training phase which adversely affects overall model performance (Table 3). The model experiences a degradation in the recall for all social groups as the privacy setting increases. As illustrated in Figure 5 in Appendix D, we find that with private training, the recall values grow more similar. The direct effect of this phenomenon is to minimize the difference in TPR between a subgroup and a background population, contributing to an overall improvement in equality of odds. However, we find that such",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2410.18749::section::15::para::7",
+          "section_id": "2410.18749::section::15",
+          "text": "Table 6: Predicted Label Distribution a trend is not necessarily indicative of a decrease in bias but instead indicates that a model is losing its ability to differentiate between the positive and negative classes.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::16",
+      "paper_id": "2410.18749",
+      "heading": "DP's Impact on Probability-based Bias.",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::16::para::0",
+          "section_id": "2410.18749::section::16",
+          "text": "The decrease in overall model AUC scores also affects the subgroup AUC, BPSN, and BNSP, as shown in Table 5. The model makes more mistakes in differentiating the positive and negative examples between the subgroups and the background data, even within the subgroup itself. Thus introducing substantial bias against those subgroups at different prediction thresholds. Borkan et al. (2019) showed these subtle biases in the toxicity datasets might not be captured by predictionbased metrics like EqOdd, which are dependent on prediction thresholds. So we have prioritized the AUC-based bias metrics (subgroup AUC, BPSN, BNSP) over the other ones to investigate any potential bias.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::16::para::1",
+          "section_id": "2410.18749::section::16",
+          "text": "Predicted Label Distribution. We found DP has opposite effects on the two datasets about total toxic comments being predicted, as shown in Table 6. In Jigsaw, increasing privacy in the training increases the number of toxic predictions. In the UCBerkeley dataset, the number of toxic predictions decreases with an increased privacy budget. It can be attributed to how the dataset is distributed. Kennedy et al. (2020) targeted an even distribution of labeled comments across different hate intensity levels, with a focus on finding more hate speech examples, whereas in Jigsaw there was no such filtering when creating the dataset. So model trained on UCBerkeley is more skewed toward hate comments, whereas with Jigsaw it is the opposite. Adding DP introduces both noise and gradient clipping during the training and thus reduces this skewness. Finally increases the plausibility of predicting opposite examples.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::17",
+      "paper_id": "2410.18749",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::17::para::0",
+          "section_id": "2410.18749::section::17",
+          "text": "In this work, we explore how differential privacy affects the bias in NLP models. We found DP increases model bias and the impact of that increase varies across different identities. We perform our empirical analysis on two hate/toxic language detection datasets. We evaluated the gender and racial bias of the model using different bias metrics for models trained at different privacy budgets (ϵ). We found that (Table 5) stronger privacy budgets cause the model to have more difficulty distinguishing between the positive/negative examples in the identity subgroup from negative/positive examples in other subgroups at different prediction thresholds (Borkan et al. 2019). We also observe an increase in equality of odds at a much stricter privacy level, mainly because the recall drops significantly for each group, reducing the difference between them. However, the protected accuracy also drops in most cases. Our overall observations confirm that DP increases bias in the NLP models for hate speech detection, and NLP researchers need to be aware of this bias when adding privacy to NLP models.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::18",
+      "paper_id": "2410.18749",
+      "heading": "Limitations",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::18::para::0",
+          "section_id": "2410.18749::section::18",
+          "text": "We make our observations based on toxicity and hate speech detection tasks. However, bias in NLP has also been investigated in other tasks like coreference resolution (Zhao et al. 2019), sentiment analysis (Kiritchenko and Mohammad 2018), and question answering. Whether trends found in our results persist in those tasks too, is something to be explored for future works. We consider six different identity subgroups across two protected attributes (race, and gender). There exist more sensitive attributes in the dataset like religion and sexual orientation which are not explored here but can be explored in future works. We saw similar trends in bias across both selected attributes and the identity subgroups. Even with new attributes or subgroups, the trends should persist similarly.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::19",
+      "paper_id": "2410.18749",
+      "heading": "A Bias Evaluation Metrics",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::19::para::0",
+          "section_id": "2410.18749::section::19",
+          "text": "Equality of Odds (EqOdd). EqOdd (Hardt, Price, and Srebro 2016) is widely used to measure unequal treatments against protected groups in the dataset. The metric combines the disparity in false positive and true positive rates for two social groups in the same protected class. The disparity in false positive and true positive rates respectively are given by the equality of opportunity metric.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::20",
+      "paper_id": "2410.18749",
+      "heading": "Demographic Parity (Parity).",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::20::para::0",
+          "section_id": "2410.18749::section::20",
+          "text": "Demographic Parity (Hardt, Price, and Srebro 2016) enforces the model's prediction to be independent of the protected attribute. The metric computes the difference in likelihood between unprotected or protected examples to be classified as positive.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.18749::section::20::para::1",
+          "section_id": "2410.18749::section::20",
+          "text": "Subgroup AUC, BPSN, and BNSP. The Subgroup AUC, BPSN, and BNSP metrics (Borkan et al. 2019) measure the unintended bias in the dataset based on the AUC metric. AUC is threshold agnostic, unlike equality of odds or other prediction-based metrics that require converting model predictions into positive or negative classes using some threshold. The choice of threshold can change the results and provide misleading measurements. These metrics can be used to find new and potentially subtle biases in models.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::21",
+      "paper_id": "2410.18749",
+      "heading": "B Prediction Based Bias Metrics",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::21::para::0",
+          "section_id": "2410.18749::section::21",
+          "text": "We present more detailed results on the prediction-based bias metrics here. Figure 2 shows the equality of odds for all identities at all privacy budgets. Figure 3 shows the equality of opportunity w.r.t 0 and 1. We also present the detailed demographic parity and protected accuracy in Figure 4.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::22",
+      "paper_id": "2410.18749",
+      "heading": "C Bias Gap between Groups",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::22::para::0",
+          "section_id": "2410.18749::section::22",
+          "text": "In this section, we show how much DP affects the gap between bias metrics of a pair of groups from the same attribute (race, gender). Table 7 shows the results in terms of AUC-based bias metrics for a non-private (eϵ → ∞) and a private (ϵ ≤ 0.5 )model. The results show that in many cases DP significantly widens the gap between bias metrics of different groups. For most other cases the gap changes slightly. And in rare occasions, there is a drop in the gap.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.18749::section::23",
+      "paper_id": "2410.18749",
+      "heading": "D Others",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2410.18749::section::23::para::0",
+          "section_id": "2410.18749::section::23",
+          "text": "Figure 5 shows the precision and recall for each identity subgroup. We can see recall decreases for both datasets with a much stricter privacy budget. For precision, the trends are not that clear, as they increase for some and decrease for others. In UCBerkeley we see there is a big gap in the precision score. The Black and Asian subgroups have much higher precision than others. In the Jigsaw dataset, the precision is comparatively lower for everyone. This is because the test dataset has very few positive cases 2. 1RQ'3 PDOH IHPDOH WUDQVJHQGHU ZKLWH EODFN DVLDQ (a) Jigsaw -EqOpp0 1RQ'3 PHQ ZRPHQ WUDQVJHQGHU ZKLWH EODFN DVLDQ (b) UCBerkeley -EqOpp0 1RQ'3 PDOH IHPDOH WUDQVJHQGHU ZKLWH EODFN DVLDQ (c) Jigsaw -EqOpp1 1RQ'3 PHQ ZRPHQ WUDQVJHQGHU ZKLWH EODFN DVLDQ (d) UCBerkeley -EqOpp1 Figure 3: Equality of Opportunity 1RQ'3 PDOH IHPDOH WUDQVJHQGHU ZKLWH EODFN DVLDQ (a) Jigsaw -Parity 1RQ'3 PHQ ZRPHQ WUDQVJHQGHU ZKLWH EODFN DVLDQ (b) UCBerkeley -Parity 1RQ'3 PDOH IHPDOH WUDQVJHQGHU ZKLWH EODFN DVLDQ (c) Jigsaw -Protected Accuracy 1RQ'3 PHQ ZRPHQ WUDQVJHQGHU ZKLWH EODFN DVLDQ (d) UCBerkeley -Protected Accuracy Figure 4: Parity and Protected Accuracy",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2410.18749::figure::0",
+      "paper_id": "2410.18749",
+      "figure_number": "Figure 4 :",
+      "caption": "Figure 2: Equality of Odds",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_0",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.18749::figure::1",
+      "paper_id": "2410.18749",
+      "figure_number": "Figure 5 :",
+      "caption": "Figure 5: Precision Recall",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_1",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2410.18749::table::0",
+      "paper_id": "2410.18749",
+      "table_number": "Table 2 :",
+      "caption": "Distribution of identities in both datasets. Total is the class distribution in the dataset after pre-processing. Class 1 is for toxic and 0 for non-toxic.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "",
+          "",
+          "Jigsaw",
+          "",
+          "",
+          "UCBerkeley",
+          ""
+        ],
+        [
+          "Group",
+          "Train",
+          "Test",
+          "",
+          "Train",
+          "Test",
+          ""
+        ],
+        [
+          "",
+          "class 0 class 1 class 0 class 1 class 0 class 1 class 0 class 1"
+        ],
+        [
+          "Male",
+          "3187",
+          "3375",
+          "1792",
+          "320",
+          "2361",
+          "796",
+          "502",
+          "171"
+        ],
+        [
+          "Female",
+          "3950",
+          "3639",
+          "2252",
+          "350",
+          "4852",
+          "2305",
+          "1042",
+          "511"
+        ],
+        [
+          "Transgender",
+          "158",
+          "287",
+          "103",
+          "26",
+          "882",
+          "244",
+          "196",
+          "51"
+        ],
+        [
+          "White",
+          "1507",
+          "3612",
+          "825",
+          "353",
+          "1694",
+          "643",
+          "378",
+          "132"
+        ],
+        [
+          "Black",
+          "901",
+          "2369",
+          "515",
+          "246",
+          "2103",
+          "1568",
+          "483",
+          "337"
+        ],
+        [
+          "Asian",
+          "358",
+          "282",
+          "196",
+          "21",
+          "831",
+          "207",
+          "195",
+          "53"
+        ],
+        [
+          "Total",
+          "144334 72167 89543",
+          "7777",
+          "19376",
+          "7618",
+          "4142",
+          "1643"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.18749::table::1",
+      "paper_id": "2410.18749",
+      "table_number": "Table 3 :",
+      "caption": "Overall model performance. The results are best for the non-DP training (ϵ → ∞) and worst at the most strict privacy budget, ϵ ≤ 0.5.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "",
+          "",
+          "Jigsaw",
+          "",
+          "",
+          "UCBerkeley",
+          ""
+        ],
+        [
+          "Group",
+          "EqOdd",
+          "parity",
+          "p-acc",
+          "EqOdd",
+          "parity",
+          "p-acc"
+        ],
+        [
+          "Male",
+          "min 0.894 (6.0) 0.852 (1.0) 0.741 (1.0) 0.955 (∞) 0.763 (∞) 0.765 (1.0) max 0.928 (0.5) 0.872 (∞) 0.801 (∞) 0.983 (0.5) 0.868 (0.5) 0.799 (∞)"
+        ],
+        [
+          "Female",
+          "min 0.932 (9.0) 0.851 (1.0) 0.785 (9.0) 0.937 (∞) 0.890 (∞) 0.717 (0.5) max 0.940 (0.5) 0.872 (∞) 0.822 (∞) 0.957 (3.0) 0.929 (0.5) 0.756 (∞)"
+        ],
+        [
+          "Transgender",
+          "min 0.818 (9.0) 0.842 (1.0) 0.674 (∞) 0.910 (∞) 0.740 (∞) 0.815 (9.0) max 0.952 (0.5) 0.863 (∞) 0.785 (0.5) 0.962 (0.5) 0.848 (0.5) 0.839 (∞)"
+        ],
+        [
+          "White",
+          "min 0.734 (9.0) 0.853 (1.0) 0.588 (6.0) 0.917 (9.0) 0.752 (∞) 0.769 (9.0) max 0.842 (0.5) 0.875 (∞) 0.647 (0.5) 0.940 (1.0) 0.851 (0.5) 0.800 (∞)"
+        ],
+        [
+          "Black",
+          "min 0.777 (∞) 0.847 (1.0) 0.636 (9.0) 0.812 (3.0) 0.836 (∞) 0.761 (0.5) max 0.901 (0.5) 0.871 (∞) 0.697 (0.5) 0.855 (∞) 0.924 (0.5) 0.821 (∞)"
+        ],
+        [
+          "Asian",
+          "min 0.916 (∞) 0.842 (1.0) 0.814 (9.0) 0.871 (∞) 0.737 (∞) 0.823 (0.5) max 0.976 (0.5) 0.863 (∞) 0.859 (∞) 0.894 (0.5) 0.844 (0.5) 0.847 (∞)"
+        ],
+        [
+          "Trend ϵ ↓",
+          "↑",
+          "↓",
+          "↑↓",
+          "↑",
+          "↑",
+          "↓"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.18749::table::2",
+      "paper_id": "2410.18749",
+      "table_number": "Table 5 :",
+      "caption": "Decrease in probability-based bias from non-DP training to training with ϵ ≤ 0.5. The biggest drop along each metric column for each sensitive attribute (race, gender) is in bold. The DP model is found to be 4-11% more biased in several identity groups.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_2",
+      "raw_data": [
+        [
+          "",
+          "",
+          "",
+          "Jigsaw",
+          "",
+          "",
+          "UCBerkeley"
+        ],
+        [
+          "Group",
+          "∆ Subgroup AUC ∆ BPSN ∆ BNSP ∆ Subgroup AUC ∆ BPSN ∆ BNSP"
+        ],
+        [
+          "Male",
+          "",
+          "0.097",
+          "0.064",
+          "0.109",
+          "0.081",
+          "0.036",
+          "0.108"
+        ],
+        [
+          "Female",
+          "",
+          "0.079",
+          "0.067",
+          "0.087",
+          "0.067",
+          "0.037",
+          "0.100"
+        ],
+        [
+          "Transgender",
+          "0.008",
+          "0.082",
+          "0.028",
+          "0.033",
+          "0.017",
+          "0.067"
+        ],
+        [
+          "White",
+          "",
+          "0.063",
+          "0.058",
+          "0.088",
+          "0.057",
+          "0.070",
+          "0.055"
+        ],
+        [
+          "Black",
+          "",
+          "0.081",
+          "0.098",
+          "0.034",
+          "0.036",
+          "0.047",
+          "0.060"
+        ],
+        [
+          "Asian",
+          "",
+          "0.016",
+          "0.036",
+          "0.067",
+          "0.069",
+          "0.086",
+          "0.045"
+        ],
+        [
+          "Budget",
+          "Jigsaw",
+          "UCBerkeley",
+          "",
+          "",
+          ""
+        ],
+        [
+          "(ϵ)",
+          "True False True False",
+          "",
+          "",
+          ""
+        ],
+        [
+          "∞",
+          "0.138 0.862 0.227 0.737",
+          "",
+          "",
+          ""
+        ],
+        [
+          "9.0",
+          "0.155 0.845 0.195 0.805",
+          "",
+          "",
+          ""
+        ],
+        [
+          "6.0",
+          "0.156 0.844 0.200 0.801",
+          "",
+          "",
+          ""
+        ],
+        [
+          "3.0",
+          "0.156 0.845 0.183 0.817",
+          "",
+          "",
+          ""
+        ],
+        [
+          "1.0",
+          "0.159 0.841 0.180 0.820",
+          "",
+          "",
+          ""
+        ],
+        [
+          "0.5",
+          "0.153 0.847 0.155 0.845",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.18749::table::3",
+      "paper_id": "2410.18749",
+      "table_number": "Table 7 :",
+      "caption": "5Difference in AUC-based bias metrics between groups of the same attribute (race, gender). Cases where the gap between bias changed significantly are in bold.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_3",
+      "raw_data": [
+        [
+          "Male",
+          "Female",
+          "0.015",
+          "0.036",
+          "0.008",
+          "0.011",
+          "0.003",
+          "0.020",
+          "0.020",
+          "0.012",
+          "0.023",
+          "0.022",
+          "0.009",
+          "0.004"
+        ],
+        [
+          "Male",
+          "Trans.",
+          "0.048",
+          "0.033",
+          "0.016",
+          "0.034",
+          "0.098",
+          "0.010",
+          "0.069",
+          "0.110",
+          "0.380",
+          "0.190",
+          "0.056",
+          "0.103"
+        ],
+        [
+          "Female Trans.",
+          "0.063",
+          "0.003",
+          "0.008",
+          "0.023",
+          "0.101",
+          "0.030",
+          "0.089",
+          "0.122",
+          "0.061",
+          "0.041",
+          "0.065",
+          "0.099"
+        ],
+        [
+          "White",
+          "Black",
+          "0.012",
+          "0.066",
+          "0.003",
+          "0.042",
+          "0.012",
+          "0.006",
+          "0.046",
+          "0.051",
+          "0.097",
+          "0.012",
+          "0.066",
+          "0.085"
+        ],
+        [
+          "White",
+          "Asian",
+          "0.142",
+          "0.163",
+          "0.039",
+          "0.016",
+          "0.089",
+          "0.136",
+          "0.063",
+          "0.073",
+          "0.052",
+          "0.068",
+          "0.041",
+          "0.028"
+        ],
+        [
+          "Black",
+          "Asian",
+          "0.130",
+          "0.097",
+          "0.036",
+          "0.026",
+          "0.077",
+          "0.142",
+          "0.109",
+          "0.129",
+          "0.149",
+          "0.189",
+          "0.025",
+          "0.057"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2410.18749::equation::0",
+      "paper_id": "2410.18749",
+      "latex": "Pr(A(D) \\in S) \\le e ϵ Pr(A(D ′ ) \\in S) + \\delta .",
+      "equation_number": null,
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.18749::equation::1",
+      "paper_id": "2410.18749",
+      "latex": "g t = 1 |B| ( xi \\in B ĝt i + N 0, \\sigma 2 C 2 I ),",
+      "equation_number": null,
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.18749::equation::2",
+      "paper_id": "2410.18749",
+      "latex": "ĝt i = \\nabla f (x i ; w t-1 ) min{1, C ∥ \\nabla f (xi;w t-1 )∥2 } (i.e.",
+      "equation_number": null,
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.18749::equation::3",
+      "paper_id": "2410.18749",
+      "latex": "1 -|p( Ŷ = 1|A = 1) -p( Ŷ = 1|A = 0)| parity Equality of Opportunity (w.r.t Y = 1) 1 -|p( Ŷ = 1|Y = 1, A = 1) -p( Ŷ = 1|Y = 1, A = 0)| EqOpp1 Equality of Opportunity (w.r.t Y = 0) 1 -|p( Ŷ = 1|Y = 0, A = 1) -p( Ŷ = 1|Y = 0, A = 0)| EqOpp0 Equality of Odds",
+      "equation_number": null,
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.18749::equation::4",
+      "paper_id": "2410.18749",
+      "latex": "D - g + D + g ) Background Pos, Subgroup Neg (Borkan et al. 2019) AU C(D + + D - g ) BPSN Background Neg, Subgroup Pos (Borkan et al. 2019) AU C(D -+ D + g ) BNSP",
+      "equation_number": null,
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.18749::equation::5",
+      "paper_id": "2410.18749",
+      "latex": "1RQ'3 PDOH IHPDOH WUDQVJHQGHU ZKLWH EODFN DVLDQ (a) BPSN (Jigsaw) 1RQ'3 PHQ ZRPHQ WUDQVJHQGHU ZKLWH EODFN DVLDQ (b) BPSN (UCBerkeley) 1RQ'3 PDOH IHPDOH WUDQVJHQGHU ZKLWH EODFN DVLDQ (c) BNSP (Jigsaw) 1RQ'3 PHQ ZRPHQ WUDQVJHQGHU ZKLWH EODFN DVLDQ (d) BNSP (UCBerkeley) 1RQ'3 PDOH IHPDOH WUDQVJHQGHU ZKLWH EODFN DVLDQ (e) Subgroup AUC (Jigsaw) 1RQ'3 PHQ ZRPHQ WUDQVJHQGHU ZKLWH EODFN DVLDQ (f) Subgroup AUC (UCBerkeley)",
+      "equation_number": null,
+      "grobid_ref_id": "formula_5",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.18749::equation::6",
+      "paper_id": "2410.18749",
+      "latex": "Trend ϵ ↓ ↑ ↓ ↓ ↑",
+      "equation_number": null,
+      "grobid_ref_id": "formula_6",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.18749::equation::7",
+      "paper_id": "2410.18749",
+      "latex": "Subgroup Jigsaw UCBerkeley ∆ BPSN ∆ BNSP ∆AUC ∆ BPSN ∆ BNSP ∆ AUC ϵ \\to \\infty ϵ \\le 0.5 ϵ \\to \\infty ϵ \\le 0.5 ϵ \\to \\infty ϵ \\le 0.5 ϵ \\to \\infty ϵ \\le 0.5 ϵ \\to \\infty ϵ \\le 0.5 ϵ \\to \\infty ϵ \\le 0.",
+      "equation_number": null,
+      "grobid_ref_id": "formula_7",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2410.18749::citation::0",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Deep learning with differential privacy",
+      "cited_authors": [
+        "M Abadi",
+        "A Chu",
+        "I Goodfellow",
+        "H B Mcmahan",
+        "I Mironov",
+        "K Talwar",
+        "L Zhang"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::1",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Large-scale differentially private bert",
+      "cited_authors": [
+        "R Anil",
+        "B Ghazi",
+        "V Gupta",
+        "R Kumar",
+        "P Manurangsi"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2108.01624",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::2",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Differential Privacy Has Disparate Impact on Model Accuracy",
+      "cited_authors": [
+        "E Bagdasaryan",
+        "V Shmatikov"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::3",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Nuanced metrics for measuring unintended bias with real data for text classification",
+      "cited_authors": [
+        "D Borkan",
+        "L Dixon",
+        "J Sorensen",
+        "N Thain",
+        "L Vasserman"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::4",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Erlingsson, U.; et al. 2021. Extracting training data from large language models",
+      "cited_authors": [
+        "N Carlini",
+        "F Tramer",
+        "E Wallace",
+        "M Jagielski",
+        "A Herbert-Voss",
+        "K Lee",
+        "A Roberts",
+        "T Brown",
+        "D Song"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::5",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "On the Compatibility of Privacy and Fairness",
+      "cited_authors": [
+        "R Cummings",
+        "V Gupta",
+        "D Kimpara",
+        "J Morgenstern"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::6",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Quantifying Social Biases in NLP: A Generalization and Empirical Comparison of Extrinsic Fairness Metrics",
+      "cited_authors": [
+        "P Czarnowska",
+        "Y Vyas",
+        "K Shah"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::7",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Racial Bias in Hate Speech and Abusive Language Detection Datasets",
+      "cited_authors": [
+        "T Davidson",
+        "D Bhattacharya",
+        "I Weber"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::8",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "cited_authors": [
+        "J Devlin",
+        "M.-W Chang",
+        "K Lee",
+        "K Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::9",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Measuring and Mitigating Unintended Bias in Text Classification",
+      "cited_authors": [
+        "L Dixon",
+        "J Li",
+        "J Sorensen",
+        "N Thain",
+        "L Vasserman"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::10",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Calibrating noise to sensitivity in private data analysis",
+      "cited_authors": [
+        "C Dwork",
+        "F Mcsherry",
+        "K Nissim",
+        "A Smith"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::11",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "The Algorithmic Foundations of Differential Privacy",
+      "cited_authors": [
+        "C Dwork",
+        "A Roth"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::12",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Robin Hood and Matthew Effects-Differential Privacy Has Disparate Impact on Synthetic Data",
+      "cited_authors": [
+        "G Ganev",
+        "B Oprisanu",
+        "E De Cristofaro"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2109.11429",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::13",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Equality of opportunity in supervised learning",
+      "cited_authors": [
+        "M Hardt",
+        "E Price",
+        "N Srebro"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::14",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Constructing interval variables via faceted Rasch measurement and multitask deep learning: a hate speech application",
+      "cited_authors": [
+        "C J Kennedy",
+        "G Bacon",
+        "A Sahn",
+        "C Vacano"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:2009.10277",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::15",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Differentially Private Representation for NLP: Formal Guarantee and An Empirical Study on Privacy and Fairness",
+      "cited_authors": [
+        "L Lyu",
+        "X He",
+        "Y Li"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::16",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Does Robustness Improve Fairness? Approaching Fairness with Word Substitution Robustness Methods for Text Classification",
+      "cited_authors": [
+        "H B Mcmahan",
+        "G Andrew",
+        "U Erlingsson",
+        "S Chien",
+        "I Mironov",
+        "N Papernot",
+        "P Kairouz",
+        "Y Pruksachatkun",
+        "S Krishna",
+        "J Dhamala",
+        "R Gupta",
+        "K Chang",
+        "S Ravfogel",
+        "Y Elazar",
+        "H Gonen",
+        "M Twiton",
+        "Y Goldberg"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1812.06210",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::17",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Benchmarking bias mitigation algorithms in representation learning through fairness metrics",
+      "cited_authors": [
+        "C Reddy",
+        "D Sharma",
+        "S Mehri",
+        "A Romero-Soriano",
+        "S Shabanian",
+        "S Honari",
+        "R Rudinger",
+        "J Naradowsky",
+        "B Leonard",
+        "B Van Durme"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::18",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Differentially Private Deep Learning under the Fairness Lens",
+      "cited_authors": [
+        "A Sanyal",
+        "Y Hu",
+        "F Yang",
+        "C Tran",
+        "M H Dinh",
+        "F Fioretto",
+        "A Uniyal",
+        "R Naidu",
+        "S Kotti",
+        "S Singh",
+        "P J Kenfack",
+        "F Mireshghallah",
+        "A Trask"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2106.12576",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::19",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Opacus: User-friendly differential privacy library in PyTorch",
+      "cited_authors": [
+        "A Yousefpour",
+        "I Shilov",
+        "A Sablayrolles",
+        "D Testuggine",
+        "K Prasad",
+        "M Malek",
+        "J Nguyen",
+        "S Ghosh",
+        "A Bharadwaj",
+        "J Zhao"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2109.12298",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::20",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Differentially private fine-tuning of language models",
+      "cited_authors": [
+        "D Yu",
+        "S Naik",
+        "A Backurs",
+        "S Gopi",
+        "H A Inan",
+        "G Kamath",
+        "J Kulkarni",
+        "Y T Lee",
+        "A Manoel",
+        "L Wutschitz"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2110.06500",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::21",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Gender Bias in Contextualized Word Embeddings",
+      "cited_authors": [
+        "J Zhao",
+        "T Wang",
+        "M Yatskar",
+        "R Cotterell",
+        "V Ordonez",
+        "K.-W Chang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.18749::citation::22",
+      "paper_id": "2410.18749",
+      "raw_text": null,
+      "cited_title": "Gender Bias in Coreference Resolution: Evaluation and Debiasing Methods",
+      "cited_authors": [
+        "J Zhao",
+        "T Wang",
+        "M Yatskar",
+        "V Ordonez",
+        "K.-W Chang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

@@ -1,0 +1,85 @@
+query,configuration,precision@5,recall@5,ndcg@5,mrr
+What is GPT-3's parameter count and what capability does scaling to that size enable?,vector_only,0.0,0.0,0.0,0.0
+What is GPT-3's parameter count and what capability does scaling to that size enable?,hybrid_fused,0.0,0.0,0.0,0.0
+What is GPT-3's parameter count and what capability does scaling to that size enable?,hybrid_reranked,0.0,0.0,0.0,0.0
+How does BERT's pre-training approach differ from a standard left-to-right language model?,vector_only,0.2,1.0,0.6309297535714575,0.5
+How does BERT's pre-training approach differ from a standard left-to-right language model?,hybrid_fused,0.2,1.0,0.6309297535714575,0.5
+How does BERT's pre-training approach differ from a standard left-to-right language model?,hybrid_reranked,0.2,1.0,1.0,1.0
+"What mechanism does the Transformer architecture use instead of recurrence, and why was that significant?",vector_only,0.2,1.0,1.0,1.0
+"What mechanism does the Transformer architecture use instead of recurrence, and why was that significant?",hybrid_fused,0.2,1.0,1.0,1.0
+"What mechanism does the Transformer architecture use instead of recurrence, and why was that significant?",hybrid_reranked,0.2,1.0,1.0,1.0
+How does RoBERTa improve on the original BERT training procedure?,vector_only,0.2,1.0,1.0,1.0
+How does RoBERTa improve on the original BERT training procedure?,hybrid_fused,0.2,1.0,1.0,1.0
+How does RoBERTa improve on the original BERT training procedure?,hybrid_reranked,0.2,1.0,1.0,1.0
+What problem does T5's text-to-text framework aim to unify?,vector_only,0.2,1.0,0.5,0.3333333333333333
+What problem does T5's text-to-text framework aim to unify?,hybrid_fused,0.2,1.0,1.0,1.0
+What problem does T5's text-to-text framework aim to unify?,hybrid_reranked,0.2,1.0,1.0,1.0
+"What role does human feedback play in training InstructGPT, and what was the result compared to raw GPT-3?",vector_only,0.2,1.0,0.43067655807339306,0.25
+"What role does human feedback play in training InstructGPT, and what was the result compared to raw GPT-3?",hybrid_fused,0.2,1.0,0.5,0.3333333333333333
+"What role does human feedback play in training InstructGPT, and what was the result compared to raw GPT-3?",hybrid_reranked,0.2,1.0,1.0,1.0
+What distinguishes Llama 2's release from earlier large language models?,vector_only,0.2,1.0,1.0,1.0
+What distinguishes Llama 2's release from earlier large language models?,hybrid_fused,0.2,1.0,0.6309297535714575,0.5
+What distinguishes Llama 2's release from earlier large language models?,hybrid_reranked,0.2,1.0,1.0,1.0
+How does SCAR reduce the amount of data needed for instruction tuning?,vector_only,0.2,1.0,0.6309297535714575,0.5
+How does SCAR reduce the amount of data needed for instruction tuning?,hybrid_fused,0.2,1.0,0.38685280723454163,0.2
+How does SCAR reduce the amount of data needed for instruction tuning?,hybrid_reranked,0.2,1.0,1.0,1.0
+What is AAAR-1.0 designed to assess about AI systems in the context of research?,vector_only,0.2,1.0,1.0,1.0
+What is AAAR-1.0 designed to assess about AI systems in the context of research?,hybrid_fused,0.2,1.0,1.0,1.0
+What is AAAR-1.0 designed to assess about AI systems in the context of research?,hybrid_reranked,0.2,1.0,1.0,1.0
+How does CEC-Zero approach Chinese error correction?,vector_only,0.2,1.0,1.0,1.0
+How does CEC-Zero approach Chinese error correction?,hybrid_fused,0.2,1.0,1.0,1.0
+How does CEC-Zero approach Chinese error correction?,hybrid_reranked,0.2,1.0,1.0,1.0
+What does the paper on selective paraphrase generation let users control?,vector_only,0.2,1.0,1.0,1.0
+What does the paper on selective paraphrase generation let users control?,hybrid_fused,0.2,1.0,0.5,0.3333333333333333
+What does the paper on selective paraphrase generation let users control?,hybrid_reranked,0.2,1.0,1.0,1.0
+What is dual-critique prompting and what problem does it address in large language models?,vector_only,0.2,1.0,0.5,0.3333333333333333
+What is dual-critique prompting and what problem does it address in large language models?,hybrid_fused,0.2,1.0,0.5,0.3333333333333333
+What is dual-critique prompting and what problem does it address in large language models?,hybrid_reranked,0.2,1.0,1.0,1.0
+How is ChatGPT used to enhance programming eTextbooks?,vector_only,0.2,1.0,1.0,1.0
+How is ChatGPT used to enhance programming eTextbooks?,hybrid_fused,0.2,1.0,1.0,1.0
+How is ChatGPT used to enhance programming eTextbooks?,hybrid_reranked,0.2,1.0,1.0,1.0
+What self-supervised method does the paper on dialogue summarization use to enhance semantic understanding?,vector_only,0.2,1.0,1.0,1.0
+What self-supervised method does the paper on dialogue summarization use to enhance semantic understanding?,hybrid_fused,0.0,0.0,0.0,0.14285714285714285
+What self-supervised method does the paper on dialogue summarization use to enhance semantic understanding?,hybrid_reranked,0.2,1.0,1.0,1.0
+How does 'Flipping the Dialogue' train and evaluate user language models?,vector_only,0.2,1.0,0.6309297535714575,0.5
+How does 'Flipping the Dialogue' train and evaluate user language models?,hybrid_fused,0.2,1.0,0.43067655807339306,0.25
+How does 'Flipping the Dialogue' train and evaluate user language models?,hybrid_reranked,0.2,1.0,1.0,1.0
+What rehearsal policy does GRASP propose for online continual learning?,vector_only,0.2,1.0,1.0,1.0
+What rehearsal policy does GRASP propose for online continual learning?,hybrid_fused,0.2,1.0,1.0,1.0
+What rehearsal policy does GRASP propose for online continual learning?,hybrid_reranked,0.2,1.0,1.0,1.0
+What is the central idea behind the Generative Video Transformer's approach of treating objects as words?,vector_only,0.2,1.0,1.0,1.0
+What is the central idea behind the Generative Video Transformer's approach of treating objects as words?,hybrid_fused,0.2,1.0,0.6309297535714575,0.5
+What is the central idea behind the Generative Video Transformer's approach of treating objects as words?,hybrid_reranked,0.2,1.0,1.0,1.0
+What limitation does the paper on two-tower multimodal systems find for instrument recognition?,vector_only,0.2,1.0,1.0,1.0
+What limitation does the paper on two-tower multimodal systems find for instrument recognition?,hybrid_fused,0.0,0.0,0.0,0.16666666666666666
+What limitation does the paper on two-tower multimodal systems find for instrument recognition?,hybrid_reranked,0.2,1.0,1.0,1.0
+What is Jacobian-driven role attribution used for in prompt optimization?,vector_only,0.2,1.0,1.0,1.0
+What is Jacobian-driven role attribution used for in prompt optimization?,hybrid_fused,0.2,1.0,0.6309297535714575,0.5
+What is Jacobian-driven role attribution used for in prompt optimization?,hybrid_reranked,0.2,1.0,1.0,1.0
+What task is Llama-Mob instruction-tuned to perform?,vector_only,0.0,0.0,0.0,0.0
+What task is Llama-Mob instruction-tuned to perform?,hybrid_fused,0.0,0.0,0.0,0.0
+What task is Llama-Mob instruction-tuned to perform?,hybrid_reranked,0.0,0.0,0.0,0.0
+What technique does the paper on making text unlearnable use to protect personal data?,vector_only,0.2,1.0,1.0,1.0
+What technique does the paper on making text unlearnable use to protect personal data?,hybrid_fused,0.2,1.0,0.38685280723454163,0.2
+What technique does the paper on making text unlearnable use to protect personal data?,hybrid_reranked,0.2,1.0,1.0,1.0
+What robustness problem does the paper on reference-free dialogue evaluation investigate?,vector_only,0.2,1.0,1.0,1.0
+What robustness problem does the paper on reference-free dialogue evaluation investigate?,hybrid_fused,0.2,1.0,0.5,0.3333333333333333
+What robustness problem does the paper on reference-free dialogue evaluation investigate?,hybrid_reranked,0.2,1.0,1.0,1.0
+How does the Mixture-of-Expert Conformer handle streaming multilingual speech recognition?,vector_only,0.2,1.0,1.0,1.0
+How does the Mixture-of-Expert Conformer handle streaming multilingual speech recognition?,hybrid_fused,0.2,1.0,1.0,1.0
+How does the Mixture-of-Expert Conformer handle streaming multilingual speech recognition?,hybrid_reranked,0.2,1.0,1.0,1.0
+What does naturalistic causal probing investigate about morpho-syntax in language models?,vector_only,0.2,1.0,1.0,1.0
+What does naturalistic causal probing investigate about morpho-syntax in language models?,hybrid_fused,0.2,1.0,1.0,1.0
+What does naturalistic causal probing investigate about morpho-syntax in language models?,hybrid_reranked,0.2,1.0,1.0,1.0
+How does the paper on translating wordplay use multi-agent translation?,vector_only,0.2,1.0,1.0,1.0
+How does the paper on translating wordplay use multi-agent translation?,hybrid_fused,0.2,1.0,1.0,1.0
+How does the paper on translating wordplay use multi-agent translation?,hybrid_reranked,0.2,1.0,1.0,1.0
+How does reinforcement communication learning vary across different social network structures?,vector_only,0.2,1.0,1.0,1.0
+How does reinforcement communication learning vary across different social network structures?,hybrid_fused,0.2,1.0,0.38685280723454163,0.2
+How does reinforcement communication learning vary across different social network structures?,hybrid_reranked,0.2,1.0,1.0,1.0
+What text augmentation approach does the spear-phishing detection paper propose?,vector_only,0.2,1.0,1.0,1.0
+What text augmentation approach does the spear-phishing detection paper propose?,hybrid_fused,0.2,1.0,0.6309297535714575,0.5
+What text augmentation approach does the spear-phishing detection paper propose?,hybrid_reranked,0.2,1.0,1.0,1.0
+How does the paper on entity linking use multi-view distillation to improve results?,vector_only,0.2,1.0,1.0,1.0
+How does the paper on entity linking use multi-view distillation to improve results?,hybrid_fused,0.2,1.0,0.43067655807339306,0.25
+How does the paper on entity linking use multi-view distillation to improve results?,hybrid_reranked,0.2,1.0,1.0,1.0

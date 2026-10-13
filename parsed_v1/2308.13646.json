@@ -1,0 +1,2059 @@
+{
+  "arxiv_id": "2308.13646",
+  "title": "GRASP: A Rehearsal Policy for Efficient Online Continual Learning",
+  "authors": [
+    {
+      "name": "Md Yousuf Harun",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Jhair Gallardo",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Junyu Chen",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Christopher Kanan",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Continual learning (CL) in deep neural networks (DNNs) involves incrementally accumulating knowledge in a DNN from a growing data stream. A major challenge in CL is that non-stationary data streams cause catastrophic forgetting of previously learned abilities. A popular solution is rehearsal: storing past observations in a buffer and then sampling the buffer to update the DNN. Uniform sampling in a class-balanced manner is highly effective, and better sample selection policies have been elusive. Here, we propose a new sample selection policy called GRASP that selects the most prototypical (easy) samples first and then gradually selects less prototypical (harder) examples. GRASP has little additional compute or memory overhead compared to uniform selection, enabling it to scale to large datasets. Compared to 17 other rehearsal policies, GRASP achieves higher accuracy in CL experiments on ImageNet. Compared to uniform balanced sampling, GRASP achieves the same performance with 40% fewer updates. We also show that GRASP is effective for CL on five text classification datasets.",
+  "categories": [
+    "cs.LG",
+    "cs.CL",
+    "cs.CV"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2023-08-25T19:34:21"
+    },
+    {
+      "version": "v2",
+      "created": "2024-05-01T17:25:52"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "CoLLAs",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2023-08-25",
+  "citation_count": 15,
+  "reference_count": 100,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2308.13646::section::0",
+      "paper_id": "2308.13646",
+      "heading": "INTRODUCTION",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::0::para::0",
+          "section_id": "2308.13646::section::0",
+          "text": "In deep continual learning (CL), a deep neural network (DNN) is sequentially updated from a growing data stream, where the distribution of the data stream is unknown. When the stream is non-stationary, catastrophic forgetting of previously learned abilities occurs if the DNN is progressively fine-tuned with only new samples. CL methods aim to overcome this obstacle. One of the best CL methods is rehearsal (e.g., experience replay) (van de Ven et al., 2022;Zhou et al., 2023). Rehearsal is highly effective across CL scenarios, and it is especially effective for class incremental learning (CIL), where classes must be learned sequentially (Rebuffi et al., 2017). Rehearsal methods store a subset of old examples, or representations of those examples, in a buffer and then update the DNN with a chosen mixture of new and old data. A rehearsal policy governs which samples are selected. The most common approach is uniform sampling, but better policies can potentially reduce the time required for rehearsal. While some have been shown to reduce the total number of updates needed on small-scale CL problems (Aljundi et al., 2019a;b;Bang et al., 2021;Yoon et al., 2022;Koh et al., 2021;Shim et al., 2021), sampling is expensive, resulting in no improvement in the total amount of time required for training. One could simply use more updates with uniform selection.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::0::para::1",
+          "section_id": "2308.13646::section::0",
+          "text": "For large-scale problems, uniform selection has been shown to outperform more sophisticated policies (Harun et al., 2023b;Prabhu et al., 2023a). It is also a highly effective strategy for active learning and dataset pruning (Sorscher et al., 2022;Evans et al., 2023). Uniform selection is particularly effective in CL settings where the buffer is highly constrained, unlike compute. This is because, over a large number of training steps, uniform selection will eventually achieve optimal accuracy. In such cases, an ideal selection policy may not provide added value. However, when compute is limited and the buffer is large, only a subset of examples can be chosen due to computational constraints. In this scenario, a sample selection strategy plays a crucial role in achieving optimal accuracy over a small number of training steps. In this paper, we aim to identify a computationally efficient rehearsal policy that maximizes DNN accuracy with a fixed number of updates and a relatively large buffer. Our setting also aligns with the industry, where computational costs significantly exceed storage costs (Prabhu et al., 2023a). Our method, GRASP, is inspired by dataset pruning, where the goal is to identify a sample subset that when trained on has the same performance as the entire dataset. Sorscher et al. (2022) showed that the optimal pruning strategy varied based on the size of the dataset. Based on similarity to class prototypes, they found retaining the easiest samples was the best strategy for small datasets, whereas for large datasets keeping the hardest samples was best.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::0::para::2",
+          "section_id": "2308.13646::section::0",
+          "text": "These observations were made based on having a fixed dataset, where the size of the dataset is known beforehand. In contrast, in CL, the size of the dataset and the number of samples for each class change over time. This suggests that an effective rehearsal policy should adapt to the amount of currently available data for a class.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2308.13646::section::0::para::3",
+          "section_id": "2308.13646::section::0",
+          "text": "This paper makes the following key contributions:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2308.13646::section::0::para::4",
+          "section_id": "2308.13646::section::0",
+          "text": "1. We propose GRASP, a dynamic rehearsal policy that initially selects easy samples and gradually selects harder ones. GRASP is compute and memory efficient. We integrated GRASP into three rehearsal-based CL systems, SIESTA (Harun et al., 2023b), DERpp (Buzzega et al., 2020), and GDumb (Prabhu et al., 2020). 2. In CIL experiments on ImageNet, GRASP outperforms 17 other rehearsal policies, including class-balanced uniform selection. 3. We show that GRASP is effective across CL distributions, including independent and identically distributed (IID) and long-tailed distributions. 4. We demonstrate that GRASP is effective for natural language processing (NLP) on 5 CL benchmarks.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::1",
+      "paper_id": "2308.13646",
+      "heading": "REHEARSAL-BASED CONTINUAL LEARNING",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::1::para::0",
+          "section_id": "2308.13646::section::1",
+          "text": "Rehearsal is inspired by neuroscience, where recent memories are stored in the hippocampus and then reactivated for long-term consolidation (O'Neill et al., 2010;Hayes et al., 2021). Most CL methods use a rehearsal buffer where the maximum size is constrained (Hayes et al., 2021;Chaudhry et al., 2019b;Abraham & Robins, 2005;Belouadah & Popescu, 2019;Castro et al., 2018;Chaudhry et al., 2018b;a;Hayes et al., 2019;2020;Harun et al., 2023b;Rebuffi et al., 2017;Tao et al., 2020;Wu et al., 2019;Aljundi et al., 2019b). These constraints are often arbitrary and require having a policy for maintaining the size constraint (see Sec. 2.2). However, some early CL methods used cumulative rehearsal where rehearsal buffers store all previously observed samples (Gepperth & Karaoguz, 2016;Hayes et al., 2019;Kemker et al., 2018). Recently, there has been a resurgence of interest in this setting because it allows one to focus on how to utilize the buffer best, e.g., to minimize training time while maximizing accuracy (Al Kader Hammoud et al., 2023;Prabhu et al., 2023a;b;Harun & Kanan, 2023;Verwimp et al., 2024). We study both settings in this paper.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::1::para::1",
+          "section_id": "2308.13646::section::1",
+          "text": "Rehearsal methods fall into three categories: veridical, latent, and generative. In veridical rehearsal, raw input data is stored in a memory buffer for later rehearsal (Rebuffi et al., 2017;Chaudhry et al., 2019b;Castro et al., 2018;Lopez-Paz & Ranzato, 2017;Bang et al., 2021;Chaudhry et al., 2018a;Wu et al., 2019;Aljundi et al., 2019b). Instead of",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::1::para::2",
+          "section_id": "2308.13646::section::1",
+          "text": "Table 1: Advanced Rehearsal Policies. Current state-of-the-art methods except MIR and ASER mainly proposed buffer maintenance policy and used uniform random as rehearsal policy.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::2",
+      "paper_id": "2308.13646",
+      "heading": "Method",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::2::para::0",
+          "section_id": "2308.13646::section::2",
+          "text": "Buffer Policy Rehearsal Policy Metric Expensive Scalable MIR (Aljundi et al., 2019a) ✗ ✔ MIR Loss ✔ ✗ Rainbow Memory (Bang et al., 2021) ✔ ✗ Uncertainty ✔ ✗ OCS (Yoon et al., 2022 (Borsos et al., 2020) ✔ ✗ Bi-level Opt ✔ ✗ CLIB (Koh et al., 2021) ✔ ✗ Max Loss ✔ ✗ ASER (Shim et al., 2021",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::2::para::1",
+          "section_id": "2308.13646::section::2",
+          "text": "storing raw images, latent rehearsal methods store features from hidden layers (Hayes et al., 2020;Iscen et al., 2020;Caccia et al., 2020;Pellegrini et al., 2020;Zhao et al., 2021;Harun et al., 2023b), allowing them to store far more samples than veridical under the same memory budget. If storing data is prohibited, generative rehearsal methods produce synthetic images or features to retrieve old knowledge (Shin et al., 2017;He et al., 2018;Hu et al., 2018;Liu et al., 2020;Kemker & Kanan, 2018;Ostapenko et al., 2019;Xiang et al., 2019) by incorporating a generator into the DNN; however, these methods increase compute and often struggle with feature drift. While most work on rehearsal has focused on images, these three types have also been used for CL in NLP (Ke & Liu, 2022;Biesialska et al., 2020).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::2::para::2",
+          "section_id": "2308.13646::section::2",
+          "text": "In our work, we conduct experiments in both the veridical and latent rehearsal settings.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2308.13646::section::2::para::3",
+          "section_id": "2308.13646::section::2",
+          "text": "2.2 REHEARSAL & BUFFER MAINTENANCE POLICIES Rehearsal algorithms alternate between a sample acquisition phase, where samples are added to a buffer, and a rehearsal phase, where the DNN is updated using the buffer and newly acquired samples. All rehearsal algorithms must then define a Rehearsal Policy for what should be sampled from the buffer. For memory-constrained rehearsal, this is often entangled with what we call the Buffer Maintenance Policy, which defines what should be kept within the buffer. In many memory-constrained methods, the entire buffer is used to update the network, where the rehearsal policy is then implicitly governed by the criteria used to determine what is kept within the buffer. This work aims to disentangle these two aspects by converting buffer maintenance policies into rehearsal policies to compare approaches.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2308.13646::section::2::para::4",
+          "section_id": "2308.13646::section::2",
+          "text": "We summarize the properties of recent methods in Table 1.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2308.13646::section::2::para::5",
+          "section_id": "2308.13646::section::2",
+          "text": "Rehearsal Policies. While buffer maintenance policies have been heavily explored in CIL, much less work has been done to identify which stored samples should be selected for rehearsal (see Table 1). We briefly describe the rehearsal policies that have been studied. Prior CL work (Hayes & Kanan, 2021;Chaudhry et al., 2018a;Harun et al., 2023b;Prabhu et al., 2023a) studied a variety of sampling policies e.g., uniform balanced, min rehearsal, max loss, min margin, min logit-distance, and min confidence; however, these policies showed limited efficacy for large-scale datasets. More details about these policies are given in Sec 4.3. More advanced rehearsal policies for CL include MIR and ASER. In MIR, when a new batch of data arrives, virtual updates are made to the DNN using the new batch to find the maximally interfered old samples (Aljundi et al., 2019a). Next, it updates DNN using the new batch mixed with interfered old data. Virtual updates are computationally expensive, and MIR disproportionately prioritizes redundant samples in the most interfered category (Shim et al., 2021). ASER uses Shapley values to prioritize representative samples for storage and interfered samples for rehearsal (Shim et al., 2021). ASER uses uniform random sampling to construct evaluation and candidate sets to reduce computational overhead, and it is difficult to scale since it computes the Euclidean distance of each candidate sample from each evaluation sample at every training iteration. Recently, Prabhu et al. (2023a) compared many rehearsal policies and found that balanced uniform outperforms others for large-scale datasets.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2308.13646::section::2::para::6",
+          "section_id": "2308.13646::section::2",
+          "text": "Buffer Maintenance Policies. The most commonly used method is reservoir sampling, where a new sample overwrites a randomly selected sample from the buffer once the buffer is full, and then samples are chosen uniformly from the buffer for rehearsal. This strategy is used in both vision (Wang et al., 2023;Riemer et al., 2019;Chaudhry et al., 2019a) and NLP (Ke & Liu, 2022;Biesialska et al., 2020). More advanced strategies exploit the statistics of the stored samples e.g., GDumb (Prabhu et al., 2020), ExStream (Hayes et al., 2019), ring buffer (Lopez-Paz & Ranzato, 2017), herding-based (Rebuffi et al., 2017), k-Means (Chaudhry et al., 2019a), MoF (Chaudhry et al., 2019b), and FIFO (Lopez-Paz & Ranzato, 2017). An alternative to data-driven methods are model-based methods that determine what to retain in the buffer by analyzing the DNN's behavior on the stored samples (Chaudhry et al., 2018a;Koh et al., 2021;Borsos et al., 2020;Campbell & Broderick, 2019;Aljundi et al., 2019b;Yoon et al., 2022). For example, rainbow memory (Bang et al., 2021) stores diverse samples based on classification uncertainty and image augmentation.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2308.13646::section::2::para::7",
+          "section_id": "2308.13646::section::2",
+          "text": "However, model-based methods, especially gradient-based methods, are computationally expensive and intractable for large-scale datasets e.g., ImageNet-1K. For instance, OCS (Yoon et al., 2022) is computationally demanding since at every training iteration it scores data based on mini-batch gradient similarity and cross-batch gradient diversity. See Wang et al. (2023) for a review. We repurposed buffer maintenance policies for rehearsal policies to compare them with GRASP. More details are given in Sec 4.3.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::3",
+      "paper_id": "2308.13646",
+      "heading": "THE GRASP REHEARSAL POLICY",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::3::para::0",
+          "section_id": "2308.13646::section::3",
+          "text": "We propose a new rehearsal policy named GRASP (GRAdually Select less Prototypical). GRASP is simple, scalable, hyperparameter-free, and has little additional compute or memory overhead compared to uniform selection. Our goal is to identify a rehearsal policy that minimizes the number of DNN updates to gain computational efficiency.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::3::para::1",
+          "section_id": "2308.13646::section::3",
+          "text": "GRASP is based on the hypothesis that choosing only easy or hard samples are both suboptimal and that the DNN would benefit from a curriculum that combines both. GRASP first selects the most prototypical (easy) samples from the buffer and then gradually selects harder samples, where easy samples are closest to the class mean and hard samples are farthest. While prior work has explored policies that select samples close to prototypes for buffer maintenance (Rebuffi et al., 2017;Chaudhry et al., 2019b), their policies are biased toward easy samples near class prototypes instead of progressively choosing hard samples as well.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::3::para::2",
+          "section_id": "2308.13646::section::3",
+          "text": "GRASP can be integrated into both online and offline rehearsal-based CL methods, and it can be used with either veridical or latent rehearsal. In all cases, we assume that the CL algorithm maintains a buffer containing both old and new samples. In offline CL memory constraints on the buffer only apply to old samples, where all new samples are added to it before rehearsal, and then after rehearsal, the buffer is compressed to the given memory budget. Severe catastrophic forgetting in minority classes can occur in rehearsal due to class-imbalance (Wu et al., 2019), which GRASP overcomes by selecting samples in a class-balanced way, where minority classes can be oversampled.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::4",
+      "paper_id": "2308.13646",
+      "heading": "Sample Acquisition Phase.",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::4::para::0",
+          "section_id": "2308.13646::section::4",
+          "text": "For the CL algorithms we study, a sequence of labeled samples are provided to the learner over time, where after a sufficiently large number of samples arrive the learner uses rehearsal to update the DNN. To simplify notation, we assume at time t the learner receives a single sample X t with label k t , where X t is the raw input in veridical rehearsal or an embedding from the middle of the network in latent rehearsal. The sample is then added to the buffer, where a sample from the largest class is removed from the buffer if it is full.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::4::para::1",
+          "section_id": "2308.13646::section::4",
+          "text": "After buffer maintenance, we compute the distances between stored samples and class prototypes for GRASP. Let z ∈ R d be the embedding computed by the DNN from the penultimate layer. For each class k, a class prototype vector q k is computed by averaging the penultimate embedding vectors of corresponding samples X k , i.e., q k = 1 J J j=1 z k,j . Next for each sample, the cosine distance d between its penultimate embedding and the class prototype is calculated as",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::4::para::2",
+          "section_id": "2308.13646::section::4",
+          "text": "The distance d is used during rehearsal to select samples based on how far they are from the prototype and is stored in the buffer. Therefore, the buffer consists of M = {(X , D) k } K k=1 , where K is the total number of classes that have been seen, X k is the set of stored inputs from class k for veridical rehearsal or stored embeddings for latent rehearsal, and D k has the cached distances to the class prototypes.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2308.13646::section::4::para::3",
+          "section_id": "2308.13646::section::4",
+          "text": "Rehearsal Phase. Because the focus of this work is computational efficiency, the rehearsal phase is given a compute budget of U = nb gradient updates to the DNN, where b is the total number of minibatches and n is the minibatch size. GRASP iteratively selects U samples from the buffer. For class k, GRASP assigns a selection probability P k inversely proportional to D k for all the data points in class k. The selected sample's distance is then temporarily updated by adding max D k to it. This makes it unlikely for that sample to be chosen again in the rehearsal session or task because it will have the lowest probability; therefore, within a rehearsal session, GRASP chooses progressively less prototypical samples for rehearsal. Approximately the same number of samples are chosen from each class, where oversampling can occur for classes with fewer samples. After the rehearsal session ends and a new session begins, the distances among samples and class prototypes, D k are recomputed. Pseudocode for GRASP is given in Algorithm 1.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::5",
+      "paper_id": "2308.13646",
+      "heading": "EXPERIMENTAL SETUP",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::5::para::0",
+          "section_id": "2308.13646::section::5",
+          "text": "In experiments, we study rehearsal policies in both the unbounded memory and the conventional memory-bounded settings. The unbounded setting enables us to focus on the efficacy of rehearsal policies regardless of the amount of storage permitted or the choice of buffer maintenance policy. Moreover, for industrial applications, the cost of deep learning largely depends on computing rather than storage. The unlimited memory setting has been studied in recent CL papers that have argued it is better aligned with industry needs (Harun et al., 2023a;Harun & Kanan, 2023;Prabhu et al., 2023a;b;Bornschein et al., 2022;Al Kader Hammoud et al., 2023;Verwimp et al., 2024).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::6",
+      "paper_id": "2308.13646",
+      "heading": "CL DATASETS AND DNN ARCHITECTURES",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::6::para::0",
+          "section_id": "2308.13646::section::6",
+          "text": "To show scalability to large-scale datasets, our main results use ImageNet (Russakovsky et al., 2015). We conduct CIL experiments (Non-IID ordering) with the 1000 class version of the dataset (ImageNet-1K) and two variants with 150 and 300 classes, referred to as ImageNet-150 and ImageNet-300 respectively. Long-tailed datasets are challenging in CIL, and to assess rehearsal policies in this setting we use Places-LT (Liu et al., 2019). Additionally, we study IID orderings on ImageNet-1K to assess the robustness of rehearsal policies to non-adversarial data streams. More dataset details are included in Appendix C. Continual text classification performs task incremental learning. Following Huang et al. (2021), we use five large-scale benchmark text datasets: AG News (news classification), Yelp (sentiment analysis), DBPedia (Wikipedia article classification), Amazon (sentiment analysis), and Yahoo! Answer (Q&A classification). See Huang et al. (2021) for details. Methods are evaluated on 6 task sequences.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::6::para::1",
+          "section_id": "2308.13646::section::6",
+          "text": "For our main image classification experiments, we use MobileNetV3-Large (Howard et al., 2019) since it outperforms widely used ResNet-18 (Harun et al., 2023b) and has lower latency. Following Harun et al. (2023b), we pre-trained MobileNetV3-Large on the first 100 classes from ImageNet-1K using SwAV (Caron et al., 2020) for all experiments. In Appendix F, we also conduct experiments on a vision transformer MobileViT-Small (Mehta & Rastegari, 2021). We use BERT (Kenton & Toutanova, 2019) in continual text classification. Implementation details are in Appendix B.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::7",
+      "paper_id": "2308.13646",
+      "heading": "REHEARSAL-BASED CL ALGORITHMS",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::7::para::0",
+          "section_id": "2308.13646::section::7",
+          "text": "We study the rehearsal policies in three algorithms for large-scale CL in vision and one for CL in NLP:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::7::para::1",
+          "section_id": "2308.13646::section::7",
+          "text": "1. SIESTA is a state-of-the-art latent rehearsal CL algorithm that alternates between online and offline phases (Harun et al., 2023b). SIESTA is initialized on the first 100 classes of ImageNet-1K using self-supervised learning (Gallardo et al., 2021). During its online phase, it only updates its output layer and stores quantized tensor embeddings of the input images. During its offline phase (every 100 ImageNet classes), it uses latent rehearsal to update its nonfrozen layers with a fixed number of updates. We also do experiments with a variant that uses veridical rehearsal. We use SIESTA for our main experiments because it requires only 2 hours to finish training on ImageNet-1K on a single GPU and because it matches an offline model's accuracy on ImageNet-1K in the augmentation-free setup.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::7::para::2",
+          "section_id": "2308.13646::section::7",
+          "text": "2. Dark Experience Replay (DERpp) combines rehearsal with knowledge distillation and regularization (Buzzega et al., 2020). It uses a distillation loss on logits of old samples for consistency. It uses reservoir sampling to maintain a constrained memory buffer.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2308.13646::section::7::para::3",
+          "section_id": "2308.13646::section::7",
+          "text": "3. GDumb uniformly removes a sample from the largest class upon arrival of a new sample when memory buffer is full (Prabhu et al., 2020).",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2308.13646::section::7::para::4",
+          "section_id": "2308.13646::section::7",
+          "text": "4. IDBR is a CL system for text classification (Huang et al., 2021). Using rehearsal, it continually updates a BERT text encoder and a linear classification layer. In the original IDBR system, it also updated regularization sub-networks for retaining task-generic information and for adapting to task-specific information for regularization. We exclude these sub-networks to focus on rehearsal.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2308.13646::section::7::para::5",
+          "section_id": "2308.13646::section::7",
+          "text": "In our experiments, all methods use a fixed number of rehearsal updates. Experiments omit image augmentation to focus on comparing rehearsal policies. Our main results use SIESTA (Harun et al., 2023b). SIESTA is pre-trained on the first 100 ImageNet classes. Subsequently, it learns 50/ 200/ 900 additional classes continually. For SIESTA with MobileNetV3-Large, the first 8 layers are frozen, and the remaining layers (97.81% of parameters) are updated during latent rehearsal. For SIESTA, DERpp, and GDumb, we use versions with latent and veridical rehearsal. We created latent rehearsal versions of DERpp and GDumb using SIESTA's setup.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::8",
+      "paper_id": "2308.13646",
+      "heading": "Memory Constraints.",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::8::para::0",
+          "section_id": "2308.13646::section::8",
+          "text": "We study CL with both unbounded memory (access to the entire dataset) and bounded memory settings. Following Hayes et al. ( 2020), all methods are limited to 1.5 GB of storage for ImageNet-1K. This corresponds to 10000 old images for veridical rehearsal, which excludes the newly acquired batch of 120000 images. For ImageNet-150/300 subset, latent rehearsal methods use up to 0.2 GB for the buffer. For IDBR, we randomly select 50% of seen examples to store in the memory buffer. Samples are removed from the largest class/task to maintain a bounded rehearsal buffer. For continual text classification with IDBR, we bound compute by using rehearsal sessions of a fixed length, whereas the original IDBR increased the amount of compute as new tasks were learned.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::9",
+      "paper_id": "2308.13646",
+      "heading": "COMPARED REHEARSAL POLICIES AND EVALUATION CRITERIA",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::9::para::0",
+          "section_id": "2308.13646::section::9",
+          "text": "Here, we briefly describe all the rehearsal policies that we consider as baselines. Note that we convert buffer maintenance policies into rehearsal policies by using them to score stored samples for selection during rehearsal. All baseline methods use the same buffer maintenance policy as described in Sec. 3 where a randomly chosen old sample from the largest class is removed to accommodate a new sample when the buffer is full.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::9::para::1",
+          "section_id": "2308.13646::section::9",
+          "text": "1. Uniform: samples are selected uniformly at random (Vitter, 1985). 2. Uniform Balanced: samples are selected uniformly at random with an equal number of samples per category (Prabhu et al., 2020). This is a strong baseline for large-scale CL (Prabhu et al., 2023a). 3. Min Rehearsal: samples with least rehearsal count(s) are most likely to be selected (Hayes & Kanan, 2021). 4. Max Loss: samples with higher (lower) cross-entropy loss are defined as hard (easy) samples and prioritized for selection (Kawaguchi & Lu, 2020). 5. Min Margin: easy and hard examples are defined with margins, where the margin is the difference between the predicted and correct class probabilities. Hard samples are more likely to be chosen (Scheffer et al., 2001). 6. Min Logit-Distance: samples closer to the decision boundary are selected (Chaudhry et al., 2018a). 7. Min Confidence: samples with lower DNN confidence (softmax scores) are prioritized (Gal et al., 2017). 8. k-Means: features from the penultimate layer are clustered into k centroids with k-Means. Samples closer to centroids are more likely to be sampled (Chaudhry et al., 2019b;Prabhu et al., 2023a). 9. MoF / Easy Biased: prioritizes samples near the class mean (Chaudhry et al., 2019b). 10. Hard Biased: prioritizes samples far from class mean. 11. Rainbow Memory: keeps class diverse examples based on uncertainty and augmentation (Bang et al., 2021). 12. MIR: prioritizes old samples from buffer that maximally interfere with new samples (Aljundi et al., 2019a). 13. CLIB: prioritizes samples with maximum loss decrease (Koh et al., 2021). 14. ASER: selects samples based on adversarial Shapley values (SVs) (Shim et al., 2021). Positive SVs w.r.t. memory samples indicate representative samples whereas negative SVs w.r.t. new samples indicate interfered samples. 15. OCS: uses mini-batch gradient similarity and cross-batch gradient diversity for sample selection (Yoon et al., 2022). 16. GSS: frames the sample selection as a constraint selection problem to maximize the variance of gradient direction (Aljundi et al., 2019b). 17. Grad Matching: selects samples using Hilbert coreset (Campbell & Broderick, 2019).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::9::para::2",
+          "section_id": "2308.13646::section::9",
+          "text": "Evaluation Criteria. For evaluation, we use the average accuracy µ over all rehearsal sessions T , where µ = 1 T T t=1 α t , with α t denoting the accuracy at rehearsal session t. We use µ N , µ O , and µ A to denote average accuracy (Gal et al., 2017) 77.69 72.42 75.11 67.79 0.41 Min Margin (Scheffer et al., 2001) 77.51 72.59 75.20 67.61 0.41 Max Loss (Kawaguchi & Lu, 2020) 75.40 68.89 72.96 64.55 0.41 Min Logit Dist (Chaudhry et al., 2018a) 77.36 72.07 75.19 67.85 0.41 k-Means (Chaudhry et al., 2019b) 77 (Yoon et al., 2022) 74.93 70.36 74.13 69.01 7.34 GSS (Aljundi et al., 2019b) 75.04 70.25 75.38 70.47 11.60 Grad Matching (Campbell & Broderick, 2019) 76.48 72.20 76.71 72.36 12.71 GRASP (Ours) 77.75 73.96 77.88 73.71 0.13 µ on new, old, and all classes respectively. Final accuracy on all classes is represented by α. All metrics use top-1 accuracy (%).",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::10",
+      "paper_id": "2308.13646",
+      "heading": "Method Unbounded Memory Bounded Memory Time µ",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::10::para::0",
+          "section_id": "2308.13646::section::10",
+          "text": "For continual text classification, following IDBR (Huang et al., 2021) our evaluation takes place after training models on all tasks and the average across on all test sets is reported.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::11",
+      "paper_id": "2308.13646",
+      "heading": "RESULTS",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::11::para::0",
+          "section_id": "2308.13646::section::11",
+          "text": "We compare GRASP with a variety of 14 rehearsal methods on ImageNet-300 in Sec. 5.1. We also compare GRASP with 3 gradient-based methods on ImageNet-150 in Sec. 5.2. Next, we evaluate GRASP on full ImageNet-1K in various settings in Sec. 5.3. Finally, we summarize additional supporting results in Sec. 5.4.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::12",
+      "paper_id": "2308.13646",
+      "heading": "GRASP VS. VARIOUS REHEARSAL METHODS",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::12::para::0",
+          "section_id": "2308.13646::section::12",
+          "text": "First, we analyze the performance of the 14 rehearsal methods including data-driven and model-based methods on ImageNet-300 using SIESTA with latent rehearsal during CIL. After pre-training MobileNet on the first 100 classes, the remaining 200 classes are learned in 4 rehearsal sessions (50 classes per rehearsal session). As shown in Table 2, in both unbounded and bounded memory settings, GRASP achieves the highest final and average accuracy on all classes. In all criteria, GRASP outperforms uniform balanced rehearsal, which earlier works found was the most effective policy for large-scale datasets (Prabhu et al., 2023a). Training time comparison is given in Fig. 2. To validate that GRASP performs effectively under varied memory and compute constraints, we compare GRASP with competitive rehearsal policies i.e., MoF, uniform, uniform balanced, min margin, k-Means, CLIB, MIR, Rainbow Memory, and ASER under varied memory and compute constraints. As shown in Fig. 3b and 3c, GRASP consistently surpasses compared methods in all cases. In Appendix H, we also qualitatively compare GRASP with these competitive methods. Table 4: Latent Rehearsal Results for CIL with SIESTA on ImageNet-1K (3 runs). µ N , µ O , and µ A denote accuracy on new, old, and all classes respectively averaged over rehearsals, and α is final ImageNet-1K accuracy.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::12::para::1",
+          "section_id": "2308.13646::section::12",
+          "text": "66.98 ±0.14 69.35 ±0.01 68.92 ±0.03 60.76 ±0.05 67.07 ±0.09 69.27 ±0.05 68.88 ±0.06 60.35 ±0.12 GRASP 68.13 ±0.13 70.40 ±0.05 70.02 ±0.07 62.05 ±0.09 68.22 ±0.05 70.37 ±0.05 70.00 ±0.02 61.81 ±0.14",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::13",
+      "paper_id": "2308.13646",
+      "heading": "GRASP VS. GRADIENT-BASED METHODS",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::13::para::0",
+          "section_id": "2308.13646::section::13",
+          "text": "We also compare GRASP with SoTA gradient-based methods e.g., OCS, GSS, and Grad Matching. It is computationally prohibitive to scale these methods (see Fig. 2), for instance, Grad Matching requires 97× more training time than GRASP to learn 50 ImageNet classes. Therefore we had to keep this comparison small scale with ImageNet-150 subset. After pre-training 100 classes, the next 50 classes are learned in 5 rehearsal sessions or tasks (10 classes per rehearsal). As shown in Table 3, GRASP outperforms compared methods with significantly less training time.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::14",
+      "paper_id": "2308.13646",
+      "heading": "IMAGENET-1K EXPERIMENTS",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::14::para::0",
+          "section_id": "2308.13646::section::14",
+          "text": "Having shown that under the same computational budget, GRASP achieves SoTA accuracy with little computational overhead compared to uniform when combined with SIESTA, we next turn to assessing GRASP's abilities on ImageNet-1K under a variety of scenarios: latent rehearsal, veridical rehearsal, IID CL, and generalization to other algorithms beyond SIESTA. As a baseline, we use balanced uniform in these experiments. In Appendix H, we also analyze the performance improvements of GRASP over uniform balanced in various ImageNet-1K experiments.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::14::para::1",
+          "section_id": "2308.13646::section::14",
+          "text": "Latent Rehearsal. ImageNet-1K results for CIL with SIESTA using latent rehearsal are given in Table 4. GRASP consistently outperforms uniform balanced across criteria in both unbounded and bounded memory settings. Learning curves for GRASP and uniform balanced latent rehearsal are given in Fig. 3a. GRASP (latent) achieves higher accuracy than uniform balanced (latent) in all rehearsal sessions (100 ImageNet classes per rehearsal session). GRASP provides 40% and 36% speedups in terms of compute and training time respectively (see Fig. 1). Additionally, in Table 7 we compare GRASP with uniform balanced on ImageNet-1K under varied compute and memory constraints. Under all circumstances, GRASP consistently exceeds uniform balanced. Using McNemar's test, we compare the predictive accuracy of GRASP and uniform balanced and find that they are significantly different (P < 0.001) in all cases.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::14::para::2",
+          "section_id": "2308.13646::section::14",
+          "text": "Table 6: DERpp & GDumb (3 runs). Comparison among rehearsal policies when combined with DERpp and GDumb in offline CIL on ImageNet-1K. † and ‡ denote variants that use uniform balanced and GRASP respectively.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2308.13646::section::14::para::3",
+          "section_id": "2308.13646::section::14",
+          "text": ".31 ±0.07 64.40 ±0.15 66.08 ±0.13 53.89 ±0.12 57.14 ±4.99 62.12 ±0.71 61.27 ±1.11 45.08 ±1.93 DERpp ‡ 77.54 ±0.08 65.04 ±0.02 66.82 ±0.02 54.47 ±0.14 54.75 ±3.48 63.42 ±0.35 61.91 ±0.80 48.57 ±0.86 GDumb † 67.72 ±0.02 69.80 ±0.09 69.41 ±0.07 61.05 ±0.07 62.40 ±0.50 62.84 ±0.39 62.69 ±0.40 47.45 ±0.94 GDumb ‡ 69.04 ±0.04 70.84 ±0.11 70.51 ±0.09 62.73 ±0.07 63.68 ±0.10 64.14 ±0.02 64.00 ±0.03 50.03 ±0.10 Veridical Rehearsal. To assess if GRASP is effective for veridical rehearsal instead, we compared GRASP to uniform balanced rehearsal with a variant of SIESTA that stores raw images. CIL results on ImageNet-1K are given in Table 5, GRASP persistently outperforms uniform balanced baseline in both unbounded and bounded memory settings. In terms of final ImageNet-1K accuracy, GRASP exceeds uniform balanced by absolute 7.67% (unbounded memory) and 2.48% (bounded memory). Fig. 3a shows learning curves. GRASP (veridical) obtains higher accuracy than uniform balanced (veridical) in all rehearsal sessions (100 ImageNet classes per rehearsal session). Additionally, we show ImageNet-1K curves for old and new tasks in Fig. 6. We compare the final predictions of GRASP and uniform balanced using McNemar's test and find that they are significantly different (P < 0.001) in all experiments.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::15",
+      "paper_id": "2308.13646",
+      "heading": "Continual IID Learning.",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::15::para::0",
+          "section_id": "2308.13646::section::15",
+          "text": "An ideal rehearsal policy should excel regardless of distribution. CIL is an extreme adversarial setting where catastrophic forgetting is severe. Here we consider the other extreme, IID CL, where catastrophic forgetting is minimal (Hayes et al., 2018). In IID CL settings, we conduct bounded-memory experiments (3 runs) on ImageNet-1K using SIESTA with latent rehearsal where each task contains 128K samples from randomly sampled classes. Other details adhere to the CIL's ImageNet-1K bounded memory setting. GRASP achieves higher accuracy (µ A = 61.49 ± 0.02 and α = 63.22 ± 0.09) than uniform balanced (µ A = 60.32 ± 0.06 and α = 61.52 ± 0.03).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::15::para::1",
+          "section_id": "2308.13646::section::15",
+          "text": "McNemar's test shows a significant difference (P < 0.001) between GRASP and uniform balanced policies.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::16",
+      "paper_id": "2308.13646",
+      "heading": "Experiments with GDumb and DERpp.",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::16::para::0",
+          "section_id": "2308.13646::section::16",
+          "text": "To validate that GRASP shows effectiveness for other rehearsal-based CL methods beyond SIESTA, we combined GRASP with two commonly used offline CL methods that use rehearsal: GDumb and DERpp for both the latent and veridical rehearsal settings. These experiments were done with the same MobileNetV3-L architecture used by SIESTA, which was pre-trained on the first 100 ImageNet classes. Compute and memory constraints are imposed. On CIL experiments with ImageNet-1K, GRASP outperformed the uniform balanced, as shown in Table 6. McNemar's test comparing final predictions of GRASP and uniform balanced reveals a significant difference (P < 0.001) between them in all conditions.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::17",
+      "paper_id": "2308.13646",
+      "heading": "ADDITIONAL EXPERIMENTS",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::17::para::0",
+          "section_id": "2308.13646::section::17",
+          "text": "Figure 4: The representation drift of old classes while learning new classes in a stream of two tasks denoted by background colors. GRASP reduces representation drift.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::17::para::1",
+          "section_id": "2308.13646::section::17",
+          "text": "Why is GRASP More Effective? An efficient rehearsal policy should not perturb previously learned representations otherwise training overhead increases with an increase in representation drift. While learning new classes, the representations of old classes abruptly change and drift over time (Caccia et al., 2021). This abrupt change in old representations causes catastrophic forgetting of old knowledge and is difficult to correct without longer training. As shown in Fig. 4, existing methods exhibit higher representation drift. These methods mostly prioritize difficult samples, for instance, MIR and ASER select samples with maximum interference. Consequently, the old representations are excessively perturbed especially in the early stage of rehearsal in-",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::18",
+      "paper_id": "2308.13646",
+      "heading": "Continual Text Classification.",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::18::para::0",
+          "section_id": "2308.13646::section::18",
+          "text": "Using IDBR, we evaluate GRASP and uniform rehearsal policies in continual text classification. They perform task incremental learning with various task sequences based on 5 datasets (AG News, Yelp, DBPedia, Amazon, and Yahoo! Answer). Compute and memory constraints are imposed. Performance is averaged over 3 runs. As shown in Table 11 in Appendix G, GRASP outperforms uniform in 5 out of 6 task sequences. Performance gains by GRASP align with the ones of IDBR (Huang et al., 2021) in the same benchmark datasets.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::18::para::1",
+          "section_id": "2308.13646::section::18",
+          "text": "Long-Tailed Recognition. Besides balanced data streams, a rehearsal policy should also work for long-tailed data streams since real-world data distributions are often imbalanced and long-tailed. In both unbounded and bounded memory settings, GRASP exceeds uniform balanced in CIL on Places-LT-365 (see Appendix E).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::19",
+      "paper_id": "2308.13646",
+      "heading": "Vision Transformer Results.",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::19::para::0",
+          "section_id": "2308.13646::section::19",
+          "text": "To examine GRASP's efficacy in a ViT architecture, we conduct CL experiments using MobileViT-small with SIESTA. GRASP outperforms uniform balanced in CIL on ImageNet-300 (see Appendix F).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::20",
+      "paper_id": "2308.13646",
+      "heading": "CONCLUSION",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::20::para::0",
+          "section_id": "2308.13646::section::20",
+          "text": "We showed that GRASP is a highly effective rehearsal policy compared to others on both large-scale image and NLP datasets. GRASP is effective for both latent and veridical rehearsal, and it works for multiple data distributions. GRASP is the first method to outperform balanced uniform for CIL on ImageNet-1K. We found that GRASP is more effective than other policies under a range of compute and memory constraints.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::20::para::1",
+          "section_id": "2308.13646::section::20",
+          "text": "We focused on rehearsal policies, however, in future work, it would be interesting to examine the use of GRASP for buffer maintenance. We primarily focused on classification tasks to compare GRASP with the majority of existing sample selection policies that were originally designed for classification tasks. Besides classification tasks, GRASP can be explored in other computer vision and NLP tasks, including continual object detection (Acharya et al., 2020). However, a suitable hardness score would have to be designed for other tasks since the distance to the class prototype is only appropriate for classification. We studied GRASP with a fixed compute budget i.e., pre-defined fixed training steps. Future work could explore dynamically adapting the amount of training during rehearsal where the DNN stops early after achieving maximum performance.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2308.13646::section::20::para::2",
+          "section_id": "2308.13646::section::20",
+          "text": "While periodic retraining is currently the industry standard for updating DNNs, we believe GRASP is an important step toward supplanting this extremely computationally expensive process with much more efficient CL methods, and therefore reducing the carbon footprint from training models (Wu et al., 2022). Likewise, GRASP can be used to make on-device CL more efficient, where both compute and memory are heavily constrained (Hayes & Kanan, 2022).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2308.13646::section::20::para::3",
+          "section_id": "2308.13646::section::20",
+          "text": "We use AdamW optimizer with initial LR of 4 × 10 -4 and weight decay of 0.01. We use OneCycle LR scheduler. During base initialization, we train MobileViT on 100 ImageNet classes using supervised pre-training for 300 epochs. For this, we use the same settings described above. After base-initialization, models continually learn the remaining 200 ImageNet classes in 4 rehearsal sessions (50 classes per rehearsal session). We set the number of iterations per rehearsal session to 10K for mini-batch size 64. Under memory constraints, memory is bounded by 130K samples. In an unconstrained memory setting, all 383708 samples are stored in a memory buffer. MobileViT experiments are based on SIESTA and latent rehearsal.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2308.13646::section::20::para::4",
+          "section_id": "2308.13646::section::20",
+          "text": "Compute. For compute (GPU) reasons, we vary the mini-batch size and number of iterations accordingly but compute constraints (iterations × mini-batch size) remain constant across experiments. We use a single GPU (NVIDIA RTX A5000) for all experiments.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::21",
+      "paper_id": "2308.13646",
+      "heading": "C DATASET DETAILS",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::21::para::0",
+          "section_id": "2308.13646::section::21",
+          "text": "We conduct vision experiments on ImageNet-1K and Places-LT. ImageNet-1K (Russakovsky et al., 2015) has 1000 categories, each with 732 -1300 training images and 50 for validation. In total, it contains 1.28 million training images and 50000 test images. Places-LT (Liu et al., 2019) is a long-tailed version of Places-2 (Zhou et al., 2017).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2308.13646::section::21::para::1",
+          "section_id": "2308.13646::section::21",
+          "text": "Places-LT has 62500 training images spanning 365 classes with 5 to 4980 images each. For evaluation, we use the Places-LT validation set, which has 20 images per category (7300 total). For NLP dataset details, we refer readers to IDBR paper (Huang et al., 2021).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::22",
+      "paper_id": "2308.13646",
+      "heading": "D IMAGENET-1K CURVES FOR OLD AND NEW TASKS",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::22::para::0",
+          "section_id": "2308.13646::section::22",
+          "text": "In the main text, we showed ImageNet-1K learning curves for all seen tasks (Fig. 3a). Here we show ImageNet-1K curves for old and new tasks in Fig. 6. These experiments use our default MobileNet/ImageNet-1K setup with SIESTA. We find that GRASP shows better performance than uniform balanced in all rehearsal sessions (100 ImageNet classes per rehearsal session) for both old and new tasks. This demonstrates that GRASP maintains a good balance between stability (old task) and plasticity (new task).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2308.13646::section::23",
+      "paper_id": "2308.13646",
+      "heading": "E PLACES-LT-365 RESULTS",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2308.13646::section::23::para::0",
+          "section_id": "2308.13646::section::23",
+          "text": "Here, we use our default MobileNet/Places-LT setup with SIESTA and latent rehearsal. We run each compared method 6 times using 6 data orderings and report the average results in Table 9. In long-tailed recognition, GRASP consistently",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2308.13646::citation::0",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Memory retention-the synaptic stability versus plasticity dilemma",
+      "cited_authors": [
+        "C Wickliffe",
+        "Anthony Abraham",
+        "Robins"
+      ],
+      "cited_year": 2005,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::1",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Rodeo: Replay for online object detection",
+      "cited_authors": [
+        "Manoj Acharya",
+        "Tyler L Hayes",
+        "Christopher Kanan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::2",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Rapid adaptation in online continual learning: Are we evaluating it right?",
+      "cited_authors": [
+        "Al Hasan Abed",
+        "Ameya Kader Hammoud",
+        "Ser-Nam Prabhu",
+        "Philip Lim",
+        "Adel Hs Torr",
+        "Bernard Bibi",
+        "Ghanem"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::3",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Online continual learning with maximally interfered retrieval",
+      "cited_authors": [
+        "Rahaf Aljundi",
+        "Lucas Caccia",
+        "Eugene Belilovsky",
+        "Massimo Caccia",
+        "Min Lin",
+        "Laurent Charlin",
+        "Tinne Tuytelaars"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::4",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Gradient based sample selection for online continual learning",
+      "cited_authors": [
+        "Rahaf Aljundi",
+        "Min Lin",
+        "Baptiste Goujaud",
+        "Yoshua Bengio"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::5",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Rainbow memory: Continual learning with a memory of diverse samples",
+      "cited_authors": [
+        "Jihwan Bang",
+        "Heesu Kim",
+        "Youngjoon Yoo",
+        "Jung-Woo Ha",
+        "Jonghyun Choi"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::6",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Il2m: Class incremental learning with dual memory",
+      "cited_authors": [
+        "Eden Belouadah",
+        "Adrian Popescu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::7",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Continual lifelong learning in natural language processing: A survey",
+      "cited_authors": [
+        "Magdalena Biesialska",
+        "Katarzyna Biesialska",
+        "Marta R Costa-Jussà"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::8",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Nevis'22: A stream of 100 tasks sampled from 30 years of computer vision research",
+      "cited_authors": [
+        "Jorg Bornschein",
+        "Alexandre Galashov",
+        "Ross Hemsley",
+        "Amal Rannen-Triki",
+        "Yutian Chen",
+        "Arslan Chaudhry",
+        "Xu Owen He",
+        "Arthur Douillard",
+        "Massimo Caccia",
+        "Qixuang Feng"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2211.11747",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::9",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Coresets via bilevel optimization for continual learning and streaming",
+      "cited_authors": [
+        "Zalán Borsos",
+        "Mojmir Mutny",
+        "Andreas Krause"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::10",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Dark experience for general continual learning: a strong, simple baseline",
+      "cited_authors": [
+        "Pietro Buzzega",
+        "Matteo Boschini",
+        "Angelo Porrello",
+        "Davide Abati",
+        "Simone Calderara"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::11",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Online learned continual compression with adaptive quantization modules",
+      "cited_authors": [
+        "Lucas Caccia",
+        "Eugene Belilovsky",
+        "Massimo Caccia",
+        "Joelle Pineau"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::12",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "New insights on reducing abrupt representation change in online continual learning",
+      "cited_authors": [
+        "Lucas Caccia",
+        "Rahaf Aljundi",
+        "Nader Asadi",
+        "Tinne Tuytelaars",
+        "Joelle Pineau",
+        "Eugene Belilovsky"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::13",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Automated scalable bayesian inference via hilbert coresets",
+      "cited_authors": [
+        "Trevor Campbell",
+        "Tamara Broderick"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::14",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Unsupervised learning of visual features by contrasting cluster assignments",
+      "cited_authors": [
+        "Mathilde Caron",
+        "Ishan Misra",
+        "Julien Mairal",
+        "Priya Goyal",
+        "Piotr Bojanowski",
+        "Armand Joulin"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2006.09882",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::15",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "End-to-end incremental learning",
+      "cited_authors": [
+        "Manuel J Francisco M Castro",
+        "Nicolás Marín-Jiménez",
+        "Cordelia Guil",
+        "Karteek Schmid",
+        "Alahari"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::16",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Riemannian walk for incremental learning: Understanding forgetting and intransigence",
+      "cited_authors": [
+        "Arslan Chaudhry",
+        "K Puneet",
+        "Thalaiyasingam Dokania",
+        "Philip Hs Ajanthan",
+        "Torr"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::17",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Efficient lifelong learning with a-gem",
+      "cited_authors": [
+        "Arslan Chaudhry",
+        "Marc'aurelio Ranzato",
+        "Marcus Rohrbach",
+        "Mohamed Elhoseiny"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1812.00420",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::18",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "On tiny episodic memories in continual learning",
+      "cited_authors": [
+        "Arslan Chaudhry",
+        "Marcus Rohrbach",
+        "Mohamed Elhoseiny",
+        "Thalaiyasingam Ajanthan",
+        "K Puneet",
+        "Philip Dokania",
+        "Marc'aurelio Hs Torr",
+        "Ranzato"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1902.10486",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::19",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Continual learning with tiny episodic memories",
+      "cited_authors": [
+        "Arslan Chaudhry",
+        "Marcus Rohrbach",
+        "Mohamed Elhoseiny",
+        "Thalaiyasingam Ajanthan",
+        "K Puneet",
+        "Philip Dokania",
+        "Marc'aurelio Hs Torr",
+        "Ranzato"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": "arXiv:1902.10486",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::20",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Bad students make great teachers: Active learning accelerates large-scale visual understanding",
+      "cited_authors": [
+        "Talfan Evans",
+        "Shreya Pathak",
+        "Hamza Merzic",
+        "Jonathan Schwarz",
+        "Ryutaro Tanno",
+        "Olivier J Henaff"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2312.05328",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::21",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Deep bayesian active learning with image data",
+      "cited_authors": [
+        "Yarin Gal",
+        "Riashat Islam",
+        "Zoubin Ghahramani"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::22",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Self-supervised training enhances online continual learning",
+      "cited_authors": [
+        "Jhair Gallardo",
+        "Tyler L Hayes",
+        "Christopher Kanan"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::23",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "A bio-inspired incremental learning architecture for applied perceptual problems",
+      "cited_authors": [
+        "Alexander Gepperth",
+        "Cem Karaoguz"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::24",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Overcoming the stability gap in continual learning",
+      "cited_authors": [
+        "Md Yousuf",
+        "Harun",
+        "Christopher Kanan"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2306.01904",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::25",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "How efficient are today's continual learning algorithms?",
+      "cited_authors": [
+        "Md Yousuf Harun",
+        "Jhair Gallardo",
+        "Tyler L Hayes",
+        "Christopher Kanan"
+      ],
+      "cited_year": 2005,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::26",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "SIESTA: Efficient online continual learning with sleep",
+      "cited_authors": [
+        "Md Yousuf Harun",
+        "Jhair Gallardo",
+        "Tyler L Hayes",
+        "Ronald Kemker",
+        "Christopher Kanan"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::27",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Selective replay enhances learning in online continual analogical reasoning",
+      "cited_authors": [
+        "L Tyler",
+        "Christopher Hayes",
+        "Kanan"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::28",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Online continual learning for embedded devices",
+      "cited_authors": [
+        "L Tyler",
+        "Christopher Hayes",
+        "Kanan"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::29",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "New metrics and experimental paradigms for continual learning",
+      "cited_authors": [
+        "L Tyler",
+        "Ronald Hayes",
+        "Nathan D Kemker",
+        "Christopher Cahill",
+        "Kanan"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::30",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Memory efficient experience replay for streaming learning",
+      "cited_authors": [
+        "L Tyler",
+        "Nathan D Hayes",
+        "Christopher Cahill",
+        "Kanan"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::31",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Remind your neural network to prevent catastrophic forgetting",
+      "cited_authors": [
+        "Kushal Tyler L Hayes",
+        "Robik Kafle",
+        "Manoj Shrestha",
+        "Christopher Acharya",
+        "Kanan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::32",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Replay in deep learning: Current approaches and missing biological elements",
+      "cited_authors": [
+        "Giri P Tyler L Hayes",
+        "Maxim Krishnan",
+        "Bazhenov",
+        "Terrence J Hava T Siegelmann",
+        "Christopher Sejnowski",
+        "Kanan"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::33",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Exemplar-supported generative reproduction for class incremental learning",
+      "cited_authors": [
+        "Chen He",
+        "Ruiping Wang",
+        "Shiguang Shan",
+        "Xilin Chen"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::34",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Searching for mobilenetv3",
+      "cited_authors": [
+        "Andrew Howard",
+        "Mark Sandler",
+        "Grace Chu",
+        "Liang-Chieh Chen",
+        "Bo Chen",
+        "Mingxing Tan",
+        "Weijun Wang",
+        "Yukun Zhu",
+        "Ruoming Pang",
+        "Vijay Vasudevan"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::35",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Overcoming catastrophic forgetting for continual learning via model adaptation",
+      "cited_authors": [
+        "Wenpeng Hu",
+        "Zhou Lin",
+        "Bing Liu",
+        "Chongyang Tao",
+        "Zhengwei Tao",
+        "Jinwen Ma",
+        "Dongyan Zhao",
+        "Rui Yan"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::36",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Continual learning for text classification with information disentanglement based regularization",
+      "cited_authors": [
+        "Yufan Huang",
+        "Yanzhe Zhang",
+        "Jiaao Chen",
+        "Xuezhi Wang",
+        "Diyi Yang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2104.05489",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::37",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Memory-efficient incremental learning through feature adaptation",
+      "cited_authors": [
+        "Ahmet Iscen",
+        "Jeffrey Zhang",
+        "Svetlana Lazebnik",
+        "Cordelia Schmid"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::38",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Ordered sgd: A new stochastic optimization framework for empirical risk minimization",
+      "cited_authors": [
+        "Kenji Kawaguchi",
+        "Haihao Lu"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::39",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Continual learning of natural language processing tasks: A survey",
+      "cited_authors": [
+        "Zixuan Ke",
+        "Bing Liu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2211.12701",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::40",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Fearnet: Brain-inspired model for incremental learning",
+      "cited_authors": [
+        "Ronald Kemker",
+        "Christopher Kanan"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::41",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Measuring catastrophic forgetting in neural networks",
+      "cited_authors": [
+        "Ronald Kemker",
+        "Marc Mcclure",
+        "Angelina Abitino",
+        "Tyler Hayes",
+        "Christopher Kanan"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::42",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Bert: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton",
+        "Lee Kristina",
+        "Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::43",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Online continual learning on class incremental blurry task configuration with anytime inference",
+      "cited_authors": [
+        "Hyunseo Koh",
+        "Dahyun Kim",
+        "Jung-Woo Ha",
+        "Jonghyun Choi"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::44",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Generative feature replay for class-incremental learning",
+      "cited_authors": [
+        "Xialei Liu",
+        "Chenshen Wu",
+        "Mikel Menta",
+        "Luis Herranz",
+        "Bogdan Raducanu",
+        "Andrew D Bagdanov",
+        "Shangling Jui",
+        "Joost Van De Weijer"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::45",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Large-scale long-tailed recognition in an open world",
+      "cited_authors": [
+        "Ziwei Liu",
+        "Zhongqi Miao",
+        "Xiaohang Zhan",
+        "Jiayun Wang",
+        "Boqing Gong",
+        "Stella X Yu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::46",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Gradient episodic memory for continual learning",
+      "cited_authors": [
+        "David Lopez",
+        "- Paz",
+        "Marc'aurelio Ranzato"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::47",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Mobilevit: Light-weight, general-purpose, and mobile-friendly vision transformer",
+      "cited_authors": [
+        "Sachin Mehta",
+        "Mohammad Rastegari"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::48",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Learning to remember: A synaptic plasticity driven framework for continual learning",
+      "cited_authors": [
+        "Oleksiy Ostapenko",
+        "Mihai Puscas",
+        "Tassilo Klein",
+        "Patrick Jahnichen",
+        "Moin Nabi"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::49",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Play it again: reactivation of waking experience and memory",
+      "cited_authors": [
+        "O' Joseph",
+        "Barty Neill",
+        "David Pleydell-Bouverie",
+        "Jozsef Dupret",
+        "Csicsvari"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::50",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Latent replay for real-time continual learning",
+      "cited_authors": [
+        "Lorenzo Pellegrini",
+        "Gabriele Graffieti",
+        "Vincenzo Lomonaco",
+        "Davide Maltoni"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b50",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::51",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Gdumb: A simple approach that questions our progress in continual learning",
+      "cited_authors": [
+        "Ameya Prabhu",
+        "Puneet K Philip Hs Torr",
+        "Dokania"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b51",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::52",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Computationally budgeted continual learning: What does matter?",
+      "cited_authors": [
+        "Ameya Prabhu",
+        "Abed Hasan",
+        "Kader Al",
+        "Hammoud",
+        "K Puneet",
+        "Philip Dokania",
+        "Ser-Nam Hs Torr",
+        "Bernard Lim",
+        "Adel Ghanem",
+        "Bibi"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b52",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::53",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Online continual learning without the storage constraint",
+      "cited_authors": [
+        "Ameya Prabhu",
+        "Zhipeng Cai",
+        "Puneet Dokania",
+        "Philip Torr",
+        "Vladlen Koltun",
+        "Ozan Sener"
+      ],
+      "cited_year": 2005,
+      "cited_arxiv_id": "arXiv:2305.09253",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b53",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::54",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "icarl: Incremental classifier and representation learning",
+      "cited_authors": [
+        "Sylvestre-Alvise",
+        "Alexander Rebuffi",
+        "Georg Kolesnikov",
+        "Christoph H Sperl",
+        "Lampert"
+      ],
+      "cited_year": 2001,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b54",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::55",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Learning to learn without forgetting by maximizing transfer and minimizing interference",
+      "cited_authors": [
+        "Matthew Riemer",
+        "Ignacio Cases",
+        "Robert Ajemian",
+        "Miao Liu",
+        "Irina Rish",
+        "Yuhai Tu",
+        "Gerald Tesauro"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b55",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::56",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Imagenet large scale visual recognition challenge",
+      "cited_authors": [
+        "Olga Russakovsky",
+        "Jia Deng",
+        "Hao Su",
+        "Jonathan Krause",
+        "Sanjeev Satheesh",
+        "Sean Ma",
+        "Zhiheng Huang",
+        "Andrej Karpathy",
+        "Aditya Khosla",
+        "Michael Bernstein"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b56",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::57",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Active hidden markov models for information extraction",
+      "cited_authors": [
+        "Tobias Scheffer",
+        "Christian Decomain",
+        "Stefan Wrobel"
+      ],
+      "cited_year": 2001,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b57",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::58",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Online class-incremental continual learning with adversarial shapley value",
+      "cited_authors": [
+        "Dongsub Shim",
+        "Zheda Mai",
+        "Jihwan Jeong",
+        "Scott Sanner",
+        "Hyunwoo Kim",
+        "Jongseong Jang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b58",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::59",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Continual learning with deep generative replay",
+      "cited_authors": [
+        "Hanul Shin",
+        "Jung Kwon Lee",
+        "Jaehong Kim",
+        "Jiwon Kim"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b59",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::60",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Super-convergence: Very fast training of neural networks using large learning rates",
+      "cited_authors": [
+        "N Leslie",
+        "Nicholay Smith",
+        "Topin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": "arXiv:1708.07120",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b60",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::61",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Beyond neural scaling laws: beating power law scaling via data pruning",
+      "cited_authors": [
+        "Ben Sorscher",
+        "Robert Geirhos",
+        "Shashank Shekhar",
+        "Surya Ganguli",
+        "Ari Morcos"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b61",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::62",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Topology-preserving class-incremental learning",
+      "cited_authors": [
+        "Xiaoyu Tao",
+        "Xinyuan Chang",
+        "Xiaopeng Hong",
+        "Xing Wei",
+        "Yihong Gong"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b62",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::63",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Three types of incremental learning",
+      "cited_authors": [
+        "Tinne Gido M Van De Ven",
+        "Andreas S Tuytelaars",
+        "Tolias"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b63",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::64",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Continual learning: Applications and the road forward",
+      "cited_authors": [
+        "Eli Verwimp",
+        "Rahaf Aljundi",
+        "Shai Ben-David",
+        "Matthias Bethge",
+        "Andrea Cossu",
+        "Alexander Gepperth",
+        "Tyler L Hayes",
+        "Eyke Hüllermeier",
+        "Christopher Kanan",
+        "Dhireesha Kudithipudi",
+        "Christoph H Lampert",
+        "Martin Mundt",
+        "Razvan Pascanu",
+        "Adrian Popescu",
+        "Andreas S Tolias",
+        "Joost Van De Weijer",
+        "Bing Liu",
+        "Vincenzo Lomonaco",
+        "Tinne Tuytelaars",
+        "Gido M Van De Ven"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b64",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::65",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Random sampling with a reservoir",
+      "cited_authors": [
+        "S Jeffrey",
+        "Vitter"
+      ],
+      "cited_year": 1985,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b65",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::66",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "A comprehensive survey of continual learning: Theory, method and application",
+      "cited_authors": [
+        "Liyuan Wang",
+        "Xingxing Zhang",
+        "Hang Su",
+        "Jun Zhu"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2302.00487",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b66",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::67",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Sustainable ai: Environmental implications, challenges and opportunities",
+      "cited_authors": [
+        "Carole-Jean Wu",
+        "Ramya Raghavendra",
+        "Udit Gupta",
+        "Bilge Acun",
+        "Newsha Ardalani",
+        "Kiwan Maeng",
+        "Gloria Chang",
+        "Fiona Aga",
+        "Jinshi Huang",
+        "Charles Bai"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b67",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::68",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Large scale incremental learning",
+      "cited_authors": [
+        "Yue Wu",
+        "Yinpeng Chen",
+        "Lijuan Wang",
+        "Yuancheng Ye",
+        "Zicheng Liu",
+        "Yandong Guo",
+        "Yun Fu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b68",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::69",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Incremental learning using conditional adversarial networks",
+      "cited_authors": [
+        "Ye Xiang",
+        "Ying Fu",
+        "Pan Ji",
+        "Hua Huang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b69",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::70",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Online coreset selection for rehearsal-based continual learning",
+      "cited_authors": [
+        "Jaehong Yoon",
+        "Divyam Madaan",
+        "Eunho Yang",
+        "Sung Ju Hwang"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b70",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::71",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Memory-efficient class-incremental learning for image classification",
+      "cited_authors": [
+        "Hanbin Zhao",
+        "Hui Wang",
+        "Yongjian Fu",
+        "Fei Wu",
+        "Xi Li"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b71",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::72",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Places: A 10 million image database for scene recognition",
+      "cited_authors": [
+        "Bolei Zhou",
+        "Agata Lapedriza",
+        "Aditya Khosla",
+        "Aude Oliva",
+        "Antonio Torralba"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b72",
+      "in_text_context": null
+    },
+    {
+      "id": "2308.13646::citation::73",
+      "paper_id": "2308.13646",
+      "raw_text": null,
+      "cited_title": "Deep class-incremental learning: A survey",
+      "cited_authors": [
+        "Da-Wei Zhou",
+        "Qi-Wei Wang",
+        "Zhi-Hong Qi",
+        "Han-Jia Ye",
+        "Ziwei De-Chuan Zhan",
+        "Liu"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2302.03648",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b73",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

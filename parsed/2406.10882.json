@@ -1,0 +1,3786 @@
+{
+  "arxiv_id": "2406.10882",
+  "title": "SCAR: Data Selection via Style Consistency-Aware Response Ranking for Efficient Instruction-Tuning of Large Language Models",
+  "authors": [
+    {
+      "name": "Zhuang Li",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yuncheng Hua",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Thuy-Trang Vu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Haolan Zhan",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Lizhen Qu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Gholamreza Haffari",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Recent studies emphasize that manually ensuring a consistent response style and maintaining high data quality in training sets can significantly improve the performance of fine-tuned Large Language Models (LLMs) while reducing the number of training examples needed. However, the precise definition of style and the relationship between style, data quality, and LLM performance remains unclear. This research identifies two key stylistic elements in responses: linguistic form and instructional surprisal. We find that, among training data of comparable quality, higher consistency in these response elements leads to better LLM performance. Inspired by this, we introduce Style Consistency-Aware Response Ranking (SCAR), which automatically prioritizes instruction-response pairs in the training set based on their response stylistic consistency. By selecting the most style-consistent examples, using only 0.7% of the full dataset in the best case, the fine-tuned LLMs can match or even surpass the performance of models trained on the entire dataset in coding and open-ended question-answering benchmarks. Code and data are available at https://github.com/zhuang-li/SCAR .",
+  "categories": [
+    "cs.CL"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2024-06-16T10:10:37"
+    },
+    {
+      "version": "v2",
+      "created": "2024-07-01T14:55:01"
+    },
+    {
+      "version": "v3",
+      "created": "2024-07-06T09:29:54"
+    },
+    {
+      "version": "v4",
+      "created": "2024-07-10T08:22:10"
+    },
+    {
+      "version": "v5",
+      "created": "2024-10-02T16:46:54"
+    },
+    {
+      "version": "v6",
+      "created": "2024-10-12T14:05:16"
+    },
+    {
+      "version": "v7",
+      "created": "2024-12-17T04:33:12"
+    },
+    {
+      "version": "v8",
+      "created": "2025-05-23T08:08:51"
+    },
+    {
+      "version": "v9",
+      "created": "2025-05-31T15:53:22"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "Annual Meeting of the Association for Computational Linguistics",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2024-06-16",
+  "citation_count": 8,
+  "reference_count": 87,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2406.10882::section::0",
+      "paper_id": "2406.10882",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::0::para::0",
+          "section_id": "2406.10882::section::0",
+          "text": "Instruction-following Large Language Models (LLMs), such as GPT-3.5 and GPT-4 (Achiam et al., 2023), have demonstrated strong generalization across diverse language tasks (Chung et al., 2022;Ouyang et al., 2022). These models are trained in stages: unsupervised pre-training on large text corpora, followed by supervised fine-tuning (SFT) on instruction-response pairs and additional optimization stages (Bai et al., 2022).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::0::para::1",
+          "section_id": "2406.10882::section::0",
+          "text": "Recent studies, such as ALPAGASUS (Chen et al., 2024) and LIMA (Zhou et al., 2024), demonstrate that carefully curated, smaller datasets can outperform larger ones in improving LLM SFT performance. ALPAGASUS finds that smaller datasets with higher quality scores, rated by GPT-4 for helpfulness or correctness, outperform significantly larger ones when used to fine-tune highcapacity LLMs. Superficial Alignment Hypothesis, proposed in LIMA, suggests that pre-trained language models already possess the necessary knowledge, and fine-tuning is to guide the model toward specific response styles. Consequently, even a relatively small set of fine-tuning examples might be sufficient to achieve effective alignment. LIMA demonstrates strong performance by finetuning LLMs on just 1,000 high-quality instructionresponse pairs, where human experts ensure stylistic consistency across responses. However, this hypothesis raises three open questions: (i) What key elements constitute response styles that impact LLM SFT? (ii) How does data quality (i.e., helpfulness, correctness) relate to style consistency in influencing efficient SFT? (iii) Can we develop an automatic method that measures stylistic elements to curate smaller, stylistically consistent datasets for more efficient and effective SFT at a lower cost, without relying on human experts?",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::0::para::2",
+          "section_id": "2406.10882::section::0",
+          "text": "Text style is shaped by consistent choices across various linguistic elements (Kang and Hovy, 2021;Karlgren, 2004), such as lexical, syntactic, and semantic features (DiMarco and Hirst, 1993). Our empirical studies have identified two key stylistic factors within responses that significantly affect LLM SFT performance: Linguistic Form and Instructional Surprisal. Linguistic Form comprises the lexical and syntactic choices that define how a response is presented, independent of its meaning. Empirically, this includes transitional and functional word usage, sentence structure, punctuation patterns, layout features (e.g., headers, bullet points), etc. Instructional Surprisal, extending from text surprisal measurement (Oh and Schuler, 2023;Liu et al., 2024), in our definition, measures how surprising a response is given an instruction.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::0::para::3",
+          "section_id": "2406.10882::section::0",
+          "text": "We demonstrate that among SFT datasets with responses at similar levels of helpfulness and correctness, those whose responses exhibit greater consistency in linguistic form and instructional surprisal lead to superior LLM fine-tuning performance.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::0::para::4",
+          "section_id": "2406.10882::section::0",
+          "text": "Achieving style consistency is challenging, even for human experts. We found that datasets containing LLM-generated responses with consistent styles can significantly outperform humancrowdsourced data in enhancing LLM performance. Therefore, we introduce Style Consistency-Aware Response Ranking (SCAR), a novel ranking-based model that prioritizes instruction-response pairs with high stylistic consistency and superior data quality. SCAR is trained on LLM-synthesized and human-crowdsourced datasets to reward responses with higher style consistency regarding linguistic form and instructional surprisal. Enhanced with representation learning, SCAR can better distinguish between these two elements and prioritize aspects that improve LLM performance. Experiments show that by selecting the most styleconsistent examples, using just 0.7% of the original dataset in some cases, fine-tuned LLMs can match or surpass the performance of models trained on full datasets like OCTOCODER-15.5B (Muennighoff et al., 2023) and OLMO-7B-SFT (Groeneveld et al., 2024) on coding (HUMANEVAL; Chen et al. 2021) and open-ended question answering (ALPACAEVAL; Dubois et al. 2023) benchmarks.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2406.10882::section::0::para::5",
+          "section_id": "2406.10882::section::0",
+          "text": "In summary, our key contributions are: I) We identify linguistic form and instructional surprisal as critical response style elements, and demonstrate that within training datasets with comparable helpfulness and accuracy, responses exhibiting higher consistency in linguistic form and instructional surprisal yield better LLMs.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2406.10882::section::0::para::6",
+          "section_id": "2406.10882::section::0",
+          "text": "II) We develop SCAR, a ranking method that selects high-quality, stylistically consistent examples from style-inconsistent datasets.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2406.10882::section::0::para::7",
+          "section_id": "2406.10882::section::0",
+          "text": "When selecting training data for efficient SFT, SCAR outperforms leading data selection baselines, enabling LLMs trained on small subsets (0.7-25% of original data) to match or exceed full-dataset performance.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::1",
+      "paper_id": "2406.10882",
+      "heading": "Impact of Styles on LLM Fine-tuning",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::1::para::0",
+          "section_id": "2406.10882::section::1",
+          "text": "In this section, we study two research questions: i) What key elements in response style can influence LLM SFT? and ii) How do style consistency and data quality impact LLM performance?",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::2",
+      "paper_id": "2406.10882",
+      "heading": "RQ1: What Factors Constitute Response Style",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::2::para::0",
+          "section_id": "2406.10882::section::2",
+          "text": "Through empirical analysis of stylistic differences between synthetically generated and humanwritten instruction-tuning data, we identified two key sets of stylistic features in responses that significantly influence LLM alignment performance.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::2::para::1",
+          "section_id": "2406.10882::section::2",
+          "text": "• Linguistic Form refers to the structure of language, including how words and sentences are organized and interact (Fabb, 2001;Chomsky, 1957;Jurafsky, 2000). In our context, it denotes elements that shape the presentation of a response, mostly independent of semantics, such as transitional and functional word usage, tone, sentence structure, punctuation patterns, layout features (e.g., headers, bullet points), etc. For example, we observe that GPT-3.5-TURBO responses often follow a consistent structure, using bullet points and similar transitional phrases, whereas human responses, authored by diverse individuals, show greater variation in linguistic elements.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::2::para::2",
+          "section_id": "2406.10882::section::2",
+          "text": "• Instructional Surprisal measures how surprising the content (solutions, ideas, and approaches) of a response is in addressing a given instruction. For example, when asked about sorting algorithms, GPT-3.5-TURBO consistently provides predictable solutions like merge sort or quick sort, while human responses show a range of surprisal-from conventional approaches to unexpected choices like StoogeSort or novel answers. Instructional surprisal can be estimated using perplexity scores, computed as the average negative log-likelihood of the response given the instruction, or through semantic relatedness metrics such as cosine similarity between instruction and response embeddings. These approaches extend word-level surprisal measures based on language model predictions (Oh and Schuler, 2023;Liu et al., 2024) or word-to-context embedding similarity (Sayeed et al., 2015;Karampiperis et al., 2014) to the sequence level. Further discussion is provided in Appendix B.5.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::3",
+      "paper_id": "2406.10882",
+      "heading": "RQ2: Influence of Style Consistency and Data Quality on LLM Performance",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::3::para::0",
+          "section_id": "2406.10882::section::3",
+          "text": "We collect both human-written and synthetic data in coding and general open-ended domains, and conduct stylometric and quality analyses on this data. Following this, we fine-tune base LLMs using this data to explore how style consistency and data quality influence LLM SFT performance. We control style variations to create three dataset types-human-written, referenced, and direct-to explore how linguistic form and response surprisal impact LLM performance. In the coding domain, we collect 10,000 human-written instruction-response pairs from STACKEXCHANGE 1 , an online platform that includes 11 million pairs of coding questions and answers. We use the LIMA dataset, including 1,000 human-generated examples, for the general domain. Additionally, we generate two synthetic response types with controlled styles: \"referenced\" and \"direct.\" \"Referenced\" responses are crafted by a chat-LLM that rewrites human responses to retain their semantic meaning, similar to the method in Yang et al. (2024). This process retains the surprisal levels of human responses but alters their linguistic form. We also filter out examples where \"referenced\" responses deviate significantly from human responses in surprisal metrics, reducing the datasets to 944 STACKEXCHANGE and 407 LIMA examples. In contrast, the chat-LLM generates \"direct\" responses to the remaining instructions without any references, potentially producing different semantics, thereby significantly varying their surprisal levels compared to human-referenced responses. Table 1 illustrates the similarities and differences among these three style variants.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::4",
+      "paper_id": "2406.10882",
+      "heading": "Why is FIFA against adding instant replay to the game? Human Response",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::4::para::0",
+          "section_id": "2406.10882::section::4",
+          "text": "There are a few fundamental considerations: Uncertainty is a part of the game. ... Football is global. ... Football is a fast-paced game with few opportunities for stoppage. ... In 2008, FiFA President Sepp Blatter said: ... Human Referenced Response from GPT-3.5-turbo FIFA is against adding instant replay to the game for several reasons. One of the main concerns is that uncertainty is seen as a natural part of the game,... Additionally, football is a global sport;... Another factor is that football is a fast-paced game with minimal stoppages;... Direct Response from GPT-3.5-turbo FIFA is against adding instant replay to the game because they believe it would disrupt the flow of the game ... They also argue that human error is a part of the game ... Additionally, implementing instant replay would require significant changes to the rules and regulations ... Table 1: Examples of different response types for a given instruction. Some details are abbreviated as '...'. Shared surprisal-related style elements between \"Human\" and \"Referenced\" responses are highlighted in orange, and shared linguistic form elements between \"Referenced\" and \"Direct\" responses are in green.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::4::para::1",
+          "section_id": "2406.10882::section::4",
+          "text": "We also isolate the effects of data quality on LLM performance by using three chat-LLMs with different capabilities to generate synthetic \"referenced\" and \"direct\" datasets. The models employed are GPT-3.5-TURBO, LLAMA2-70B-CHAT, and LLAMA2-13B-CHAT (Touvron et al., 2023), with GPT-3.5-TURBO being the most advanced, followed by LLAMA2-70B-CHAT and LLAMA2-13B-CHAT, according to the arenaleaderboard (Zheng et al., 2024). We find that hallucinations occurring in LLM-generated \"referenced\" and \"direct\" responses can significantly affect the quality of the resulting synthetic data.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::5",
+      "paper_id": "2406.10882",
+      "heading": "Stylometric Analysis.",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::5::para::0",
+          "section_id": "2406.10882::section::5",
+          "text": "To analyze the linguistic form of human and synthetic responses, we employ six authorship attribution metrics (Tripto et al., 2023;Zheng and Jin, 2023) that capture nonsemantic features. These include the Type Token Ratio (TTR) (Templin, 1957), Measure of Textual Lexical Diversity (MTLD) (McCarthy, 2005) for functional words, Flesch score (Kincaid et al., 1975), average sentence length, and the frequency of punctuation and layout features (e.g., bullet points and headers). Higher TTR and MTLD values indicate greater lexical diversity, while a higher Flesch score suggests improved readability. We identify functional words in the response using a lexicon based on heuristic POS-tagging rules. To assess instructional surprisal, we compute the perplexity of a response given its instruction, denoted as PPL(y | x), using META-LLAMA-3-8B (AI@Meta, 2024). T-SNE (Van der Maaten and Hinton, 2008) plots (Figure 1, left) show that embeddings of GPT-3.5-TURBO-generated \"referenced\" and \"direct\" responses cluster tightly in the center, indicating that both synthetic response types share consistent and similar linguistic forms. These embeddings are created by vectorizing six authorship metrics and the unigrams of functional words. Conversely, human responses are more dispersed in the outer region,",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::5::para::1",
+          "section_id": "2406.10882::section::5",
+          "text": "STACKEXCHANGE LIMA Data Curation Methods Stylometric Analysis Data Quality CODELLAMA-7B Performance Stylometric Analysis Data Quality META-LLAMA-3-8B Performance Std. TTR ↓ / Std. PPL(y|x)↓ Helpfulness / Correctness Avg. Pass@1 / Avg. Pass@10 Std. TTR↓ / Std. PPL(y|x)↓ Helpfulness / Correctness L.C. WinRate Human Response 24.23 / 0.33 3.29 / 3.70 26.56 / 41.63 20.49 / 1.53 3.86 / 4.14 1.93 GPT-3.5-TURBO Referenced 8.16 / 0.33 3.44 / 3.70 29.82 / 46.89 18.43 / 1.52 3.79 / 4.00 3.64 Direct 8.14 / 0.30 3.32 / 3.45 31.00 / 47.12 16.06 / 0.64 3.91 / 4.16 5.67 LLAMA2-70B-CHAT Referenced 11.90 / 0.36 3.14 / 3.54 29.82 / 44.03 16.51 / 1.45 3.89 / 4.11 3.96 Direct 13.52 / 0.28 3.18 / 2.71 30.89 / 45.31 15.63 / 0.42 3.85 / 4.22 6.25 LLAMA2-13B-CHAT Referenced 7.46 / 0.27 2.65 / 2.68 26.61 / 41.91 13.64 / 1.19 3.75 / 3.89 3.77 Direct 8.86 / 0.28 1.85 / 1.70 26.42 / 40.00 14.22 / 0.38 3.29 / 3.48 6.22",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::5::para::2",
+          "section_id": "2406.10882::section::5",
+          "text": "Table 2: Performance comparison of CODELLAMA-7B and META-LLAMA-3-8B fine-tuned on STACKEXCHANGE and LIMA instructions paired with human responses and two variants ('Referenced'/'Direct') generated by three chat-LLMs, analyzing response quality (helpfulness/correctness) and style consistency (TTR/PPL standard deviations).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::5::para::3",
+          "section_id": "2406.10882::section::5",
+          "text": "showing lower consistency. Figure 1 (right) shows \"direct\" responses have a more skewed perplexity distribution towards lower values, indicating higher consistency in instructional surprisal compared to both \"referenced\" and human ones. Standard deviations (Std.) of TTR and perplexity for different response types are listed in Table 2, with additional linguistic form and text surprisal metrics detailed in Table 6 (Appendix B.2). We observe human responses have higher Std. values regarding TTR, perplexity and other metrics compared to synthetic responses, and \"referenced\" responses show a higher perplexity Std. than \"direct\" responses. The Std. values of these metrics across \"referenced\" and \"direct\" responses from LLAMA2-70B-CHAT, LLAMA2-13B-CHAT, and GPT-3.5-TURBO indicate synthetic responses from all these LLMs have higher consistency in both stylistic elements than human ones.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::6",
+      "paper_id": "2406.10882",
+      "heading": "Data Quality Analysis.",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::6::para::0",
+          "section_id": "2406.10882::section::6",
+          "text": "We evaluate a sample of 100 examples from each dataset using GPT-4-1106-PREVIEW. We rate the scores for two data quality metrics, helpfulness and correctness, using the adjusted prompt from the automatic data evaluator ICE-Score (Zhuo, 2024) for the coding domain and AlpaGasus (Chen et al., 2024) for the open-ended domain, and then calculate the average scores across the samples. Higher scores indicate better quality. Table 2 reveals that in the coding domain, GPT-3.5-TURBO-generated responses match the quality of human-written ones, while other LLMs produce lower-quality data. In the open domain, LLAMA2-70B-CHAT and GPT-3.5-TURBO responses are comparable in quality to human-written responses, whereas LLAMA2-13B-CHAT responses are of slightly lower quality.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::6::para::1",
+          "section_id": "2406.10882::section::6",
+          "text": "Impact on LLM Performance. We evaluate the CODELLAMA-7B model fine-tuned with LoRA (Hu et al., 2021) on various datasets using HUMANEVAL (Python) (Chen et al., 2021) and MULTIPL-E (Java, JavaScript, C++) (Cassano et al., 2023) benchmarks. For the coding domain, we report average Pass@1 and average Pass@10 execution accuracies across all coding questions spanning four programming languages. We measure the length control win rate (L.C. WinRate) (Dubois et al., 2024) by comparing responses from the LoRA fine-tuned META-LLAMA-3-8B with those from GPT-4-PREVIEW-1106 on 2500 opendomain instructions from AlpacaEvalfoot_0 . We use LLAMA-3-70B-CHAT (AI@Meta, 2024) as our automatic evaluator for its cost-effectiveness ($0.9 per evaluation). This evaluator correlates with human judgment as well as GPT-4 evaluators and even surpasses human-to-human agreement, with an agreement rate of 67.5% compared to 65.7% in tests conducted on ALPACAEVAL.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::6::para::2",
+          "section_id": "2406.10882::section::6",
+          "text": "When comparing synthetic responses of similar or slightly different quality generated from capable chat-LLMs, \"direct\" responses outperform their \"referenced\" counterparts in downstream LLM SFT tasks through higher instructional surprisal consistency. Both synthetic types exhibit greater consistency in both stylistic elements, thereby outperforming human-authored data. However, style consistency alone cannot compensate for substantial quality deficits. This is evidenced by a notable exception in coding tasks, where LLAMA2-13B-CHAT's \"direct\" responses, despite having higher style consistency, achieve poorer fine-tuning outcomes due to their significantly lower quality scores (1.8) compared to both \"referenced\" responses (2.6) and human data (3.5).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::6::para::3",
+          "section_id": "2406.10882::section::6",
+          "text": "Takeaway. The analysis reveals several insights: I) Linguistic form and instructional surprisal inherent in the response styles of the training data significantly influence the LLM SFT performance.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::6::para::4",
+          "section_id": "2406.10882::section::6",
+          "text": "II) LLM-generated responses show higher style consistency than human ones, with \"direct\" responses showing the greatest consistency in linguistic form and instructional surprisal.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2406.10882::section::6::para::5",
+          "section_id": "2406.10882::section::6",
+          "text": "III) Enhancing data quality and ensuring response style consistency both contribute to improved LLM SFT performance. Among datasets with shared instructions and similar quality, those with more consistent response styles yield better LLM performance.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::7",
+      "paper_id": "2406.10882",
+      "heading": "Style Consistency-Aware Ranking",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::7::para::0",
+          "section_id": "2406.10882::section::7",
+          "text": "Inspired by these findings, we develop a Style Consistency-Aware Ranker to select training examples with consistent response styles, improving LLM SFT performance.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::7::para::1",
+          "section_id": "2406.10882::section::7",
+          "text": "Ranking Objective. Given a dataset D = {(x i , y d i , y r i , y h i )} N i=1 , where x i represents the instruction, y d i and y r i are the \"direct\" and human \"referenced\" responses from chat-LLMs, respectively, and y h i represents the human response. We aim to learn a ranking function R(x, y) that assigns higher scores to high-quality responses adhering to the consistent style of a specific LLM's outputs. The objective for each instance is to learn the ranking function:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::7::para::2",
+          "section_id": "2406.10882::section::7",
+          "text": "where P = {(y d , y r ), (y r , y h ), (y d , y h )} represents the set of desired pairwise orderings, based on the findings from Section 2, that \"direct\" responses are more consistent in surprisal levels than \"referenced\" ones, \"referenced\" responses are more consistent in linguistic form than human data, and \"direct\" responses are more consistent than human data in both stylistic feature types. The margin α ensures the difference in the ranking scores assigned by R θ (x, y), while the quality measure function f (x, y) evaluates the quality (e.g., helpfulness, correctness) of the response y given the instruction x. The quality measure function f can be implemented using strong LLMs such as GPT-3.5 or GPT-4 with a prompt, as in Chen et al. (2024), to evaluate the helpfulness and correctness of the answers and average these scores to obtain the final quality score. The quality threshold σ ensures the ranker only rewards responses that are both style-consistent and high-quality.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::7::para::3",
+          "section_id": "2406.10882::section::7",
+          "text": "Reward Function. The reward function R θ (x, y) is modelled as a neural network that takes representations of instructional surprisal v c ∈ R 1×M and linguistic form v p ∈ R 1×M , and computes a scalar reward score using a multi-layer perceptron (MLP):",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::7::para::4",
+          "section_id": "2406.10882::section::7",
+          "text": "Our experiments demonstrate that linguistic form, when compared to semantic content, shows both minimal influence on the variance of instructional surprisal and significantly lower instruction dependence. These findings motivate us to adopt disentangled modeling strategies. For linguistic form, we capture surface-level features through max pooling over the response sequence V y , independent of the instruction. For instructional surprisal, we approximate related features using semantic relatedness, motivated by prior work that models surprisal through embedding similarities between words and their contextual text (Sayeed et al., 2015). Specifically, we compute multi-dimensional semantic alignment by concatenating the [CLS] embeddings of the instruction V 0 x and response V 0 y , and processing them through MLP c . To generate sequence representations V, we use a pre-trained encoder, such as ROBERTA-BASE (Liu et al., 2019) and CODET5P-110M-EMBEDDING (Wang et al., 2023c). Further details are provided in Appendix B.4 and B.5.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::8",
+      "paper_id": "2406.10882",
+      "heading": "Style Representation Learning.",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::8::para::0",
+          "section_id": "2406.10882::section::8",
+          "text": "Accurately capturing distinct representations for linguistic form (v p ) and instructional surprisal (v c ) is challenging, as these features can still become entangled during the learning process, even with our specialized separation design. To address this, we leverage observed similarities: the linguistic form of \"referenced\" responses is more similar to \"direct\" responses than to human responses, and the instructional surprisal of \"referenced\" responses is closer to that of human responses than to \"direct\" ones, as shown in Figure 1. We introduce a regularization term using triplet margin losses to enforce these similarity patterns:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::8::para::1",
+          "section_id": "2406.10882::section::8",
+          "text": "where",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::8::para::2",
+          "section_id": "2406.10882::section::8",
+          "text": "is the distance function and β values are the margins.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::9",
+      "paper_id": "2406.10882",
+      "heading": "Final Loss Function.",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::9::para::0",
+          "section_id": "2406.10882::section::9",
+          "text": "The final loss function combines the ranking loss and the representation learning losses:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::9::para::1",
+          "section_id": "2406.10882::section::9",
+          "text": "Ranking and Filtering. After training reward function R θ (x, y), it ranks instruction-response pairs (x, y) in a held-out dataset. The top k% of examples with the highest scores are selected to create a high-quality style-consistent subset for finetuning LLMs. This filtered dataset is expected to improve fine-tuned LLM performance on target tasks to levels comparable to or exceeding those achieved using the entire original dataset.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::10",
+      "paper_id": "2406.10882",
+      "heading": "Experiments",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::10::para::0",
+          "section_id": "2406.10882::section::10",
+          "text": "We train SCAR using data from the coding and open-ended question-answering domains to select examples for LLM SFT from the full dataset in these same domains.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::10::para::1",
+          "section_id": "2406.10882::section::10",
+          "text": "Ranker Data. We collect instructions for SCAR training and evaluation, which include 10,000 randomly selected examples from STACKEXCHANGE for the code domain, and 6,000 instructions from a combination of 5,000 random DOLLY (Conover et al., 2023) data samples and the full LIMA dataset. DOLLY is a human-curated dataset with 15,000 high-quality instruction-response pairs. We create the data by pairing instructions with human responses and the \"referenced\" and \"direct\" responses generated by GPT-3.5-TURBO, as described in Section 2. Due to budget limitations, we use GPT-3.5-TURBO to rate the helpfulness and correctness of responses according to the constraint in Eq. ( 2).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::10::para::2",
+          "section_id": "2406.10882::section::10",
+          "text": "LLM SFT Data. SCAR and other baselines select data from two sources, held out from the ranking training data. These sources provide diverse but style-inconsistent examples: i) Human-Crowdsourced Data, curated by many authors, making it diversified and naturally styleinconsistent. ii) Mixed Synthetic Data, generated by GPT-3.5-TURBO using various system prompts, reflecting the practical use of multiple open-source synthetic datasets to enhance diversity.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::10::para::3",
+          "section_id": "2406.10882::section::10",
+          "text": "For the code domain, human-written data comes from a sample of 20,000 crowdsourced STACKEX-CHANGE examples. To ensure quality, we select examples with instructions that include code blocks and answers with a rating above 2.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::10::para::4",
+          "section_id": "2406.10882::section::10",
+          "text": "The mixed synthetic data comprises 20,000 examples, sourced evenly from: i) 5,000 STACKEX-CHANGE instructions with \"direct\" responses, ii) 5,000 STACKEXCHANGE instructions with \"referenced\" responses, iii) 5,000 coding examples curated using EVOL-INSTRUCT (Luo et al., 2023) by Zan et al. (2023), iv) 5,000 coding examples generated using SELF-INSTRUCT (Wang et al., 2023b).",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2406.10882::section::10::para::5",
+          "section_id": "2406.10882::section::10",
+          "text": "The instructions cover Python, Java, JavaScript, and C++. For SELF-INSTRUCT, we use GPT-3.5-TURBO to generate responses in the target programming languages identified using guesslang 3 .",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2406.10882::section::10::para::6",
+          "section_id": "2406.10882::section::10",
+          "text": "For the open-ended domain, human-written data comes from 10,000 DOLLY examples, held out from the DOLLY examples used for ranker training.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2406.10882::section::10::para::7",
+          "section_id": "2406.10882::section::10",
+          "text": "Mixed synthetic data includes 10,000 examples, evenly sourced from: i) 2,500 held-out DOLLY instructions with \"direct\" answers, ii) 2,500 DOLLY instructions with \"referenced\" answers, iii) 2500 open-domain examples using SELF-INSTRUCT by LaMini (Wu et al., 2023b), iv) examples curated using EVOL-INSTRUCT from Xu et al. (2023).",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::11",
+      "paper_id": "2406.10882",
+      "heading": "Data Selection and LLM SFT.",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::11::para::0",
+          "section_id": "2406.10882::section::11",
+          "text": "The data selection methods sample 50%, 25%, and 12.5% of coding-domain data to fine-tune CODELLAMA-7B, and 50%, 25%, and 10% of open-domain data to fine-tune META-LLAMA-3-8B. Both LLM trainings use LoRA due to computational constraints.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::12",
+      "paper_id": "2406.10882",
+      "heading": "LLM Evaluation.",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::12::para::0",
+          "section_id": "2406.10882::section::12",
+          "text": "We evaluate code generation performance using HUMANEVAL and MULTIPL-E, and report the metric: Avg. Pass@(1+10) = Pass@1 + Pass@10 2 averaged over four languages for the fine-tuned CODELLAMA-7B. For general tasks, we use AL-PACAEVAL and report the L.C. WinRate of outputs from fine-tuned META-LLAMA-3-8B compared to GPT-4-PREVIEW-1106, as in Section 2.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::13",
+      "paper_id": "2406.10882",
+      "heading": "Data Selection Baselines.",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::13::para::0",
+          "section_id": "2406.10882::section::13",
+          "text": "We compare SCAR in two settings with 7 baselines:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::13::para::1",
+          "section_id": "2406.10882::section::13",
+          "text": "1. RANDOM: Randomly select examples.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::13::para::2",
+          "section_id": "2406.10882::section::13",
+          "text": "2. PERPLEXITY (Albalak et al., 2024): Select entries with lowest response perplexity (PPL(y|x)) computed using META-LLAMA-3-8B.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::13::para::3",
+          "section_id": "2406.10882::section::13",
+          "text": "3. SUPERFILTERING (Li et al., 2024): Select the most challenging examples for LLMs with the highest Instruction-Following Difficulty (IFD) score. Here, we compute IFD as PPL(y|x) PPL(y) using META-LLAMA-3-8B. 4. HUMAN FEEDBACK RANKING (HFR): Uses the same ranker architecture as SCAR, trained on 10,000 Stack Exchange pairs (Lambert et al., 2023) annotated with human preferences (each instruction paired with positive and negative responses) for the coding domain, and 6,000 human preference examples from HH-RLHF data (Bai et al., 2022) for the general domain.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::13::para::4",
+          "section_id": "2406.10882::section::13",
+          "text": "5. ALPAGASUS (Chen et al., 2024): Select data based on response quality scores rated by GPT-3.5-TURBO, consistent with the rating method used in our ranker.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2406.10882::section::13::para::5",
+          "section_id": "2406.10882::section::13",
+          "text": "6. DIVERSITY: Apply k-means clustering to diversify examples by selecting randomly from each cluster, a method commonly used in active learning (Li and Haffari, 2023;Li et al., 2023b;Zhdanov, 2019).",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2406.10882::section::13::para::6",
+          "section_id": "2406.10882::section::13",
+          "text": "7. LONGEST: Select examples with longest response token lengths (Zhao et al.). 8. SCAR(ID): SCAR trained on in-domain (ID) data (e.g., code) and selects examples within the same domain. 9. SCAR(OOD): SCAR trained on in-domain data and select examples from an out-of-domain (OOD) dataset. For instance, SCAR(OOD) is trained on the code domain and selects data from the open domain or vice versa.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::14",
+      "paper_id": "2406.10882",
+      "heading": "Main Results and Discussion",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::14::para::0",
+          "section_id": "2406.10882::section::14",
+          "text": "Effectiveness of SCAR-Selected Data. As in Figure 2, SCAR(ID) can enhance SFT performance while lowering computational costs. LLMs fine-tuned on only 25% and 10% of SCAR(ID)selected data achieve comparable or superior performance to models trained on full datasets in coding and general domains, respectively. SCAR(ID) and SCAR(OOD) generally outperform other data selection methods for fine-tuning LLMs, with SCAR(OOD) slightly lagging behind SCAR(ID) due to challenges in cross-domain generalization. Some baselines show unstable performance. SUPERFILTERING performs poorly in the coding domain. We observe it may assign high IFD scores to erroneous examples in crowdsourced coding data of varying quality. PERPLEX-ITY and ALPAGASUS-selected data result in similar LLM performance trends. However, their performance is inferior to SCAR(ID), which we attribute to their lack of style consistency. Traditional active learning methods like RANDOM and DIVERSITY sampling prove less effective, as our style-inconsistent target scenario inherently incorporates diversity, limiting their additional benefits. HFR's underperformance across most scenarios suggests that training the ranker on inconsistent human preferences from diverse authors may impair its ability to select optimal training data. Notably, LONGEST performs comparably to our method in open-domain synthetic data selection, though inferior elsewhere. This aligns with our style consistency framework, as length serves as a strong style indicator, with EVOL-INSTRUCT responses consistently being longer.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::15",
+      "paper_id": "2406.10882",
+      "heading": "Impact of Data Sizes.",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::15::para::0",
+          "section_id": "2406.10882::section::15",
+          "text": "Figure 2 shows that in the coding domain, using fewer data selected by various methods usually lowers LLM performance. However, in the open-ended domain, most methods can select fewer synthetic data to fine-tune LLMs that outperform those trained on the full dataset. With SCAR(ID), reducing data consistently improves LLM performance in the open domain. This suggests that while dataset size, diversity, and style consistency can all benefit LLM SFT, their optimal balance varies across different scenarios.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::16",
+      "paper_id": "2406.10882",
+      "heading": "Stylometric and Data Quality Analysis of SCAR-Selected Data.",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::16::para::0",
+          "section_id": "2406.10882::section::16",
+          "text": "Table 3 shows that SCAR(ID) improves style consistency in the selected DOLLY data, reflected by consistently lower TTR and per-50% 25% 12.5% 30 32 34 36 38 40 Human 50% 25% 12.5% 38 39 40 41 42 43 Mixed Synthetic 50% 25% 10% 1.2 1.4 1.6 1.8 2.0 2.2 2.4 2.6 Human 50% 25% 10% 3 4 5 6 Mixed Synthetic Code Domain Open-ended Domain Random Perplexity Superfiltering HFR ALPAGASUS Diversity Longest SCAR(OOD) SCAR(ID) Full Data Figure 2: The performance of LLMs fine-tuned on human and synthetic data subsets of various sizes in code and open domains, sampled with different data selection approaches. Std. TTR Std. PPL Helpful Correct STACKEXCHANGE 100% 21.48 1.80 2.84 2.68 50% 16.78 1.61 3.02 3.01 25% 14.85 1.61 2.78 2.72 12.5% 14.29 1.94 2.67 2.77 DOLLY 100% 30.96 65.70 3.95 3.91 50% 28.43 54.32 3.98 3.99 25% 24.74 49.51 3.96 3.93 10% 23.73 39.58 3.98 3.99 plexity standard deviation compared to the full dataset. However, for code data, while the TTR standard deviation decreases, the perplexity standard deviation increases when selecting smaller subsets (25%, 12.5%), suggesting that differentiating instructional surprisal features in code is challenging. This may explain the sudden performance drop in LLMs fine-tuned on these smaller code subsets. Moreover, our method preserves average data quality (helpfulness, correctness), as rated using GPT-4-1106-PREVIEW, comparable to the full dataset, likely due to the use of the data quality constraint in Eq. ( 2) during ranker training.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::17",
+      "paper_id": "2406.10882",
+      "heading": "Effectiveness of SCAR on Open-Source LLMs.",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::17::para::0",
+          "section_id": "2406.10882::section::17",
+          "text": "Specifically, we apply the SCAR(ID) method to select 2.5k, 5k, and 10k instruction-response pairs from the allenai/tulu-v2-sft-mixture (320k examples) and bigcode/guanaco-commits (13k examples), after removing non-English entries and exact duplicates. Both datasets contain a high degree of stylistic inconsistency in the responses, due to either merging multiple existing datasets (Tulu) or scraping content authored by many individuals (Guanaco-commits). We then compare their performance to the official checkpoints, OLMO-7B-SFT and OCTOCODER-15.5B (Muennighoff et al., 2023), which were instruction-tuned on the full datasets. Table 4 shows that SCAR-selected subsets significantly boost performance, achieving these results with only 0.7% to 20% of the original data, as measured by L.C. WinRate on ALPACAEVAL and average Pass@(1+10) on HUMANEVAL and MULTIPL-E. Further evaluation of OLMO-7B variants on diverse benchmarks (Table 15, Appendix C.7)-including ARC-CHALLENGE (Clark et al., 2018), TRUTH-FULQA (Lin et al., 2022), HELLASWAG (Zellers et al., 2019) and MMLU (Hendrycks et al.)demonstrates that all our subset-fine-tuned OLMO-7B outperform the full 320k-trained model in average performance across various LLM capabilities.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::18",
+      "paper_id": "2406.10882",
+      "heading": "Ablation Study",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::18::para::0",
+          "section_id": "2406.10882::section::18",
+          "text": "To evaluate the effectiveness of SCAR(ID) components, we compare the full ranker training setting (Full, GPT-3.5) against variations without the quality constraint in Eq. ( 2) (w/o con, GPT-3.5), without representation learning in Eq. ( 4) (w/o rl, GPT-3.5), and without \"referenced\" responses during training (w/o ref, GPT-3.5). We also generate synthetic data to train the ranker using LLAMA2-13B-CHAT (Full,, LLAMA2-70B-CHAT (Full, Llama2-70b), LLAMA-3-70B-CHAT (Full, Llama3-70b), and LLAMA2-13B-CHAT without using quality constraint (w/o con, Llama2-13b). Eq. ( 4) is likely satisfied even without the loss because \"referenced\" responses provide an intermediate style during training, which is why we set a low coefficient (0.1) for this loss. However, excluding \"referenced\" responses significantly degrades performance in the open domain (Table 19, Appendix D.1) and disrupts the optimization of Eq. ( 4). Table 20, Appendix D.2 further analyses the representation learning results.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::19",
+      "paper_id": "2406.10882",
+      "heading": "Data Quality Constraint.",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::19::para::0",
+          "section_id": "2406.10882::section::19",
+          "text": "Figure 3 (2nd) shows that removing the data quality constraint in Eq. ( 2) significantly worsens the performance of LLMs fine-tuned on human-crowdsourced data when SCAR is trained on lower-quality datasets, such as LLAMA2-13B-CHAT-generated responses (w/o con, Llama2-13b), compared to using the constraint (Full,. In this case, SCAR tends to select style-consistent but erroneous or unhelpful examples from LLM SFT data with varying quality (e.g. crowdsourced data). However, in other cases, removing the quality constraint has minimal impact on data selection performance.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::19::para::1",
+          "section_id": "2406.10882::section::19",
+          "text": "LLMs for Generating SCAR Training Data.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::19::para::2",
+          "section_id": "2406.10882::section::19",
+          "text": "Figure 3 shows that the choice between LLAMA and GPT-3.5-TURBO for generating synthetic training data for SCAR has minimal impact when the trained ranker selects from human-written data. However, when selecting from mixed synthetic GPT-3.5-TURBO data for LLM SFT, using LLAMA-generated data to train the ranker leads to slightly lower LLM performance (Table 18 in Appendix D). This disparity likely results from stylistic differences between LLAMA and GPT-3.5-TURBO-generated responses.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::19::para::3",
+          "section_id": "2406.10882::section::19",
+          "text": "5 Related Work Instruction-Tuning Data Selection. Instructiontuning trains LLMs to follow complex instructions in various contexts (Wei et al., 2021;Sanh et al., 2021). Data are sourced from human-curated examples (Wang et al., 2022b;Zhou et al., 2024) and LLM outputs (Xu et al., 2023;Wang et al., 2022a). Studies (Zhou et al., 2024;Chen et al., 2024;Li et al., 2024Li et al., , 2023a;;Lu et al., 2023;Liu et al.) show that smaller, high-quality datasets can outperform significantly larger ones in boosting LLM performance. LIMA uses expert human curation for stylistic consistency (Zhou et al., 2024), while AlpaGasus (Chen et al., 2024) utilizes LLMs to assess data quality. Other methods select effective examples based on Instruction Following Difficulty scores (Li et al., 2024(Li et al., , 2023a)), diversity metrics (Lu et al., 2023;Bukharin and Zhao, 2023), or response length (Zhao et al.).",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::20",
+      "paper_id": "2406.10882",
+      "heading": "Automatic Authorship Detection.",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::20::para::0",
+          "section_id": "2406.10882::section::20",
+          "text": "Our method relates to authorship detection studies. Traditional authorship detection used lexical features like TTR, MTLD, and Flesch readability scores (Tripto et al., 2023;Zheng and Jin, 2023). Recent focus has shifted to distinguishing human and machinegenerated texts using advanced neural networks to analyze styles at the corpus (Mitchell et al., 2023;Su et al., 2023) or the sentence levels (Zeng et al., 2024b(Zeng et al., , 2023;;Wang et al., 2023a;Zeng et al., 2024a). The studies (Xu and Sheng, 2024;Su et al., 2023;Wang et al., 2023a;Mitchell et al., 2023;Wu et al., 2023a), like ours, show perplexity effectively differentiates between human and machine styles.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::21",
+      "paper_id": "2406.10882",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::21::para::0",
+          "section_id": "2406.10882::section::21",
+          "text": "Our empirical study demonstrates that among training datasets with responses of comparable helpfulness and correctness, those exhibiting higher consistency in two key response style elements, linguistic form and instructional surprisal, significantly enhance the performance of fine-tuned LLMs. Building on this insight, we propose SCAR, a ranking method designed to identify and select stylistically consistent training data for LLM fine-tuning. Our experiments reveal that LLMs fine-tuned on carefully selected small subsets can outperform models trained on complete datasets, with SCAR achieving superior performance using only 0.7% of the original data in the best case. Furthermore, SCAR consistently outperforms other data selection baselines across various LLM fine-tuning scenarios.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::22",
+      "paper_id": "2406.10882",
+      "heading": "Limitations Discussion of Bias",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::22::para::0",
+          "section_id": "2406.10882::section::22",
+          "text": "Reducing the training dataset size can potentially introduce biases. To address this concern, we discuss two types of bias: fairness bias and lexical diversity bias.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::22::para::1",
+          "section_id": "2406.10882::section::22",
+          "text": "Fairness Bias. Our experiments (Tables 21 and 22 at Appendix E.1) show that LLMs finetuned with SCAR-selected subsets produce responses with minimal levels of toxicity and sentiment polarity toward certain demographic and occupational groups. Overall, the fairness performance of models trained on SCAR-selected data is comparable to, or even better than, models trained on full datasets or data selected using other methods. While fairness biases may persist, we argue that this issue is not unique to SCAR but remains a broader challenge for all LLMs. Refining selection criteria to further mitigate these biases is a promising direction for future work. See Appendix E.1 for a detailed analysis.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::22::para::2",
+          "section_id": "2406.10882::section::22",
+          "text": "Lexical Diversity Bias. Table 23 in the Appendix evaluates lexical diversity in instructions and responses separately using TTR and MTLD. Results show that SCAR-selected instructions exhibit a slightly lower TTR compared to the full dataset and other subsets, with a more noticeable TTR reduction observed in responses. However, MTLD scores, which measure length-independent lexical richness, remain comparable across SCARselected data, the full dataset, and subsets chosen by other baselines. This suggests that while SCAR reduces surface-level lexical variation (reflected by TTR), it does not significantly affect the overall depth and richness of vocabulary (captured by MTLD) in instructions or responses.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::22::para::3",
+          "section_id": "2406.10882::section::22",
+          "text": "Importantly, instruction-level diversity is more critical for LLM fine-tuning performance (Lu et al., 2023;Bukharin and Zhao, 2023), and SCARselected subsets retain this essential instruction diversity. The slight reduction in TTR does not pose a significant concern, as evidenced by SCAR's strong performance across our experiments. See Appendix E.2 for a detailed analysis.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::22::para::4",
+          "section_id": "2406.10882::section::22",
+          "text": "Additionally, we note that SCAR does not perform instruction deduplication. When datasets contain duplicate instructions with high-scoring responses, SCAR may select multiple instances of these duplicates, resulting in the same high-quality instruction-response pairs appearing repeatedly in the selected subset. This repetition reduces the diversity of selected subsets. Therefore, we highly recommend preprocessing datasets to remove duplicates before applying our method for optimal results.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::23",
+      "paper_id": "2406.10882",
+      "heading": "Discussion of Initial Data Pool",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::23::para::0",
+          "section_id": "2406.10882::section::23",
+          "text": "Another potential limitation is the initial data pool to be selected. SCAR is specifically designed to improve LLM SFT performance by selecting subsets from datasets with style-inconsistent responses. When responses are already styleconsistent, such as all responses generated by a single LLM, SCAR's advantages become limited due to reduced stylistic variation for the ranker to distinguish between responses. Our experiments on coding tasks with all GPT-3.5-TURBO-generated responses (Table 24 in Appendix F) demonstrate that SCAR achieves only marginal improvements over baseline methods in such scenarios, with performance differences typically within 1-3 percentage points.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::23::para::1",
+          "section_id": "2406.10882::section::23",
+          "text": "We argue that style-inconsistent data are prevalent in real-world scenarios, including crowdsourced human data and synthetic data collected from different sources, highlighting the practical benefits of SCAR. Moreover, the insight that style elements of linguistic form and instructional surprisal within responses significantly impact LLM SFT performance may be even more important than the data selection method itself, as this understanding can inform future dataset curation practices.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::23::para::2",
+          "section_id": "2406.10882::section::23",
+          "text": "we employ ROBERTA-BASE (Liu et al., 2019). When curating STACKEXCHANGE examples for the ranker and LLM training, we ensure quality by selecting instructions containing code blocks and answers with ratings above 2.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::24",
+      "paper_id": "2406.10882",
+      "heading": "B.1 Extended Analysis of LLM Performance on Coding Tasks",
+      "section_type": null,
+      "order": 24,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::24::para::0",
+          "section_id": "2406.10882::section::24",
+          "text": "Table 5 presents the detailed results for the coding tasks mentioned in Table 2, providing a comprehensive breakdown of the Pass@1 and Pass@10 metrics for each task, rather than just the average scores. Table 5 reveals that \"direct\" responses outperform \"referenced\" responses across most programming benchmarks, suggesting that generating answers without mirroring human semantic content yields better results for coding tasks. For instance, GPT-3.5-TURBO-generated \"direct\" achieves a Pass@1 of 33.00% on the HUMANEVAL benchmark, compared to 28.58% for GPT-3.5-TURBO-generated \"referenced,\" and similar trends are observed across Java, JavaScript, and C++ benchmarks. Human responses also lag behind \"direct\" and \"referenced\" responses, indicating that synthetic data can offer better stylistic consistency, which can boost LLM SFT performance. LLAMA2-70B-CHAT performs notably better than its smaller counterpart, LLAMA2-13B-CHAT, showing a clear advantage due to larger model scale, though it still falls short of GPT-3.5-TURBO in most metrics, highlighting GPT-3.5-TURBO 's stronger coding capabilities. Interestingly, fine-tuned base LLMs perform particularly well in JavaScript, likely due to its simpler syntax and predictable patterns, which chat-LLMs like GPT-3.5-TURBO can easily understand and replicate, leading to high-quality training data. These findings highlight the effectiveness of \"direct\" responses and underscore the importance of data quality and style consistency in fine-tuning LLMs for code generation.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::25",
+      "paper_id": "2406.10882",
+      "heading": "B.2 Extended Stylometric Analysis",
+      "section_type": null,
+      "order": 25,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::25::para::0",
+          "section_id": "2406.10882::section::25",
+          "text": "Evaluation Settings. To quantitatively evaluate stylistic consistency across datasets, we employ six stylometric metrics that capture distinct aspects of linguistic form, the structural elements that shape response presentation independent of semantics. Specifically, these metrics measure key linguistic form elements: transitional and functional word usage measured by TTR and MTLD of functional words, tone assessed by Flesch score, sentence structure quantified through Average Sentence Length, punctuation patterns captured by Punctuation Frequency, and layout features such as headers and bullet points measured by Layout Feature Frequency. Together with perplexity for assessing instructional surprisal, these metrics provide a comprehensive framework for analyzing response styles:",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::26",
+      "paper_id": "2406.10882",
+      "heading": "Linguistic Form Metrics:",
+      "section_type": null,
+      "order": 26,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::26::para::0",
+          "section_id": "2406.10882::section::26",
+          "text": "1. Type-Token Ratio (TTR) (Templin, 1957): Measures lexical diversity by calculating the ratio of unique words (types) to the total number of words (tokens) in a text. A higher TTR indicates greater lexical diversity.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::26::para::1",
+          "section_id": "2406.10882::section::26",
+          "text": "2. Measure of Textual Lexical Diversity (MTLD) (McCarthy, 2005): MTLD is less sensitive to text length compared to TTR. It computes the average length of sequential word strings that maintain a given TTR value, where higher MTLD scores suggest greater lexical diversity.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::26::para::2",
+          "section_id": "2406.10882::section::26",
+          "text": "3. Average Sentence Length (Avg. Sent. Len.): Calculates the average number of words per sentence, providing insights into the syntactic complexity of the text.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::26::para::3",
+          "section_id": "2406.10882::section::26",
+          "text": "4. Punctuation Frequency (Punct. Freq.): Computes the frequency of punctuation marks within each response, reflecting the density of punctuation usage. 6. Layout Feature Frequency (Avg. Layout Freq.): Calculates the frequency of structural elements (bullet points, headers, bold text) per sentence, representing the consistency of formatting and organizational patterns.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::27",
+      "paper_id": "2406.10882",
+      "heading": "Instructional Surprisal Metric:",
+      "section_type": null,
+      "order": 27,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::27::para::0",
+          "section_id": "2406.10882::section::27",
+          "text": "• Perplexity of P (y|x): Captures the overall response surprisal given the instruction.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::27::para::1",
+          "section_id": "2406.10882::section::27",
+          "text": "Discussion. Table 6 presents the average and standard deviation (Std.) of these metrics across responses from human-written and LLM-generated texts for both LIMA and STACKEXCHANGE instructions. Our analysis reveals that LLM-generated responses consistently demonstrate higher stylistic consistency compared to human-written ones, with responses synthesized by GPT-3.5-TURBO and LLAMA2 showing lower standard deviations across most metrics. This indicates greater consistency in functional word diversity, sentence length, punctuation usage, readability, and layout features. Furthermore, \"direct\" responses achieve higher consistency in response surprisal than \"referenced\" and human responses, as evidenced by their lower standard deviation values of perplexities. Notably, even the LIMA dataset, despite being optimized and curated by human experts for style consistency, exhibits lower stylistic consistency in our metrics compared to LLM-synthesized datasets. These results highlight both the inherent challenge of achieving style consistency through manual curation and the significant potential of using LLMs to generate stylistically consistent training data.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::27::para::2",
+          "section_id": "2406.10882::section::27",
+          "text": "In conclusion, our stylometric analysis quantitatively validates that LLM-synthesized datasets demonstrate superior stylistic consistency compared to human-written responses across most measured dimensions.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::28",
+      "paper_id": "2406.10882",
+      "heading": "Stylometric Analysis and Model Performance",
+      "section_type": null,
+      "order": 28,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::28::para::0",
+          "section_id": "2406.10882::section::28",
+          "text": "In Section 2, we used perplexity-based filtering to exclude instructions where the surprisal of \"Referenced\" responses significantly differed from that of human responses. Specifically, we excluded instructions where the PPL(y|x) of at least one \"Referenced\" response exceeded thresholds of 0.15 or 2.5. This filtering process reduced the dataset to 944 instructions from STACKEXCHANGE and 407 instructions from LIMA. Table 7 highlights the impact of dataset size on LLM fine-tuning performance in the coding domain. For human responses, the average Pass@1 score across all four programming languages increased from 26.56 to 31.65 after adding more data. Notably, the official base model CODELLAMA-7B achieves a Pass@1 score of 29.98, while CODELLAMA-7B-INSTRUCT achieves 34.8 on HUMANEVAL on BigCodeLeaderboard 4 . In contrast, Table 5 reports a significantly lower Pass@1 of 23.45, mainly due to the reduced dataset size (944 examples). With sufficient data and effective selection strategies, the Pass@1 score on HUMANEVAL for base CODELLAMA-7B trained on human responses can reach 33, while synthetic responses can further boost performance to around 40, as shown in Tables 9 and 10. As achieving high model performance is not the primary goal in Section 2, controlled filtering is essential for accurately analyzing variations in the instructional surprisal of responses and their impact on LLM fine-tuning.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::28::para::1",
+          "section_id": "2406.10882::section::28",
+          "text": "A key observation from the stylometric analysis is the measurement of instructional surprisal through perplexity. Interestingly, Table 7 shows, without filtering, \"referenced\" responses exhibit greater surprisal consistency compared to human-written responses, particularly within the STACKEXCHANGE code data. This finding is somewhat counterintuitive, as one might expect \"referenced\" responses-rewritten versions of human responses-to closely mirror the surprisal consistency of their human counterparts. We hypothesize that this discrepancy arises because LLMs, even when explicitly instructed to semantically align closely with human responses, may introduce subtle variations that affect surprisal metrics.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::28::para::2",
+          "section_id": "2406.10882::section::28",
+          "text": "While perplexity-based filtering is critical for achieving a more accurate analysis of LLM performance under varying stylistic consistency conditions, it was not used for our SCAR training for the following reasons: i) Our goal is to learn a function that ranks responses based on style consistency. As shown in Table 7, \"Direct\" responses already demonstrate higher stylistic consistency compared to \"Referenced\" and human responses, fulfilling the ranking objective without the need for additional filtering. ii) Filtering removes a substantial number of examples, which could negatively impact training performance by reducing the dataset size.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::29",
+      "paper_id": "2406.10882",
+      "heading": "B.4 Independence Tests of Linguistic Form and Instructional Surprisal",
+      "section_type": null,
+      "order": 29,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::29::para::0",
+          "section_id": "2406.10882::section::29",
+          "text": "In this section, we examine whether the linguistic form features of responses are correlated with instructional surprisal and whether linguistic form depends on instructions. Understanding these relationships is essential for justifying the design of our ranking model, which employs distinct structures to represent these two sets of features.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::30",
+      "paper_id": "2406.10882",
+      "heading": "Independence Between Linguistic Form and Instructional Surprial.",
+      "section_type": null,
+      "order": 30,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::30::para::0",
+          "section_id": "2406.10882::section::30",
+          "text": "To validate the independence between linguistic form and instructional surprisal, we conduct two complementary analyses: Regression Analysis: We perform regression modeling on the LIMA dataset to predict the instructional surprisal metric, perplexity P P L(y|x), based on two feature sets:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::30::para::1",
+          "section_id": "2406.10882::section::30",
+          "text": "• Linguistic form features: unigrams of functional words, TTR and MTLD of functional words, punctuation and layout patterns, and Flesch readability scores.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::30::para::2",
+          "section_id": "2406.10882::section::30",
+          "text": "• Semantic features: contextual token embeddings derived from SENTENCE-TRANSFORMERS/ALL-MINILM-L6-V2 (Reimers, 2019), a model pre-trained for semantic encoding and paraphrase detection tasks.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::30::para::3",
+          "section_id": "2406.10882::section::30",
+          "text": "The average absolute regression coefficients indicate that semantic features are significantly more influential in predicting instructional surprisal, with an average importance score of 1.193, compared to only 0.236 for each linguistic form feature.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::31",
+      "paper_id": "2406.10882",
+      "heading": "Variance Analysis.",
+      "section_type": null,
+      "order": 31,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::31::para::0",
+          "section_id": "2406.10882::section::31",
+          "text": "We further investigate the independence of linguistic form and instructional surprisal by analyzing variance patterns in P P L(y|x). Responses are decomposed into semantic tokens (y c ) and functional non-semantic tokens (y p ), which represent a key component of linguistic form elements (see Section B.6 for token separation details). By comparing the variance contributions of P P L(y c |y p , x) and P P L(y p |y c , x) to P P L(y|x), we find:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::31::para::1",
+          "section_id": "2406.10882::section::31",
+          "text": "• Semantic tokens (y c ): explain 283.67% of the variance.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::31::para::2",
+          "section_id": "2406.10882::section::31",
+          "text": "• Functional tokens (y p ): explain only 4.01% of the variance.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::31::para::3",
+          "section_id": "2406.10882::section::31",
+          "text": "The combined evidence from our regression and variance analyses suggests that linguistic form and instructional surprisal are distinct dimensions of response style, with only a weak correlation between them. Semantic features are the primary contributors to instructional surprisal, with linguistic form playing a much smaller role.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::32",
+      "paper_id": "2406.10882",
+      "heading": "Independence Tests between Linguistic Form and Instructions",
+      "section_type": null,
+      "order": 32,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::32::para::0",
+          "section_id": "2406.10882::section::32",
+          "text": "We employ Conditional Mutual Information (CMI) (Wyner, 1978) to quantify the dependencies between semantic tokens (y c ) and nonsemantic tokens (y p ) with respect to instructions (x). For semantic content and instructions, CMI is defined as:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::32::para::1",
+          "section_id": "2406.10882::section::32",
+          "text": ", with an analogous formulation for functional tokens:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::32::para::2",
+          "section_id": "2406.10882::section::32",
+          "text": "Using META-LLAMA-3-8B to estimate conditional probabilities and a POS-based approach to separate semantic and non-semantic functional tokens (detailed in Appendix B.6), we analyze both human-written and GPT-3.5-TURBO-generated responses with LIMA and STACKEXCHANGE instructions.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::32::para::3",
+          "section_id": "2406.10882::section::32",
+          "text": "For LIMA instructions, the mutual information scores reveal that semantic tokens show a stronger dependence on instructions, with I(y c ; x | y p ) = 0.4, compared to I(y p ; x | y c ) = 0.15. Similarly, for STACKEXCHANGE instructions, semantic tokens again dominate with I(y c ; x | y p ) = 0.49, while functional tokens exhibit a much weaker dependence at I(y p ; x | y c ) = 0.03. Since functional tokens are key indicators of linguistic form, these findings confirm that linguistic form has a significantly weaker dependence on instructions compared to semantic tokens. Therefore, in Eq. ( 3), we aim to use max pooling over their representations to capture linguistic form features as non-semantic surface characteristics of responses without explicitly modeling their relationship to the instruction. This approach aligns with our findings, indicating that linguistic form is only weakly correlated with instructional context and has minimal impact on instructional surprisal.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::33",
+      "paper_id": "2406.10882",
+      "heading": "B.5 Background on Instructional Surprisal",
+      "section_type": null,
+      "order": 33,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::33::para::0",
+          "section_id": "2406.10882::section::33",
+          "text": "Surprisal, traditionally defined as the negative log-probability of a word given its preceding context,",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::33::para::1",
+          "section_id": "2406.10882::section::33",
+          "text": "is a well-established indicator of cognitive processing difficulty and neural activation, including the N400 ERP component (Oh and Schuler, 2023;Goodkind and Bicknell, 2018;Michaelov et al., 2023;Karampiperis et al., 2014). This word-level metric quantifies how unexpected a word is given its context and is naturally derived from autoregressive language models trained on next-token prediction.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::34",
+      "paper_id": "2406.10882",
+      "heading": "Extending Surprisal to Instruction-Level Evaluation.",
+      "section_type": null,
+      "order": 34,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::34::para::0",
+          "section_id": "2406.10882::section::34",
+          "text": "At the sequence level, surprisal can be generalized to assess the probability of an entire response W given an instruction:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::34::para::1",
+          "section_id": "2406.10882::section::34",
+          "text": "where w i denotes the i-th token in W , and N is the length of the response. Based on this formulation, we define instructional surprisal as the surprisal of a full response conditioned on its instruction, reflecting the response's predictability under the language model.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::35",
+      "paper_id": "2406.10882",
+      "heading": "Approaches to Modeling Instructional Surprisal.",
+      "section_type": null,
+      "order": 35,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::35::para::0",
+          "section_id": "2406.10882::section::35",
+          "text": "We consider two main approaches to estimating instructional surprisal: perplexity and semantic relatedness. Perplexity (PPL) is a widely-used metric derived from the average surprisal of each token in a sequence. It is computed as:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::35::para::1",
+          "section_id": "2406.10882::section::35",
+          "text": "which corresponds to the exponentiated average negative log-likelihood. Perplexity thus provides a global measure of the predictability of a response. Since perplexity is a monotonic transformation of sequence-level surprisal (Eq. 5), it serves as a proxy for instructional surprisal. Semantic Relatedness captures the semantic alignment between an instruction and its response. It reflects how topically and conceptually coherent the two are (Salicchi et al., 2023). While originally proposed for word-level prediction, prior work has used semantic similarity between a word vector ⃗ w and its context vector ⃗ h, often computed via cosine similarity, to estimate semantic surprisal (Sayeed et al., 2015):",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::35::para::2",
+          "section_id": "2406.10882::section::35",
+          "text": "In our case, we adapt this idea to the instruction-response level by using sentence embeddings in place of word vectors. However, such linear approaches may fail to fully capture complex, non-linear semantic dependencies between instruction and response. Please note that while prior studies have reported significant correlations between semantic relatedness and surprisal (Salicchi et al., 2023;Michaelov et al., 2023), and some (Sayeed et al., 2015) even estimate surprisal directly from semantic relatedness as in Eq.( 6), other work has highlighted important distinctions between the two (Salicchi et al., 2023).",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::36",
+      "paper_id": "2406.10882",
+      "heading": "Our Approach: Non-Linear Semantic Modeling via SCAR.",
+      "section_type": null,
+      "order": 36,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::36::para::0",
+          "section_id": "2406.10882::section::36",
+          "text": "To overcome the limitations of conventional methods, SCAR adopts a more expressive modeling strategy. Rather than relying on perplexity or simple embedding distances, it leverages a Relation Network (Sung et al., 2018) implemented as a multilayer perceptron (MLP c , Eq. 3) to learn rich, non-linear alignment patterns between instructions and responses.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::36::para::1",
+          "section_id": "2406.10882::section::36",
+          "text": "This design offers several advantages:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::36::para::2",
+          "section_id": "2406.10882::section::36",
+          "text": "• Preservation of Surprisal Semantics: SCAR is trained using a triplet loss (Eq. 4) that enforces a structured representation space. Pairs with similar surprisal values are encouraged to lie closer in the embedding space, allowing the network to learn a disentangled representation that captures both linguistic form and instructional surprisal.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::36::para::3",
+          "section_id": "2406.10882::section::36",
+          "text": "• End-to-End Differentiability: Unlike perplexity, which must be computed using non-differentiable external LLMs, the ROBERTA-based encoder and MLP components in SCAR can be jointly optimized with downstream objectives, enabling unified training across the entire ranking model.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::36::para::4",
+          "section_id": "2406.10882::section::36",
+          "text": "• Practical Efficiency: Token-level perplexity computation with large LLMs (e.g., LLAMA-3-8B) is computationally intensive and unsuitable for large-scale filtering. In contrast, SCAR's relatedness scores are computed with a single forward pass through a lightweight transformer and MLP, offering a more scalable alternative.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::37",
+      "paper_id": "2406.10882",
+      "heading": "B.6 Identification of Semantic and Non-Semantic (Functional) Words",
+      "section_type": null,
+      "order": 37,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::37::para::0",
+          "section_id": "2406.10882::section::37",
+          "text": "To distinguish between semantic content (y c ) and non-semantic (linguistic form-related) words (y p ) in the responses, we adopt a heuristic approach based on part-of-speech (POS) tagging. Specifically, content words-nouns, verbs, adjectives, and adverbs-are classified as semantic, while other POS tags (e.g., pronouns, conjunctions, prepositions, and determiners) are categorized as non-semantic. For code-related responses, we also treat code blocks as semantic content, given their integral role in conveying the main content of the response. Code blocks are identified using regular expressions that capture common code delimiters, such as triple backticks (```), tildes (~~~), and inline code marked by single backticks (`).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::37::para::1",
+          "section_id": "2406.10882::section::37",
+          "text": "Given the limitations of current NLP techniques, achieving perfect separation between semantic and non-semantic elements is challenging. However, our primary goal is not absolute precision, but to perform independence tests on various stylistic features relative to instructions and estimate instructional surprisal to inform our data selection ranker design. By focusing on comparative patterns, our approach effectively captures the impact of semantic and non-semantic content on stylistic consistency, and how these patterns influence data selection, ultimately improving LLM alignment through SFT.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::37::para::2",
+          "section_id": "2406.10882::section::37",
+          "text": "To illustrate, Table 8 provides an example of how a response is split into semantic and non-semantic content using this method.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::38",
+      "paper_id": "2406.10882",
+      "heading": "Why is FIFA against adding instant replay to the game? Response",
+      "section_type": null,
+      "order": 38,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::38::para::0",
+          "section_id": "2406.10882::section::38",
+          "text": "FIFA is against adding instant replay to the game because they believe it would disrupt the flow of the game and potentially lead to delays. They also argue that human error is a part of the game and adding instant replay could take away from the excitement and unpredictability of live sports. Additionally, implementing instant replay would require significant changes to the rules and regulations of the game, which FIFA may be hesitant to do.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::38::para::1",
+          "section_id": "2406.10882::section::38",
+          "text": "Table 8: Visualization of semantic and non-semantic words selected based on the POS tags in the response. Semantic words are in blue and functional words are in black.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::39",
+      "paper_id": "2406.10882",
+      "heading": "C.1 Extended Analysis of Evaluation Results for Data Selection in Human-Written Coding Data",
+      "section_type": null,
+      "order": 39,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::39::para::0",
+          "section_id": "2406.10882::section::39",
+          "text": "Table 9 offers a comprehensive breakdown of LLM performance when fine-tuned on datasets sampled using various data selection strategies, expanding upon the average results presented in Figure 2. While the figure provides aggregated metrics, this table delivers a detailed view of Pass@1 and Pass@10 scores for each programming language across the HUMANEVAL and MULTIPL-E benchmarks. This detailed presentation highlights performance variations in Python, Java, JavaScript, and C++.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::39::para::1",
+          "section_id": "2406.10882::section::39",
+          "text": "The performance ranking of data selection methods aligns consistently with the trends shown in Figure 2, reinforcing our findings' reliability. Strategies such as SCAR(ID) and Perplexity-based sampling demonstrate robust performance across most languages, while approaches like HFR and SUPERFILTERING yield less favourable results, particularly with smaller data proportions. Notably, LLMs trained on our SCAR(ID)-selected data outperform those trained on the full dataset when the selection portion exceeds 25%, highlighting the superiority of our method. This result indicates that a carefully curated subset can sometimes produce better outcomes than using the entire dataset.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::39::para::2",
+          "section_id": "2406.10882::section::39",
+          "text": "For a detailed explanation of the Pass@1 and Pass@10 metrics, please refer to the HUMANEVAL paper by Chen et al. (2021).",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::40",
+      "paper_id": "2406.10882",
+      "heading": "C.3 Extended Analysis of Evaluation Results for Open-Domain Data Selection Experiments",
+      "section_type": null,
+      "order": 40,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::40::para::0",
+          "section_id": "2406.10882::section::40",
+          "text": "Table 11 presents the detailed numerical values for the Length Control WinRate, complementing the visual representation provided in Figure 2. The results show that for the selection of human data, SCAR(ID) and SCAR(OOD) achieve competitive performance even at reduced data proportions, with SCAR(ID) showing a slight advantage as the data size decreases, especially at the 25% and 10% subsets. In contrast, methods such as RANDOM and HFR struggle to maintain consistently high performance across different data scales.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::40::para::1",
+          "section_id": "2406.10882::section::40",
+          "text": "For the selection of synthetic GPT-3.5-TURBO-generated data, SCAR(ID) consistently outperforms all methods except Longest, with WinRates peaking at 6.61 for the 10% subset. Interestingly, Longest performs comparably to SCAR(ID) when selecting synthetic data, as it tends to favour EVOL-INSTRUCTgenerated data, which produces longer responses. This finding highlights that response token length can serve as a strong stylistic indicator, aligning with the principles of our style consistency framework.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::40::para::2",
+          "section_id": "2406.10882::section::40",
+          "text": "These results suggest that well-curated synthetic datasets can enable high-performing chat-LLMs even at significantly reduced data proportions. Furthermore, traditional methods such as Random and Perplexity exhibit lower performance, underscoring the importance of selection strategies tailored to stylistic consistency in synthetic data scenarios. Striking a balance between data size, diversity, and style consistency remains crucial for optimizing performance.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::41",
+      "paper_id": "2406.10882",
+      "heading": "C.4 Extended Analysis of Style and Quality Analysis in SCAR-Selected Data",
+      "section_type": null,
+      "order": 41,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::41::para::0",
+          "section_id": "2406.10882::section::41",
+          "text": "Table 12 presents an extensive set of results, expanding upon the data shown in Table 3. In addition to helpfulness and correctness scores, as well as the standard deviations of TTR and perplexity, this table includes a comprehensive range of stylometric and quality metrics with their corresponding average and standard deviation values. The results are consistent with our findings in Table 3. SCAR selection effectively enhances the consistency of the linguistic form in the selected data, as evidenced by the consistently decreasing standard deviation values across most linguistic form metrics as the selection portion decreases. Similarly, the standard deviation of instructional surprisal metrics generally decreases, except in a few cases when selecting smaller portions (e.g., 25%, 12.5%) of human-written or synthetic code data.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::41::para::1",
+          "section_id": "2406.10882::section::41",
+          "text": "Interestingly, while the standard deviations of TTR and MTLD for functional words decrease, their mean values remain largely unaffected-and, in some cases, even increase. This suggests that SCAR selection preserves the overall lexical diversity of functional words while narrowing their variability across examples, resulting in more consistent usage. In other words, the coverage of functional word choices is maintained (as reflected by stable or higher mean values); however, SCAR's ranking mechanism enhances response stylistic consistency by reducing outliers and extreme variations of linguistic forms, leading to lower standard deviations. This indicates that SCAR does not inherently restrict lexical diversity in linguistic form; rather, it ensures that linguistic form features are applied more uniformly throughout the dataset. Table 13: SCAR's ranking accuracies when trained with in-domain or out-of-domain examples and tested on ranking data from code and open domains.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::42",
+      "paper_id": "2406.10882",
+      "heading": "C.5 Analysis of Ranker Performance",
+      "section_type": null,
+      "order": 42,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::42::para::0",
+          "section_id": "2406.10882::section::42",
+          "text": "Evaluation Settings. We report the accuracy of the ranker in correctly rating responses on the test, where the goal is to rate \"direct\" responses higher than \"referenced\" responses and \"referenced\" responses higher than human responses. These accuracies are denoted as Acc(y d ≻ y r ≻ y h ), Acc(y r ≻ y h ), and Acc(y d ≻ y r ), respectively.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::42::para::1",
+          "section_id": "2406.10882::section::42",
+          "text": "Impact of SCAR Performance.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::42::para::2",
+          "section_id": "2406.10882::section::42",
+          "text": "Table 13 shows accuracies of SCAR(OOD) are lower than SCAR(ID) in both domains, explaining the lower LLM performance with SCAR(OOD)-selected data. Despite this, SCAR(OOD) outperforms selection baselines in most cases, demonstrating its cross-domain robustness. The ranking accuracy gap between SCAR(OOD) and SCAR(ID) is larger in the open domain, indicating that generalizing from code to open-ended data is more challenging than the reverse. Differentiating surprisal-related features is more difficult than differentiating linguistic form, especially for selecting code data in out-of-domain settings, as shown by comparing Acc(y d ≻ y r ) (68.29) and Acc(y r ≻ y h ) (95.58). C.6 Extended Evaluation Analysis of StarCoder-15.5B",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::42::para::3",
+          "section_id": "2406.10882::section::42",
+          "text": "Table 14 presents the full Pass@1 and Pass@10 results for the HUMANEVAL and MULTIPL-E coding benchmarks, comparing STARCODER-15.5B fine-tuned with various portions of SCAR-selected data against OCTOCODER-15.5B. The original dataset, comprising 13k examples, was curated by the BigCode team, who developed both STARCODER-15.5B and OCTOCODER-15.5B and fine-tuned STARCODER-15.5B into OCTOCODER-15.5B. Notably, STARCODER-15.5B models fine-tuned on SCAR-selected subsets outperform the original OCTOCODER-15.5B in Pass@1 and Pass@10 across all programming languages.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::42::para::4",
+          "section_id": "2406.10882::section::42",
+          "text": "Our paper reports OCTOCODER-15.5B's Pass@1 score of 35.56 on the standard HUMANEVAL (Python) benchmark to maintain consistency with widely accepted evaluation protocols and the default settings used in our experiments. However, the BigCodeLeaderboard shows a higher Pass@1 score of 45.3 for OCTOCODER-15.5B, which corresponds to the HUMANEVALSYNTHESIZE (Python) benchmark rather than the standard HUMANEVAL. The HUMANEVALSYNTHESIZE variant employs improved prompt formatting that results in higher performance compared to the standard benchmark. Both results are sourced from the official BigCodeLeaderboard data files 5 . For detailed information about the design differences between these two benchmark variants, please refer to the provided data file URL and the benchmark descriptions in Muennighoff et al. (2023).",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::43",
+      "paper_id": "2406.10882",
+      "heading": "C.7 Extended Evaluation of Data Selection Performance for LLMs on Four Additional",
+      "section_type": null,
+      "order": 43,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::43::para::0",
+          "section_id": "2406.10882::section::43",
+          "text": "Benchmarks: ARC-Challenge, HellaSwag, MMLU and TruthfulQA Evaluation Settings. Table 15 provides a detailed evaluation of fine-tuned OLMO-7B and META-LLAMA-3-8B models across five diverse benchmarks: ARC-CHALLENGE, TRUTHFULQA, HEL-LASWAG, MMLU, and ALPACAEVAL. These benchmarks include a wide range of tasks, from general knowledge and reasoning to language understanding and text generation, offering a comprehensive assessment of LLM SFT performance.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::43::para::1",
+          "section_id": "2406.10882::section::43",
+          "text": "• ARC-CHALLENGE (Clark et al., 2018): Evaluates scientific reasoning through multiple-choice questions by employing a likelihood-based approach (LHH). For each question, the system ranks possible answers based on their predicted likelihood, selects the highest-scoring option, and compares it with the ground truth to calculate a normalized accuracy score.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::43::para::2",
+          "section_id": "2406.10882::section::43",
+          "text": "• TRUTHFULQA (Lin et al., 2022): Evaluates the factual precision and correctness of LLM responses by comparing them to ground truth answers using BLEU scores.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2406.10882::section::43::para::3",
+          "section_id": "2406.10882::section::43",
+          "text": "• HELLASWAG (Zellers et al., 2019): Assesses common-sense reasoning and contextual understanding capabilities through a multiple-choice format. The system employs likelihood-based ranking (LHH) to evaluate potential answers, selects the highest probability option, and compares it with the ground truth to derive a normalized accuracy score.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2406.10882::section::43::para::4",
+          "section_id": "2406.10882::section::43",
+          "text": "• MMLU (Hendrycks et al.): Measures the multi-task language understanding capabilities of LLMs by evaluating accuracy through String Matching between model outputs and gold-standard answers.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2406.10882::section::43::para::5",
+          "section_id": "2406.10882::section::43",
+          "text": "• ALPACAEVAL: Assesses open-domain instruction-following abilities using the Length Control WinRate (L.C. WinRate) metric.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2406.10882::section::43::para::6",
+          "section_id": "2406.10882::section::43",
+          "text": "Additionally, an average ranking metric is used to aggregate performance across benchmarks, with lower ranks indicating better overall performance. The average ranking is chosen instead of average performance because it balances variations across metrics, preventing benchmarks with different scales (e.g., BLEU and accuracy) from disproportionately influencing the results.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2406.10882::section::43::para::7",
+          "section_id": "2406.10882::section::43",
+          "text": "For TRUTHFULQA and MMLU, String Matching and BLEU scores are used instead of Likelihoodbased metrics to better align with the nature of instruction-tuned models, which are optimized for generating complete answers rather than reproducing ground truth tokens. However, as we rely on lm-evaluation-harnessfoot_3 , it lacks direct support for implementing these metrics for ARC-CHALLENGE and TRUTHFULQA, constraining us to use Likelihood for these benchmarks.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2406.10882::section::43::para::8",
+          "section_id": "2406.10882::section::43",
+          "text": "Discussion. Table 15 demonstrates that subsets selected by SCAR(ID) from larger datasets can consistently outperform models trained on full data in most cases, aligning with our findings in Table 4 in the main body of the paper. Notably, subsets selected using our SCAR method show substantial performance improvements. For example, OLMO-7B fine-tuned on a SCAR-selected subset (e.g., 2.5k examples) achieves superior average rankings compared to the 320k full dataset on benchmarks like TRUTHFULQA (BLEU: 40.39 vs. 33.90) and ALPACAEVAL (L.C. WinRate: 4.08 vs. 3.86). Similarly, META-LLAMA-3-8B fine-tuned on a 2.5k subset of mixed synthetic data curated with SCAR outperforms larger subsets on MMLU (Accuracy: 54.60) and ALPACAEVAL (L.C. WinRate: 5.89), achieving a top average rank of 2.0.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2406.10882::section::43::para::9",
+          "section_id": "2406.10882::section::43",
+          "text": "These results highlight the effectiveness of our SCAR selection method in optimizing fine-tuned LLM performance across diverse benchmarks. By prioritizing data quality and style consistency, SCAR-selected subsets not only reduce computational costs but also enhance model generalization.",
+          "paragraph_index": 9
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::44",
+      "paper_id": "2406.10882",
+      "heading": "C.8 Sampling Efficiency Analysis",
+      "section_type": null,
+      "order": 44,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::44::para::0",
+          "section_id": "2406.10882::section::44",
+          "text": "We compare the estimated time required to select 1,000 examples from a pool of 10,000 using various data selection methods. For CPU-based approaches, we conduct evaluations on an M4 Pro laptop, and for GPU-based methods, we use an A100 GPU with 40GB of memory. Batch sizes are set to 16 for GPT-2-based methods and our method, and 2 for those using LLAMA3-8B due to memory constraints.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2406.10882::section::45",
+      "paper_id": "2406.10882",
+      "heading": "Metric ALPAGASUS RANDOM DIVERSITY LONGEST PERPLEXITY PERPLEXITY SUPERFILTERING HFR SCAR",
+      "section_type": null,
+      "order": 45,
+      "paragraphs": [
+        {
+          "id": "2406.10882::section::45::para::0",
+          "section_id": "2406.10882::section::45",
+          "text": "Model GPT-3.5-TURBO ---GPT-2 LLAMA3-8B GPT-2 ROBERTA-BASE ROBERTA-BASE Time 27 min 0.1 sec 6 min 4 sec 1.5 min 1.5 hr 3 min 1.8 min 1.8 min Table 16: Sampling time and model type for selecting 1,000 examples from 10,000.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2406.10882::section::45::para::1",
+          "section_id": "2406.10882::section::45",
+          "text": "Analysis. As shown in Table 16, SCAR achieves a strong balance between computational efficiency and data selection performance. While methods such as RANDOM and LONGEST are extremely fast, they typically underperform in data quality. On the other hand, PERPLEXITY (LLAMA3-8B) incurs a prohibitive runtime of 1.5 hours, making it impractical for large-scale filtering.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2406.10882::section::45::para::2",
+          "section_id": "2406.10882::section::45",
+          "text": "Tables 17 and 18 present detailed performance metrics for various CODELLAMA-7B-based models. These models were fine-tuned on different data subsets selected by SCAR from full datasets with either human-written or synthetic responses, with instructions derived from StackExchange. The tables illustrate the performance of fine-tuned LLMs when using SCAR with various components removed during SCAR training. This comparison allows us to assess the impact of each SCAR component on the LLM fine-tuning performance. Unlike the summary results in Figure 3, these tables offer specific numerical values, enabling clearer and more precise comparisons. The results demonstrate that removing almost",
+          "paragraph_index": 2
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2406.10882::figure::0",
+      "paper_id": "2406.10882",
+      "figure_number": "Figure 1 :",
+      "caption": "Figure 1: (Left) T-SNE plot showing embeddings of the linguistic forms of human and GPT-3.5-TURBO responses to LIMA instructions. (Right) Density plot of perplexity detailing the surprisal levels of the responses.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_0",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2406.10882::figure::1",
+      "paper_id": "2406.10882",
+      "figure_number": "Figure 3 :",
+      "caption": "Figure3: Performance of LLMs fine-tuned on subsets of human-written data selected by SCAR(ID), trained with different configurations and synthetic data sources (e.g., GPT-3.5, Llama).",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_1",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2406.10882::table::0",
+      "paper_id": "2406.10882",
+      "table_number": "Table 3 :",
+      "caption": "Stylometric and quality analysis of data subsets selected by SCAR(ID) from the full humancrowdsourced STACKEXCHANGE and DOLLY datasets.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "OLMO-7B",
+          "Data Sizes L.C. WinRate",
+          "320k 3.86",
+          "10k 5.37",
+          "5k 5.64",
+          "2.5k 4.08"
+        ],
+        [
+          "STARCODER-15.5B",
+          "Data Sizes Avg. Pass@(1+10) 37.85 39.69 40.09 40.14 13k 10k 5k 2.5k"
+        ],
+        [
+          "Table 4: L.C. WinRate for OLMO-7B and Avg."
+        ],
+        [
+          "Pass@(1+10) for STARCODER-15.5B fine-tuned on"
+        ],
+        [
+          "original (320k, 13k) and subset sizes (10k, 5k, 2.5k)."
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2406.10882::table::1",
+      "paper_id": "2406.10882",
+      "table_number": "Table 6 :",
+      "caption": "Comprehensive performance comparison of stylometric analysis across datasets using instructions from STACKEXCHANGE and LIMA, paired with responses generated by human writers and various LLMs, presenting the average (Mean) and standard deviation (Std.) for six authorship detection metrics and Perplexity(y|x).",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "Data Curation",
+          "TTR",
+          "MTLD",
+          "Avg. Sent. Len. Punct. Freq.",
+          "Flesch Score Avg. Layout Freq.",
+          "PPL(y|x)"
+        ],
+        [
+          "Methods",
+          "Mean Std. Mean Std. Mean",
+          "Std.",
+          "Mean Std. Mean Std. Mean",
+          "Std.",
+          "Mean Std."
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "StackExchange"
+        ],
+        [
+          "Human Response",
+          "62.06 24.23 11.58 7.71 124.37 100.22 42.80 31.96 38.33 43.97 0.42",
+          "1.36",
+          "1.85 0.33"
+        ],
+        [
+          "GPT-3.5-TURBO",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "31.65 8.16 13.61 2.51 46.49",
+          "20.90 44.88 25.38 57.32 16.16 0.10",
+          "0.28",
+          "1.84 0.33"
+        ],
+        [
+          "Direct",
+          "34.15 8.14 13.34 2.57 46.31",
+          "23.59 38.80 20.48 54.66 16.92 0.26",
+          "0.41",
+          "1.78 0.30"
+        ],
+        [
+          "LLAMA2-70B-CHAT",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "44.01 11.90 14.28 3.66 70.34",
+          "51.50 42.30 36.70 54.12 21.73 0.18",
+          "0.52",
+          "1.81 0.36"
+        ],
+        [
+          "Direct",
+          "45.67 13.52 14.20 4.23 83.18",
+          "84.01 35.82 26.28 51.78 24.34 0.28",
+          "0.72",
+          "1.57 0.28"
+        ],
+        [
+          "LLAMA2-13B-CHAT",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "31.97 7.46 15.64 3.06 43.03",
+          "25.11 50.31 28.81 62.73 17.23 0.13",
+          "0.42",
+          "1.76 0.27"
+        ],
+        [
+          "Direct",
+          "33.35 8.86 14.90 3.12 43.49",
+          "27.49 39.60 22.64 61.44 16.92 0.22",
+          "0.38",
+          "1.76 0.28"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "LIMA"
+        ],
+        [
+          "Human Response",
+          "31.77 20.49 15.21 4.38 32.41",
+          "49.18 64.54 63.70 63.71 27.98 0.43",
+          "1.37",
+          "4.42 1.53"
+        ],
+        [
+          "GPT-3.5-TURBO",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "48.40 18.43 15.28 6.04 26.51",
+          "21.36 14.27 10.73 59.45 19.25 0.15",
+          "0.64",
+          "4.02 1.52"
+        ],
+        [
+          "Direct",
+          "47.53 16.06 15.08 5.31 24.87",
+          "17.04 14.08 9.33 55.59 21.00 0.26",
+          "0.58",
+          "2.51 0.64"
+        ],
+        [
+          "LLAMA2-70B-CHAT",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "39.32 16.51 15.15 4.88 25.67",
+          "21.47 27.76 19.84 61.77 18.43 0.33",
+          "0.46",
+          "3.51 1.45"
+        ],
+        [
+          "Direct",
+          "37.02 15.63 14.62 4.84 24.76",
+          "18.59 27.94 17.11 59.66 18.16 0.43",
+          "0.50",
+          "2.09 0.42"
+        ],
+        [
+          "LLAMA2-13B-CHAT",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "35.74 13.64 15.98 4.42 24.65",
+          "14.75 27.44 17.70 64.46 17.45 0.16",
+          "0.42",
+          "3.10 1.19"
+        ],
+        [
+          "Direct",
+          "31.90 14.22 15.08 3.78 22.60",
+          "12.61 35.22 18.74 62.30 15.40 0.37",
+          "0.39",
+          "2.06 0.38"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2406.10882::table::2",
+      "paper_id": "2406.10882",
+      "table_number": "Table 7 :",
+      "caption": "Performance comparison of CODELLAMA-7B and META-LLAMA-3-8B fine-tuned on training sets curated using different methods and various LLMs, without applying surprisal-based instruction filtering, along with data quality and stylometric analysis metrics for the training sets.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_2",
+      "raw_data": [
+        [
+          "",
+          "",
+          "StackExchange (10k)",
+          "",
+          "LIMA (1k)"
+        ],
+        [
+          "",
+          "Stylometric",
+          "Data",
+          "CODELLAMA-7B",
+          "Stylometric",
+          "Data",
+          "META-LLAMA-3-8B"
+        ],
+        [
+          "Data Curation",
+          "Analysis",
+          "Quality",
+          "Performance",
+          "Analysis",
+          "Quality",
+          "Performance"
+        ],
+        [
+          "Methods",
+          "Std. TTR / Std. PPL",
+          "Helpfulness / Correctness",
+          "Avg. Pass@1 / Avg. Pass@10",
+          "Std. TTR / Std. PPL",
+          "Helpfulness / Correctness",
+          "L.C. WinRate"
+        ],
+        [
+          "Human Response",
+          "22.27 / 1.41",
+          "3.34 / 3.57",
+          "31.65 / 46.63",
+          "19.54 / 8.01",
+          "4.32 / 4.37",
+          "2.29"
+        ],
+        [
+          "GPT-3.5-TURBO",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "7.95 / 0.31",
+          "3.65 / 3.60",
+          "31.66 / 48.82",
+          "17.43 / 5.86",
+          "4.05 / 4.32",
+          "4.07"
+        ],
+        [
+          "Direct",
+          "7.75 / 0.28",
+          "3.55 / 3.50",
+          "35.11 / 49.68",
+          "16.43 / 3.61",
+          "4.18 / 4.49",
+          "7.15"
+        ],
+        [
+          "LLAMA2-70B-CHAT",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "11.09 / 0.48",
+          "3.47 / 3.33",
+          "30.16 / 46.44",
+          "16.08 / 5.04",
+          "4.25 / 4.36",
+          "4.27"
+        ],
+        [
+          "Direct",
+          "12.49 / 0.25",
+          "3.03 / 3.03",
+          "33.11 / 47.35",
+          "15.60 / 3.11",
+          "4.33 / 4.44",
+          "8.14"
+        ],
+        [
+          "LLAMA2-13B-CHAT",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Referenced",
+          "7.29 / 0.24",
+          "2.82 / 2.54",
+          "26.88 / 42.87",
+          "12.96 / 3.49",
+          "4.03 / 4.00",
+          "3.94"
+        ],
+        [
+          "Direct",
+          "8.27 / 0.22",
+          "2.09 / 1.93",
+          "25.13 / 37.73",
+          "13.18 / 1.13",
+          "3.66 / 3.78",
+          "6.80"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2406.10882::table::3",
+      "paper_id": "2406.10882",
+      "table_number": "Table 11 :",
+      "caption": "Detailed comparison of Length Control WinRate for fine-tuned META-LLAMA-3-8B models evaluated on ALPACAEVAL benchmarks. Models are trained using human-written and synthetic GPT-3.5-TURBO-generated data, sampled with various selection methods and proportions.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_3",
+      "raw_data": [
+        [
+          "Methods"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2406.10882::table::4",
+      "paper_id": "2406.10882",
+      "table_number": "Table 12 :",
+      "caption": "Detailed performance comparison of the stylometric analysis conducted across the full datasets and the subsets of the full datasets selected by SCAR(ID) in both code and open domains. The table reports the average and standard deviation for six authorship metrics, perplexity, and average helpfulness and correctness scores. ≻ y r ≻ y h ) 98.20 64.77 64.26 45.85 Acc(y d ≻ y r ) 98.40 80.80 68.29 67.88 Acc(y r ≻ y h ) 99.80 81.47 95.58 69.89",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_4",
+      "raw_data": [
+        [
+          "SCAR(ID)",
+          "SCAR(OOD)"
+        ],
+        [
+          "Code Open Code Open"
+        ],
+        [
+          "Acc(y d",
+          ""
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2406.10882::table::5",
+      "paper_id": "2406.10882",
+      "table_number": "Table 15 :",
+      "caption": "Performance comparison on five benchmarks: ARC-CHALLENGE (Accuracy calculated with Likelihood), HELLASWAG (Accuracy calculated with Likelihood), MMLU (Accuracy using String Matching), TRUTHFULQA (BLEU comparison), ALPACAEVAL (L.C. WinRate), and Average Rank. The table includes fine-tuned versions of OLMO-7B on human-written data and META-LLAMA-3-8B fine-tuned on mixed synthetic and human-written data across varying dataset sizes (320k, 10k, 5k, 2.5k, and 1k).",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_5",
+      "raw_data": [
+        [
+          "Model Variants",
+          "Data Size",
+          "ARC-CHALLENGE HELLASWAG ACC (LHH) ACC (LHH) ACC (SM) MMLU",
+          "TRUTHFULQA ALPACAEVAL Average BLEU L.C. WinRate Rank↓"
+        ],
+        [
+          "",
+          "320k",
+          "39.42",
+          "75.06",
+          "38.60",
+          "33.90",
+          "3.86",
+          "3.2"
+        ],
+        [
+          "OLMO-7B",
+          "10k",
+          "41.04",
+          "75.18",
+          "25.40",
+          "38.31",
+          "5.37",
+          "2.6"
+        ],
+        [
+          "(allenai/tulu-v2-sft-mixture)",
+          "5k",
+          "39.08",
+          "75.33",
+          "26.28",
+          "40.02",
+          "5.64",
+          "2.2"
+        ],
+        [
+          "",
+          "2.5k",
+          "39.76",
+          "75.29",
+          "26.41",
+          "40.39",
+          "4.08",
+          "2.0"
+        ],
+        [
+          "",
+          "10k",
+          "55.72",
+          "79.02",
+          "40.04",
+          "19.34",
+          "3.64",
+          "3.4"
+        ],
+        [
+          "META-LLAMA-3-8B",
+          "5k",
+          "50.85",
+          "79.06",
+          "54.45",
+          "37.21",
+          "5.56",
+          "2.7"
+        ],
+        [
+          "(Mixed Synthetic Data)",
+          "2.5k",
+          "49.40",
+          "79.31",
+          "54.60",
+          "37.58",
+          "5.89",
+          "2.0"
+        ],
+        [
+          "",
+          "1k",
+          "51.88",
+          "79.06",
+          "48.79",
+          "39.90",
+          "6.61",
+          "1.9"
+        ],
+        [
+          "",
+          "10k",
+          "53.41",
+          "81.07",
+          "34.02",
+          "33.90",
+          "2.34",
+          "2.6"
+        ],
+        [
+          "META-LLAMA-3-8B",
+          "5k",
+          "55.46",
+          "80.56",
+          "28.28",
+          "34.52",
+          "2.24",
+          "2.8"
+        ],
+        [
+          "(Human-written Data)",
+          "2.5k",
+          "54.35",
+          "80.22",
+          "31.13",
+          "34.88",
+          "2.43",
+          "2.4"
+        ],
+        [
+          "",
+          "1k",
+          "47.35",
+          "80.15",
+          "35.62",
+          "37.09",
+          "2.67",
+          "2.2"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2406.10882::equation::0",
+      "paper_id": "2406.10882",
+      "latex": "Lr(x, y d , y r , y h ) = (y a ,y b ) \\in P max(0, \\alpha -R \\theta (x, y a ) + R \\theta (x, y b )) (1) s.t. min(f (x, y a ), f (x, y b )) > \\sigma",
+      "equation_number": "(2)",
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::1",
+      "paper_id": "2406.10882",
+      "latex": "R \\theta (x, y) = MLP r ([v p ; v c ]) v p = Max-Pool(V y ) v c = MLP c ([V 0 x ; V 0 y ])",
+      "equation_number": "(3)",
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::2",
+      "paper_id": "2406.10882",
+      "latex": "L rl (x, y d , y r , y h ) = \\lambda p max{0, d(v d p ,v r p ) -d(v r p , v h p ) + \\beta p } + \\lambda c max{0, d(v h c ,v r c ) -d(v d c , v h c ) + \\beta c } (4)",
+      "equation_number": null,
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::3",
+      "paper_id": "2406.10882",
+      "latex": "d(v i , v j ) = ∥v i -v j ∥ 2",
+      "equation_number": null,
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::4",
+      "paper_id": "2406.10882",
+      "latex": "L scar = L r + L rl",
+      "equation_number": null,
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::5",
+      "paper_id": "2406.10882",
+      "latex": "I(y c ; x | y p ) = 1 N N i=1 log P (y (i) c | x (i) , y (i) p ) P (y (i) c | y (i) p )",
+      "equation_number": null,
+      "grobid_ref_id": "formula_5",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::6",
+      "paper_id": "2406.10882",
+      "latex": "I(y p ; x | y c ) = 1 N N i=1 log P (y (i) p | x (i) , y (i) c ) P (y (i) p | y (i) c ) .",
+      "equation_number": null,
+      "grobid_ref_id": "formula_6",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::7",
+      "paper_id": "2406.10882",
+      "latex": "-log P (w | context),",
+      "equation_number": null,
+      "grobid_ref_id": "formula_7",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::8",
+      "paper_id": "2406.10882",
+      "latex": "P (W | instruction) = N i=1 P (w i | w 1 , . . . , w i-1 , instruction),",
+      "equation_number": "(5)",
+      "grobid_ref_id": "formula_8",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::9",
+      "paper_id": "2406.10882",
+      "latex": "PPL(W ) = exp - 1 N N i=1 log P (w i | w 1 , . . . , w i-1 ) ,",
+      "equation_number": null,
+      "grobid_ref_id": "formula_9",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2406.10882::equation::10",
+      "paper_id": "2406.10882",
+      "latex": "Surprisal(w | h) = -log P (w | h), where P (w | h) ∝ cos( ⃗ w, ⃗ h) = ⃗ w • ⃗ h ∥ ⃗ w∥∥ ⃗ h∥ .",
+      "equation_number": "(6)",
+      "grobid_ref_id": "formula_10",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2406.10882::citation::0",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Shyamal Anadkat, et al. 2023. Gpt-4 technical report",
+      "cited_authors": [
+        "Josh Achiam",
+        "Steven Adler",
+        "Sandhini Agarwal",
+        "Lama Ahmad",
+        "Ilge Akkaya",
+        "Florencia Leoni Aleman",
+        "Diogo Almeida",
+        "Janko Altenschmidt",
+        "Sam Altman"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2303.08774",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::1",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Llama 3 model card",
+      "cited_authors": [
+        "Ai@meta"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::2",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Liangming Pan, Haewon Jeong, et al. 2024. A survey on data selection for language models",
+      "cited_authors": [
+        "Alon Albalak",
+        "Yanai Elazar",
+        "Sang Michael Xie",
+        "Shayne Longpre",
+        "Nathan Lambert",
+        "Xinyi Wang",
+        "Niklas Muennighoff",
+        "Bairu Hou"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2402.16827",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::3",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Training a helpful and harmless assistant with reinforcement learning from human feedback",
+      "cited_authors": [
+        "Yuntao Bai",
+        "Andy Jones",
+        "Kamal Ndousse",
+        "Amanda Askell",
+        "Anna Chen",
+        "Nova Dassarma",
+        "Dawn Drain",
+        "Stanislav Fort",
+        "Deep Ganguli",
+        "Tom Henighan"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2204.05862",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::4",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Data diversity matters for robust instruction tuning",
+      "cited_authors": [
+        "Alexander Bukharin",
+        "Tuo Zhao"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2311.14736",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::5",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Multipl-e: a scalable and polyglot approach to benchmarking neural code generation",
+      "cited_authors": [
+        "Federico Cassano",
+        "John Gouwar",
+        "Daniel Nguyen",
+        "Sydney Nguyen",
+        "Luna Phipps-Costin",
+        "Donald Pinckney",
+        "Ming-Ho Yee",
+        "Yangtian Zi",
+        "Carolyn Jane Anderson",
+        "Molly Q Feldman"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::6",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Alpagasus: Training a better alpaca with fewer data",
+      "cited_authors": [
+        "Lichang Chen",
+        "Shiyang Li",
+        "Jun Yan",
+        "Hai Wang",
+        "Kalpa Gunaratna",
+        "Vikas Yadav",
+        "Zheng Tang",
+        "Vijay Srinivasan",
+        "Tianyi Zhou",
+        "Heng Huang"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::7",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Evaluating large language models trained on code",
+      "cited_authors": [
+        "Mark Chen",
+        "Jerry Tworek",
+        "Heewoo Jun",
+        "Qiming Yuan",
+        "Henrique Ponde De Oliveira Pinto",
+        "Jared Kaplan",
+        "Harri Edwards",
+        "Yuri Burda",
+        "Nicholas Joseph",
+        "Greg Brockman"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2107.03374",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::8",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Syntactic Structures. De Gruyter Mouton",
+      "cited_authors": [
+        "Noam Chomsky"
+      ],
+      "cited_year": 1957,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1515/9783112316009",
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::9",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Siddhartha Brahma, et al. 2022. Scaling instruction-finetuned language models",
+      "cited_authors": [
+        "Chung Hyung Won",
+        "Le Hou",
+        "Shayne Longpre",
+        "Barret Zoph",
+        "Yi Tay",
+        "William Fedus",
+        "Eric Li",
+        "Xuezhi Wang",
+        "Mostafa Dehghani"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2210.11416",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::10",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Think you have solved question answering? try arc, the ai2 reasoning challenge",
+      "cited_authors": [
+        "Peter Clark",
+        "Isaac Cowhey",
+        "Oren Etzioni",
+        "Tushar Khot",
+        "Ashish Sabharwal",
+        "Carissa Schoenick",
+        "Oyvind Tafjord"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1803.05457",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::11",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Free dolly: Introducing the world's first truly open instructiontuned llm",
+      "cited_authors": [
+        "Mike Conover",
+        "Matt Hayes",
+        "Ankit Mathur",
+        "Jianwei Xie",
+        "Jun Wan",
+        "Sam Shah",
+        "Ali Ghodsi",
+        "Patrick Wendell",
+        "Matei Zaharia",
+        "Reynold Xin"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::12",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Bold: Dataset and metrics for measuring biases in open-ended language generation",
+      "cited_authors": [
+        "Jwala Dhamala",
+        "Tony Sun",
+        "Varun Kumar",
+        "Satyapriya Krishna",
+        "Yada Pruksachatkun",
+        "Kai-Wei Chang",
+        "Rahul Gupta"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::13",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "A computational theory of goal-directed style in syntax",
+      "cited_authors": [
+        "Chrysanne Dimarco",
+        "Graeme Hirst"
+      ],
+      "cited_year": 1993,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::14",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Length-controlled alpacaeval: A simple way to debias automatic evaluators",
+      "cited_authors": [
+        "Yann Dubois",
+        "Balázs Galambosi",
+        "Percy Liang",
+        "Tatsunori B Hashimoto"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2404.04475",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::15",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Alpacafarm: A simulation framework for methods that learn from human feedback",
+      "cited_authors": [
+        "Yann Dubois",
+        "Xuechen Li",
+        "Rohan Taori",
+        "Tianyi Zhang",
+        "Ishaan Gulrajani",
+        "Jimmy Ba",
+        "Carlos Guestrin",
+        "Percy Liang",
+        "Tatsunori B Hashimoto"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2305.14387",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::16",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Language and literature",
+      "cited_authors": [
+        "N Fabb"
+      ],
+      "cited_year": 2001,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/B0-08-043076-7/03063-1",
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::17",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Predictive power of word surprisal for reading times is a linear function of language model quality",
+      "cited_authors": [
+        "Adam Goodkind",
+        "Klinton Bicknell",
+        "Dirk Groeneveld",
+        "Iz Beltagy",
+        "Pete Walsh",
+        "Akshita Bhagia",
+        "Rodney Kinney",
+        "Oyvind Tafjord",
+        "Ananya Harsh Jha",
+        "Hamish Ivison",
+        "Ian Magnusson",
+        "Yizhong Wang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:2402.00838",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::18",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Measuring massive multitask language understanding",
+      "cited_authors": [
+        "Dan Hendrycks",
+        "Collin Burns",
+        "Steven Basart",
+        "Andy Zou",
+        "Mantas Mazeika",
+        "Dawn Song",
+        "Jacob Steinhardt"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::19",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Lora: Low-rank adaptation of large language models",
+      "cited_authors": [
+        "J Edward",
+        "Phillip Hu",
+        "Zeyuan Wallis",
+        "Yuanzhi Allen-Zhu",
+        "Shean Li",
+        "Lu Wang",
+        "Weizhu Wang",
+        "Chen"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::20",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Style is NOT a single variable: Case studies for crossstylistic language understanding",
+      "cited_authors": [
+        "Daniel Jurafsky",
+        "; Dongyeop Kang",
+        "Eduard Hovy"
+      ],
+      "cited_year": 2000,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.acl-long.185",
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::21",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Towards machines for measuring creativity: The use of computational tools in storytelling activities",
+      "cited_authors": [
+        "Pythagoras Karampiperis",
+        "Antonis Koukourikos",
+        "Evangelia Koliopoulou"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::22",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "The wheres and whyfores for studying textual genre computationally",
+      "cited_authors": [
+        "Jussi Karlgren"
+      ],
+      "cited_year": 2004,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::23",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Derivation of new readability formulas (automated readability index, fog count and flesch reading ease formula) for navy enlisted personnel",
+      "cited_authors": [
+        "Kincaid Peter",
+        "Robert P Fishburne Jr",
+        "Richard L Rogers",
+        "Brad S Chissom"
+      ],
+      "cited_year": 1975,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::24",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Huggingface h4 stack exchange preference dataset",
+      "cited_authors": [
+        "Nathan Lambert",
+        "Lewis Tunstall",
+        "Nazneen Rajani",
+        "Tristan Thrush"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::25",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Superfiltering: Weak-to-strong data filtering for fast instruction-tuning",
+      "cited_authors": [
+        "Ming Li",
+        "Yong Zhang",
+        "Shwai He",
+        "Zhitao Li",
+        "Hongyu Zhao",
+        "Jianzong Wang",
+        "Ning Cheng",
+        "Tianyi Zhou"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2402.00530",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::26",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "2023a. From quantity to quality: Boosting llm performance with self-guided data selection for instruction tuning",
+      "cited_authors": [
+        "Ming Li",
+        "Yong Zhang",
+        "Zhitao Li",
+        "Jiuhai Chen",
+        "Lichang Chen",
+        "Ning Cheng",
+        "Jianzong Wang",
+        "Tianyi Zhou",
+        "Jing Xiao"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2308.12032",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::27",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Active learning for multilingual semantic parser",
+      "cited_authors": [
+        "Zhuang Li",
+        "Gholamreza Haffari"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::28",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "2023b. The best of both worlds: Combining human and machine translations for multilingual semantic parsing with active learning",
+      "cited_authors": [
+        "Zhuang Li",
+        "Lizhen Qu",
+        "Raj Philip R Cohen",
+        "Gholamreza Tumuluri",
+        "Haffari"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::29",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Truthfulqa: Measuring how models mimic human falsehoods",
+      "cited_authors": [
+        "Stephanie Lin",
+        "Jacob Hilton",
+        "Owain Evans"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::30",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Temperature-scaling surprisal estimates improve fit to human reading times -but does it do so for the \"right reasons",
+      "cited_authors": [
+        "Tong Liu",
+        "Iza Škrjanec",
+        "Vera Demberg"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2024.acl-long.519",
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::31",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "What makes good data for alignment? a comprehensive study of automatic data selection in instruction tuning",
+      "cited_authors": [
+        "Wei Liu",
+        "Weihao Zeng",
+        "Keqing He",
+        "Yong Jiang",
+        "Junxian He"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::32",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Roberta: A robustly optimized bert pretraining approach",
+      "cited_authors": [
+        "Yinhan Liu",
+        "Myle Ott",
+        "Naman Goyal",
+        "Jingfei Du",
+        "Mandar Joshi",
+        "Danqi Chen",
+        "Omer Levy",
+        "Mike Lewis",
+        "Luke Zettlemoyer",
+        "Veselin Stoyanov"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1907.11692",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::33",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "# instag: Instruction tagging for analyzing supervised fine-tuning of large language models",
+      "cited_authors": [
+        "Keming Lu",
+        "Hongyi Yuan",
+        "Zheng Yuan",
+        "Runji Lin",
+        "Junyang Lin",
+        "Chuanqi Tan",
+        "Chang Zhou",
+        "Jingren Zhou",
+        "; Xu",
+        "Pu Zhao",
+        "Qingfeng Sun",
+        "Xiubo Geng",
+        "Wenxiang Hu",
+        "Chongyang Tao",
+        "Jing Ma",
+        "Qingwei Lin",
+        "Daxin Jiang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2306.08568",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::34",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "An assessment of the range and usefulness of lexical diversity measures and the potential of the measure of textual, lexical diversity (MTLD)",
+      "cited_authors": [
+        "M Philip",
+        "Mccarthy"
+      ],
+      "cited_year": 2005,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::35",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Strong prediction: Language model surprisal explains multiple n400 effects. neurobiology of language, 1-71",
+      "cited_authors": [
+        "Ja Michaelov",
+        "C K Bardolph",
+        "Van Petten",
+        "Bk Bergen",
+        "Coulson"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1162/nol",
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::36",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Detectgpt: Zero-shot machine-generated text detection using probability curvature",
+      "cited_authors": [
+        "Eric Mitchell",
+        "Yoonho Lee",
+        "Alexander Khazatsky",
+        "Christopher D Manning",
+        "Chelsea Finn"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::37",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Why Does Surprisal From Larger Transformer-Based Language Models Provide a Poorer Fit to Human Reading Times?",
+      "cited_authors": [
+        "Niklas Muennighoff",
+        "Qian Liu",
+        "Randy Armel",
+        "Qinkai Zebaze",
+        "Binyuan Zheng",
+        "Terry Hui",
+        "Swayam Yue Zhuo",
+        "Xiangru Singh",
+        "Leandro Tang",
+        "Shayne Von Werra",
+        "William Longpre",
+        "Schuler"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1162/tacl_a_00548",
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::38",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Training language models to follow instructions with human feedback",
+      "cited_authors": [
+        "Long Ouyang",
+        "Jeffrey Wu",
+        "Xu Jiang",
+        "Diogo Almeida",
+        "Carroll Wainwright",
+        "Pamela Mishkin",
+        "Chong Zhang",
+        "Sandhini Agarwal",
+        "Katarina Slama",
+        "Alex Ray"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::39",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Sentence-bert: Sentence embeddings using siamese bert-networks",
+      "cited_authors": [
+        "Reimers"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1908.10084",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::40",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "A study on surprisal and semantic relatedness for eye-tracking data prediction",
+      "cited_authors": [
+        "Lavinia Salicchi",
+        "Emmanuele Chersoni",
+        "Alessandro Lenci"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::41",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Multitask prompted training enables zero-shot task generalization",
+      "cited_authors": [
+        "Victor Sanh",
+        "Albert Webson",
+        "Colin Raffel",
+        "Stephen H Bach",
+        "Lintang Sutawika",
+        "Zaid Alyafeai",
+        "Antoine Chaffin",
+        "Arnaud Stiegler",
+        "Teven Le Scao",
+        "Arun Raja"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2110.08207",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::42",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Vector-space calculation of semantic surprisal for predicting word pronunciation duration",
+      "cited_authors": [
+        "Asad Sayeed",
+        "Stefan Fischer",
+        "Vera Demberg"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::43",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "The woman worked as a babysitter: On biases in language generation",
+      "cited_authors": [
+        "Emily Sheng",
+        "Kai-Wei Chang",
+        "Premkumar Natarajan",
+        "Nanyun Peng"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.48550/ARXIV.1909.01326",
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::44",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Detectllm: Leveraging log rank information for zero-shot detection of machine-generated text",
+      "cited_authors": [
+        "Jinyan Su",
+        "Terry Zhuo",
+        "Di Wang",
+        "Preslav Nakov"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::45",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Learning to compare: Relation network for few-shot learning",
+      "cited_authors": [
+        "Flood Sung",
+        "Yongxin Yang",
+        "Li Zhang",
+        "Tao Xiang",
+        "Timothy M Philip Hs Torr",
+        "Hospedales"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::46",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Certain language skills in children: Their development and interrelationships",
+      "cited_authors": [
+        "Mildred C Templin"
+      ],
+      "cited_year": 1957,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::47",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Open foundation and fine-tuned chat models",
+      "cited_authors": [
+        "Hugo Touvron",
+        "Louis Martin",
+        "Kevin Stone",
+        "Peter Albert",
+        "Amjad Almahairi",
+        "Yasmine Babaei",
+        "Nikolay Bashlykov",
+        "Soumya Batra",
+        "Prajjwal Bhargava",
+        "Shruti Bhosale"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2307.09288",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::48",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "HANSEN: Human and AI spoken text benchmark for authorship analysis",
+      "cited_authors": [
+        "Nafis Tripto",
+        "Adaku Uchendu",
+        "Thai Le",
+        "Mattia Setzu",
+        "Fosca Giannotti",
+        "Dongwon Lee"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2023.findings-emnlp.916",
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::49",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Visualizing data using t-sne",
+      "cited_authors": [
+        "Laurens Van Der Maaten",
+        "Geoffrey Hinton"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::50",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Machine translationese: Effects of algorithmic bias on linguistic complexity in machine translation",
+      "cited_authors": [
+        "Eva Vanmassenhove",
+        "Dimitar Shterionov",
+        "Matthew Gwilliam"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.eacl-main.188",
+      "external_id": null,
+      "grobid_ref_id": "b50",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::51",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Learning from the worst: Dynamically generated datasets to improve online hate detection",
+      "cited_authors": [
+        "Bertie Vidgen",
+        "Tristan Thrush",
+        "Zeerak Waseem",
+        "Douwe Kiela"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b51",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::52",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "2023a. Seqxgpt: Sentencelevel ai-generated text detection",
+      "cited_authors": [
+        "Pengyu Wang",
+        "Linyang Li",
+        "Ke Ren",
+        "Botian Jiang",
+        "Dong Zhang",
+        "Xipeng Qiu"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b52",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::53",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Self-instruct: Aligning language model with self generated instructions",
+      "cited_authors": [
+        "Yizhong Wang",
+        "Yeganeh Kordi",
+        "Swaroop Mishra",
+        "Alisa Liu",
+        "Noah A Smith",
+        "Daniel Khashabi",
+        "Hannaneh Hajishirzi"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2212.10560",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b53",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::54",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Self-instruct: Aligning language models with self-generated instructions",
+      "cited_authors": [
+        "Yizhong Wang",
+        "Yeganeh Kordi",
+        "Swaroop Mishra",
+        "Alisa Liu",
+        "Noah A Smith",
+        "Daniel Khashabi",
+        "Hannaneh Hajishirzi"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b54",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::55",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Generalization via declarative instructions on 1600+ nlp tasks",
+      "cited_authors": [
+        "Yizhong Wang",
+        "Swaroop Mishra",
+        "Pegah Alipoormolabashi",
+        "Yeganeh Kordi",
+        "Amirreza Mirzaei",
+        "Anjana Arunkumar",
+        "Arjun Ashok",
+        "Arut Selvan Dhanasekaran",
+        "Atharva Naik",
+        "David Stap"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2204.07705",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b55",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::56",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Codet5+: Open code large language models for code understanding and generation",
+      "cited_authors": [
+        "Yue Wang",
+        "Hung Le",
+        "Akhilesh Deepak Gotmare",
+        "D Q Nghi",
+        "Junnan Bui",
+        "Steven Ch Li",
+        "Hoi"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2305.07922",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b56",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::57",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Finetuned language models are zero-shot learners",
+      "cited_authors": [
+        "Jason Wei",
+        "Maarten Bosma",
+        "Vincent Zhao",
+        "Kelvin Guu",
+        "Adams Wei Yu",
+        "Brian Lester",
+        "Nan Du",
+        "Andrew M Dai",
+        "Quoc V Le"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b57",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::58",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Llmdet: A third party large language models generated text detection tool",
+      "cited_authors": [
+        "Kangxi Wu",
+        "Liang Pang",
+        "Huawei Shen",
+        "Xueqi Cheng",
+        "Tat-Seng Chua"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b58",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::59",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Muhammad Abdul-Mageed, and Alham Fikri Aji. 2023b. Lamini-lm: A diverse herd of distilled models from large-scale instructions",
+      "cited_authors": [
+        "Minghao Wu",
+        "Abdul Waheed",
+        "Chiyu Zhang"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2304.14402",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b59",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::60",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "A definition of conditional mutual information for arbitrary ensembles",
+      "cited_authors": [
+        "A D Wyner"
+      ],
+      "cited_year": 1978,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/S0019-9958(78)90026-8",
+      "external_id": null,
+      "grobid_ref_id": "b60",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::61",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Wizardlm: Empowering large language models to follow complex instructions",
+      "cited_authors": [
+        "Can Xu",
+        "Qingfeng Sun",
+        "Kai Zheng",
+        "Xiubo Geng",
+        "Pu Zhao",
+        "Jiazhan Feng",
+        "Chongyang Tao",
+        "Daxin Jiang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b61",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::62",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Detecting ai-generated code assignments using perplexity of large language models",
+      "cited_authors": [
+        "Zhenyu Xu",
+        "S Victor",
+        "Sheng"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b62",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::63",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Self-distillation bridges distribution gap in language model fine-tuning",
+      "cited_authors": [
+        "Zhaorui Yang",
+        "Tianyu Pang",
+        "Haozhe Feng",
+        "Han Wang",
+        "Wei Chen",
+        "Minfeng Zhu",
+        "Qian Liu"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2024.acl-long.58",
+      "external_id": null,
+      "grobid_ref_id": "b63",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::64",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Can programming languages boost each other via instruction tuning?",
+      "cited_authors": [
+        "Daoguang Zan",
+        "Ailun Yu",
+        "Bo Shen",
+        "Jiaxin Zhang",
+        "Taihong Chen",
+        "Bing Geng",
+        "Bei Chen",
+        "Jichuan Ji",
+        "Yafen Yao",
+        "Yongji Wang",
+        "Qianxiang Wang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2308.16824",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b64",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::65",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Hellaswag: Can a machine really finish your sentence?",
+      "cited_authors": [
+        "Rowan Zellers",
+        "Ari Holtzman",
+        "Yonatan Bisk",
+        "Ali Farhadi",
+        "Yejin Choi"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b65",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::66",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Detecting ai-generated sentences in human-ai collaborative hybrid texts: challenges, strategies, and insights",
+      "cited_authors": [
+        "Zijie Zeng",
+        "Shiqi Liu",
+        "Lele Sha",
+        "Zhuang Li",
+        "Kaixun Yang",
+        "Sannyuya Liu",
+        "Dragan Gašević",
+        "Guanliang Chen"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b66",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::67",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Dragan Gašević, and Guangliang Chen. 2024b. Towards automatic boundary detection for human-ai collaborative hybrid essay in education",
+      "cited_authors": [
+        "Zijie Zeng",
+        "Lele Sha",
+        "Yuheng Li",
+        "Kaixun Yang"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b67",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::68",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Towards automatic boundary detection for human-ai hybrid essay in education",
+      "cited_authors": [
+        "Zijie Zeng",
+        "Lele Sha",
+        "Yuheng Li",
+        "Kaixun Yang",
+        "Dragan Gašević",
+        "Guanliang Chen"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2307.12267",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b68",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::69",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Long is more for alignment: A simple but tough-to-beat baseline for instruction fine-tuning",
+      "cited_authors": [
+        "Hao Zhao",
+        "Maksym Andriushchenko",
+        "Francesco Croce",
+        "Nicolas Flammarion"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b69",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::70",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Gender bias in coreference resolution: Evaluation and debiasing methods",
+      "cited_authors": [
+        "Jieyu Zhao",
+        "Tianlu Wang",
+        "Mark Yatskar",
+        "Vicente Ordonez",
+        "Kai-Wei Chang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1901.05954",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b70",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::71",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Judging llm-as-a-judge with mt-bench and chatbot arena",
+      "cited_authors": [
+        "Lianmin Zheng",
+        "Wei-Lin Chiang",
+        "Ying Sheng",
+        "Siyuan Zhuang",
+        "Zhanghao Wu",
+        "Yonghao Zhuang",
+        "Zi Lin",
+        "Zhuohan Li",
+        "Dacheng Li",
+        "Eric Xing"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b71",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::72",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "A review on authorship attribution in text mining",
+      "cited_authors": [
+        "Wanwan Zheng",
+        "Mingzhe Jin"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b72",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::73",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Lima: Less is more for alignment",
+      "cited_authors": [
+        "Chunting Zhou",
+        "Pengfei Liu",
+        "Puxin Xu",
+        "Srinivasan Iyer",
+        "Jiao Sun",
+        "Yuning Mao",
+        "Xuezhe Ma",
+        "Avia Efrat",
+        "Ping Yu",
+        "Lili Yu"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b73",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::74",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Ice-score: Instructing large language models to evaluate code",
+      "cited_authors": [
+        "Terry Yue",
+        "Zhuo"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b74",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::75",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "C++ Pass@1 / Pass@10 Pass@1 / Pass@10 Pass@1 / Pass@10 Pass@1 / Pass@10 Human Response",
+      "cited_authors": [
+        "Java Humaneval Multipl-E Python",
+        "Javascript"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b75",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::76",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Detailed performance comparison of fine-tuned CODELLAMA-7B evaluated on HUMANEVAL (Python) and MULTIPL-E (Java, JavaScript, C++) coding benchmarks. The LLMs are fine-tuned on training sets curated with different response generation strategies and LLMs. The data examples are further filtered based on the perplexity similarity between \"referenced\" and human responses, excluding those with significant deviation. Pass@1 and Pass@10 scores for each programming language are reported",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b76",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::77",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "C++) coding benchmarks. The models are fine-tuned on human-written datasets selected with different selection methods and proportions. The table reports Pass@1 and Pass@10 scores for each individual programming language",
+      "cited_authors": [
+        "Multipl-E ( Java",
+        "Javascript"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b77",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::78",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Extended Analysis of Evaluation Results for Data Selection in Mixed Synthetic Coding Data Data Sampling Methods HUMANEVAL MULTIPL-E Python Java JavaScript C++ Pass@1 / Pass@10 Pass@1 / Pass",
+      "cited_authors": [
+        "C"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b78",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::79",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Full Data",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b79",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::80",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Scar"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b80",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::81",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Table 10 offers a detailed breakdown of the LLM performance results summarized in Figure 2. It presents Pass@1 and Pass@10 scores across four programming languages, evaluating LLMs fine-tuned on synthetic dataset subsets chosen through various selection methods. This comprehensive view provides insights into the LLM's performance on individual tasks and programming languages",
+      "cited_authors": [
+        "Multipl-E ( Java",
+        "Javascript"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b81",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::82",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "B fine-tuned on various subsets of the 13k data used to train OCTOCODER-15.5B. The models are evaluated on the HUMANEVAL (Python) and MULTIPL-E (Java, JavaScript, C++) coding benchmarks. SCAR performs comparably to HFR and SUPERFILTERING (GPT-2) in runtime, all within the low-minute range. Notably, SCAR significantly outpaces computationally expensive LLAMA3-based methods while maintaining top-tier data selection effectiveness in our experiments. This makes SCAR a practical and scalable solution for real-world scenarios where both quality and efficiency are critical",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b82",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::83",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Llama2-70b 50",
+      "cited_authors": [
+        "Full"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b83",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::84",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Llama2-13b 50",
+      "cited_authors": [
+        "Full"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b84",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::85",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Llama3-70b 50",
+      "cited_authors": [
+        "Full"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b85",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::86",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Comprehensive performance comparison of CODELLAMA-7B models fine-tuned on human-written datasets, evaluated on HUMANEVAL (Python) and MULTIPL-E (Java, JavaScript, C++) coding benchmarks. The training datasets were sampled using various methods at different proportions. Pass@1 and Pass@10 scores are reported for each programming language",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b86",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::87",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Llama2-70b 50",
+      "cited_authors": [
+        "Full"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b87",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::88",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Llama2-13b 50",
+      "cited_authors": [
+        "Full"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b88",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::89",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Llama3-70b 50",
+      "cited_authors": [
+        "Full"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b89",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::90",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Effect of Style-Consistent Responses on Data Selection To evaluate how different data selection methods perform when selecting from style-consistent versus styleinconsistent responses, we curate a dataset of 20,000 STACKEXCHANGE instructions with all responses generated by GPT-3.5-TURBO without using human reference answers. We then apply RANDOM, PERPLEXITY and SCAR(ID) to select subsets from this dataset and fine-tune CODELLAMA-7B with the selected data to evaluate the performance of the resulting models on HUMANEVAL. Data Sampling Methods HUMANEVAL MULTIPL-E Python Java JavaScript",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b90",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::91",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Full Data",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b91",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::92",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "Table 24: Performance comparison of CODELLAMA-7B models fine-tuned on STACKEXCHANGE instructions with GPT-3",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b92",
+      "in_text_context": null
+    },
+    {
+      "id": "2406.10882::citation::93",
+      "paper_id": "2406.10882",
+      "raw_text": null,
+      "cited_title": "C++) coding benchmarks. Models are trained on subsets selected using different sampling methods at varying proportions, with Pass@1 and Pass@10 scores reported for each programming language",
+      "cited_authors": [
+        "Multipl-E ( Java",
+        "Javascript"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b93",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

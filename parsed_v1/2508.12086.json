@@ -1,0 +1,1091 @@
+{
+  "arxiv_id": "2508.12086",
+  "title": "J6: Jacobian-Driven Role Attribution for Multi-Objective Prompt Optimization in LLMs",
+  "authors": [
+    {
+      "name": "Yao Wu",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "In large language model (LLM) adaptation, balancing multiple optimization objectives such as improving factuality (heat) and increasing confidence (via low entropy) poses a fundamental challenge, especially when prompt parameters (e.g., hidden-layer insertions h and embedding modifications w) interact in non-trivial ways. Existing multi-objective optimization strategies often rely on scalar gradient aggregation, ignoring the deeper geometric structure between objectives and parameters. We propose J6, a structured Jacobian-based method that decomposes the gradient interaction matrix into six interpretable components. This decomposition enables both hard decision-making (e.g., choosing the dominant update direction via argmax) and soft strategies (e.g., attention-style weighting via softmax over J6), forming a dynamic update framework that adapts to local conflict and synergy. Moreover, the interpretable structure of J6 provides insight into parameter attribution, task interference, and geometry-aligned adaptation. Our work introduces a principled and extensible mechanism for conflict-aware prompt optimization, and opens a new avenue for incorporating structured Jacobian reasoning into multi-objective neural tuning.",
+  "categories": [
+    "cs.CL",
+    "cs.AI",
+    "cs.LG"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2025-08-16T15:47:47"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2025-08-16",
+  "citation_count": 0,
+  "reference_count": 22,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2508.12086::section::0",
+      "paper_id": "2508.12086",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::0::para::0",
+          "section_id": "2508.12086::section::0",
+          "text": "Large Language Models (LLMs) are increasingly deployed in real-world scenarios that demand not only high accuracy (e.g., factual correctness), but also strong reliability (e.g., output certainty). This dual requirement gives rise to a growing need for multi-objective prompt optimization, where practitioners aim to improve both fidelity and certainty simultaneously-two goals that are often at odds during model inference Nema et al. [2025], Wang et al. [2024].",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::0::para::1",
+          "section_id": "2508.12086::section::0",
+          "text": "Existing prompt tuning approaches typically optimize a single scalar loss or apply fixed-weight multi-task objectives. However, these approaches treat all prompt parameters homogeneously and fail to model the underlying structure between different parameter types and their contributions to different objectives Dun et al. [2023]. Specifically, they overlook the fact that different perturbation types-such as hidden-layer perturbations (h) and embedding perturbations (w)-may affect each objective differently, and often nonlinearly, due to the multiplicative nature of the logit computation: (H + h)(W + w) T .",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::0::para::2",
+          "section_id": "2508.12086::section::0",
+          "text": "A natural yet flawed solution is to statically assign h to optimize fidelity (i.e., cross-entropy minimization) and w to optimize certainty (i.e., entropy minimization). However, such a rigid role assignment is overly simplistic and brittle in practice. Both h and w may influence both objectives in entangled and dynamic ways Wang et al. [2024]. A hidden-layer perturbation that improves answer accuracy may simultaneously disrupt confidence, and vice versa. In such settings, pre-assigning roles leads to suboptimal updates and gradient conflicts.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::0::para::3",
+          "section_id": "2508.12086::section::0",
+          "text": "We argue for a fundamentally different perspective: instead of statically binding h and w to fixed tasks, we enable dynamic and competitive role attribution, where each parameter group autonomously decides-at each optimization step-whether to respond to one objective, both, or neither. This allows parameters to behave as adaptive agents that sniff task relevance based on local gradient signals Quinton and Rey [2025].",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2508.12086::section::0::para::4",
+          "section_id": "2508.12086::section::0",
+          "text": "To implement this, we introduce J6, a Jacobian-based attribution framework that reveals the finegrained interaction structure between objectives and parameter groups. At each step, we compute a local 2 × 2 Jacobian matrix J over two objectives (heat and confidence) and two parameter groups (h, w), and decompose J into six interpretable components:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2508.12086::section::0::para::5",
+          "section_id": "2508.12086::section::0",
+          "text": "Each J6 entry quantifies either a role-specific contribution (e.g., h → heat) or a structural interaction (e.g., cross-objective alignment) within the gradient space.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2508.12086::section::0::para::6",
+          "section_id": "2508.12086::section::0",
+          "text": "Building on this decomposition, we propose two update schemes:",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2508.12086::section::0::para::7",
+          "section_id": "2508.12086::section::0",
+          "text": "• Hard Strategy: Select the maximal entry in the J6 vector to determine which parameter to update and which objective to prioritize. This produces interpretable, discrete role assignments at each step.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2508.12086::section::0::para::8",
+          "section_id": "2508.12086::section::0",
+          "text": "• Soft Strategy: Normalize J6 scores via softmax and use them as continuous weights to guide simultaneous updates across h and w, allowing gradient blending without dimensional expansion.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2508.12086::section::0::para::9",
+          "section_id": "2508.12086::section::0",
+          "text": "explores Pareto frontiers to generate non-dominated trade-offs across objectives. Geometry-aware approaches Sener and Koltun [2018] further introduce vector projections and alignment constraints to decouple task interactions.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2508.12086::section::0::para::10",
+          "section_id": "2508.12086::section::0",
+          "text": "While effective at the global task level, these methods typically operate on coarse-grained gradient representations and overlook the heterogeneous roles that different parameter groups may play. In contrast, our approach performs local, parameter-level decomposition via a Jacobian-based scoring mechanism, enabling fine-grained control over optimization responsibilities within the model.",
+          "paragraph_index": 10
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::1",
+      "paper_id": "2508.12086",
+      "heading": "Prompt Tuning and Delta-Based Adaptation",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::1::para::0",
+          "section_id": "2508.12086::section::1",
+          "text": "Prompt tuning has emerged as a lightweight alternative to full fine-tuning, allowing efficient adaptation of LLMs with minimal additional parameters Lester et al. [2021]. Methods such as Prefix Tuning Li and Liang [2021] and LoRA Hu et al. [2021] introduce trainable vectors or low-rank matrices into intermediate activations or weight spaces. Delta Tuning Ding et al. [2022] generalizes this idea by enabling parameter insertions at arbitrary locations, making adaptation more modular and extensible. Hu et al. [2025] introduces instance-level adaptation at test time by injecting a perturbation into the hidden state of the LLM. Given the final hidden state H and output projection matrix W , SLOT modifies the logits as:",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::2",
+      "paper_id": "2508.12086",
+      "heading": "SLOT",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::2::para::0",
+          "section_id": "2508.12086::section::2",
+          "text": "where δ is a test-time learned perturbation, optimized via cross-entropy over the same prompt:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::2::para::1",
+          "section_id": "2508.12086::section::2",
+          "text": "This hidden-layer intervention tunes the model's behavior without retraining, improving samplespecific alignment.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::2::para::2",
+          "section_id": "2508.12086::section::2",
+          "text": "This optimization encourages the model to better align its internal representations with prompt intent, serving as an effective one-shot alignment strategy under limited supervision. Despite their flexibility, these methods typically collapse multi-objective behaviors (e.g., accuracy and confidence) into a single scalar loss, making them vulnerable to hidden conflicts among competing goals. For example, a perturbation that enhances token prediction (fidelity) might inadvertently inflate entropy (uncertainty).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::2::para::3",
+          "section_id": "2508.12086::section::2",
+          "text": "To overcome this limitation, we propose J6, a Jacobian-guided attribution mechanism that explicitly separates gradient responsibilities across multiple objectives. Unlike SLOT's single-loss formulation, J6 empowers parameters such as h and w to dynamically specialize in response to distinct objectives, Heat (accuracy) and Confidence (certainty), based on fine-grained Jacobian signals. This allows for more interpretable, role-specific optimization and mitigates gradient interference during multiobjective prompt adaptation.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::3",
+      "paper_id": "2508.12086",
+      "heading": "EM-INF",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::3::para::0",
+          "section_id": "2508.12086::section::3",
+          "text": "EM- INF Agarwal et al. [2025] directly optimizes entropy at the logits layer:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::3::para::1",
+          "section_id": "2508.12086::section::3",
+          "text": "By targeting certainty as an independent goal, EM-INF enhances confidence in complex reasoning tasks. Yet, this can degrade factual accuracy if confidence diverges from correctness.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::3::para::2",
+          "section_id": "2508.12086::section::3",
+          "text": "Our method draws from EM-INF's focus on entropy but embeds it into a two-objective system. We use the Jacobian structure to allocate optimization pressure across parameters, allowing fidelity and certainty to co-adapt rather than compete blindly.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::4",
+      "paper_id": "2508.12086",
+      "heading": "Jacobian-Based Modeling and Optimization",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::4::para::0",
+          "section_id": "2508.12086::section::4",
+          "text": "Jacobian matrices have long been used to analyze neural network sensitivity Sundararajan et al. [2017], generalization via neural tangent kernels Jacot et al. [2018], and regularization Drucker and Le Cun [1992]. More recently, per-layer Jacobians have been applied to investigate learning dynamics Fort et al. [2021] and to improve representation alignment in multi-view learning Navon et al. [2023].",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::4::para::1",
+          "section_id": "2508.12086::section::4",
+          "text": "However, existing works primarily use Jacobians as static diagnostics or post-hoc analytical tools. In contrast, our work treats the Jacobian as a first-class optimization signal, dynamically decomposing its local structure during training to guide parameter-objective assignment. This shift transforms the Jacobian from a passive monitor into an active control mechanism.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::5",
+      "paper_id": "2508.12086",
+      "heading": "Factuality vs. Confidence in LLMs",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::5::para::0",
+          "section_id": "2508.12086::section::5",
+          "text": "Maintaining both factual accuracy and confident output generation is a central concern for large language models Kadavath et al. [2022]. Prior efforts such as TruthfulQA Lin et al. [2022] and SelfCheckGPT Manakul and Gales [2023] expose the trade-off between informativeness and entropy. Entropy filtering Lee et al. [2022] and output calibration have been proposed as inference-time remedies, but they do not intervene during model optimization.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::5::para::1",
+          "section_id": "2508.12086::section::5",
+          "text": "Our method addresses this gap by directly incorporating the dual objectives of fidelity (via crossentropy) and certainty (via entropy minimization) into the training process. Using Jacobian-based attribution, we enable the model to resolve their competition adaptively during learning, rather than relying on fixed heuristics or post-hoc adjustments.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::6",
+      "paper_id": "2508.12086",
+      "heading": "Method",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::6::para::0",
+          "section_id": "2508.12086::section::6",
+          "text": "We propose the J6 Strategy, a Jacobian-guided optimization framework for multi-objective prompt tuning. Our method aims to jointly optimize two often competing goals in large language model (LLM) inference: fidelity (i.e., task accuracy, denoted as Heat) and certainty (i.e., output confidence, denoted as Confidence). Unlike traditional approaches that bind each objective to specific parameters or scalarize multiple losses into a single function, J6 introduces a structured and interpretable mechanism for dynamically allocating optimization responsibility across parameter groups.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::6::para::1",
+          "section_id": "2508.12086::section::6",
+          "text": "We begin by formalizing the problem setup and highlighting the limitations of static role assignments in multi-objective tuning. We then introduce the Jacobian Interaction Matrix-a local 2 × 2 matrix capturing how each objective gradient aligns with each parameter direction-and decompose it into the J6 score vector. This vector encodes role-specific effectiveness and cross-objective alignment.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::6::para::2",
+          "section_id": "2508.12086::section::6",
+          "text": "Finally, we describe two optimization modes built a top J6: a hard routing strategy that selects dominant roles via argmax, and a soft weighting strategy that adaptively blends gradients based on normalized Jacobian scores. Together, these components enable flexible, conflict-aware updates without increasing model dimensionality.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::7",
+      "paper_id": "2508.12086",
+      "heading": "Problem Formulation",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::7::para::0",
+          "section_id": "2508.12086::section::7",
+          "text": "We consider a prompt-tuning setting where the goal is to adapt a frozen Large Language Model (LLM) to specific tasks while simultaneously balancing two optimization objectives. To enable lightweight yet expressive adaptation, we introduce two additive parameter groups:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::7::para::1",
+          "section_id": "2508.12086::section::7",
+          "text": "• h ∈ R d h : perturbations applied to the hidden layers,",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::7::para::2",
+          "section_id": "2508.12086::section::7",
+          "text": "• w ∈ R dw : perturbations applied to the vocabulary embedding layer.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::7::para::3",
+          "section_id": "2508.12086::section::7",
+          "text": "These parameters modulate the model's output logits, which we approximate as:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2508.12086::section::7::para::4",
+          "section_id": "2508.12086::section::7",
+          "text": "where H and W represent the frozen base representations (i.e., the hidden states and vocabulary embeddings of the pretrained LLM), and (h, w) are the tunable low-rank adaptations. Specifically, W corresponds to the pre-trained vocabulary embeddings, and the perturbation w is added to each embedding vector, adjusting how each token interacts with the hidden state.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2508.12086::section::7::para::5",
+          "section_id": "2508.12086::section::7",
+          "text": "We define the objectives as: Hu et al. [2025] (1) ob 2 (h, w) = -Entropy(softmax(logits)) (Confidence) Agarwal et al. [2025] (2)",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2508.12086::section::7::para::6",
+          "section_id": "2508.12086::section::7",
+          "text": "The Heat loss is derived from the cross-entropy between the model's logits and the true target, ensuring task alignment. The Confidence loss minimizes the entropy of the softmax probabilities, encouraging confident predictions. In the SLOT framework, this loss can be interpreted as the model's self-prediction of the next token, guiding parameter optimization for task-specific tuning.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2508.12086::section::7::para::7",
+          "section_id": "2508.12086::section::7",
+          "text": "However, these objectives often conflict. In tasks requiring reasoning or domain adaptation, improving accuracy may reduce confidence, and vice versa. Our goal is to design a mechanism that dynamically balances these objectives by routing gradient influence through the appropriate parameter group, leveraging geometric attribution.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::8",
+      "paper_id": "2508.12086",
+      "heading": "Motivation: Dynamic Role Attribution",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::8::para::0",
+          "section_id": "2508.12086::section::8",
+          "text": "Traditional prompt tuning methods statically assign specific roles to hidden perturbations (h) and embedding perturbations (w)-where h is responsible for optimizing Heat (cross-entropy) and w optimizes Confidence (entropy minimization). However, this rigid assignment often fails to capture the dynamic interactions between these two tasks in practice.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::8::para::1",
+          "section_id": "2508.12086::section::8",
+          "text": "Given the multiplicative structure of the logits in large language models (LLMs):",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::8::para::2",
+          "section_id": "2508.12086::section::8",
+          "text": "updates to h and w are inherently entangled-each parameter can influence both objectives in complex, unpredictable ways. For example, adjusting h for improved accuracy can inadvertently affect the confidence, and modifying w to enhance certainty can potentially undermine the accuracy.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::8::para::3",
+          "section_id": "2508.12086::section::8",
+          "text": "To address these limitations, we propose a dynamic role attribution framework that eliminates the need for fixed roles. Instead of predefining tasks for each parameter group, we allow h and w to dynamically choose their optimization strategy at each step. They can choose to support Heat, Confidence, both, or remain inactive, depending on which task they can most effectively contribute to at that moment.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2508.12086::section::8::para::4",
+          "section_id": "2508.12086::section::8",
+          "text": "This dynamic decision-making process is guided by the local gradient landscape. Specifically, we construct a Jacobian Interaction Matrix that quantifies how each parameter influences each objective.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2508.12086::section::8::para::5",
+          "section_id": "2508.12086::section::8",
+          "text": "From this matrix, we derive the J6 score, a fine-grained signal that enables either competitive or cooperative updates, achieved through discrete strategy routing or soft weighting.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2508.12086::section::8::para::6",
+          "section_id": "2508.12086::section::8",
+          "text": "In this way, J6 overcomes the limitations of brittle, pre-defined heuristics by providing interpretable, geometry-aware role decisions, ultimately enabling conflict-aware prompt optimization under multiobjective supervision Yu et al. [2020], Liu et al. [2021].",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::9",
+      "paper_id": "2508.12086",
+      "heading": "Jacobian Construction and J6 Score Vector",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::9::para::0",
+          "section_id": "2508.12086::section::9",
+          "text": "To capture how each group of prompt parameters affects each optimization objective, we construct the local Jacobian matrix J ∈ R 2×2 at each step of training. It summarizes the partial derivatives of two objectives with respect to two parameter groups:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::9::para::1",
+          "section_id": "2508.12086::section::9",
+          "text": "We instantiate this Jacobian for our specific objective setting: ob 1 = Heat (Cross-Entropy), and ob 2 = Confidence (Negative Entropy). Thus, J becomes:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::9::para::2",
+          "section_id": "2508.12086::section::9",
+          "text": "We now define the J6 Score Vector to decompose the Jacobian into six interpretable components:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::9::para::3",
+          "section_id": "2508.12086::section::9",
+          "text": "Each component reflects a specific geometric or optimization property of the parameter-objective landscape, as summarized in the table below: Cross-path interaction h → Confidence and w → Heat coupling Each component quantifies a distinct aspect of the local interaction geometry, including how each parameter group contributes to its primary objective, how it interferes with the other, and whether the two groups align or conflict in their gradient directions. These interpretations are summarized in Table 1.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2508.12086::section::9::para::4",
+          "section_id": "2508.12086::section::9",
+          "text": "This decomposition enables interpretable and structured decision-making in prompt optimization. Rather than applying static or uniform updates to h and w, J6 provides a geometry-aware signal that supports two optimization strategies:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2508.12086::section::9::para::5",
+          "section_id": "2508.12086::section::9",
+          "text": "• Hard Strategy: discretely selects one of six roles per parameter group at each step (e.g., \"optimize for Heat\", \"remain frozen\").",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2508.12086::section::9::para::6",
+          "section_id": "2508.12086::section::9",
+          "text": "• Soft Strategy: continuously reweights objective gradients using J6-aligned scores, enabling smooth interpolation and partial cooperation across objectives.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2508.12086::section::9::para::7",
+          "section_id": "2508.12086::section::9",
+          "text": "We formalize this in the following optimization algorithm, which can be invoked at each training or adaptation step for a given prompt instance.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2508.12086::section::9::para::8",
+          "section_id": "2508.12086::section::9",
+          "text": "Algorithm 1 J6 Slot Optimization and Inference for a Given Prompt Require: Base representations H, W ; tunable parameters h, w; input prompt x and target y. 1: Compute logits: logits = (H + h)(W + w) T 2: Compute losses: ob 1 (Heat), ob 2 (Confidence) 3: Compute gradients: ∇ h ob 1 , ∇ h ob 2 , ∇ w ob 1 , ∇ w ob 2 4: Construct Jacobian blocks: J 11 , J 12 , J 21 , J 22 5: Compute J6 score vector: J6 = ∥J 11 ∥ 2 , ⟨J 11 , J 22 ⟩, ∥J 12 ∥ 2 , ∥J 21 ∥ 2 , ∥J 22 ∥ 2 , ⟨J 21 , J 12 ⟩ 6: if Hard Routing then 7: Assign update role to h and w based on max-scoring J6 slot 8: Apply gradient update only along selected objective direction(s) 9: else if Soft Weighting then 10: Normalize J6 components to obtain gradient weights α 1 , α 2 , . . . 11:",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2508.12086::section::9::para::9",
+          "section_id": "2508.12086::section::9",
+          "text": "Combine gradients:",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2508.12086::section::9::para::10",
+          "section_id": "2508.12086::section::9",
+          "text": "Similarly compute weighted ∇ w 13: end if 14: Update h, w via optimizer step",
+          "paragraph_index": 10
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::10",
+      "paper_id": "2508.12086",
+      "heading": "J + : Fine-Grained Attribution via Expanded Jacobian",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::10::para::0",
+          "section_id": "2508.12086::section::10",
+          "text": "The J6 vector provides a compact representation of the key roles of h and w through six gradient metrics. While useful, it offers only a coarse partition of the parameter-objective interactions and misses out on capturing more complex behaviors, such as when h supports both Heat and Confidence simultaneously, or when w aids one objective while conflicting with the other.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::10::para::1",
+          "section_id": "2508.12086::section::10",
+          "text": "From J6 to J + . Although J6 captures the key gradient interactions between perturbation parameters h and w, it serves as a low-dimensional approximation of the full gradient interaction space encoded by J + . While J6 retains essential components like primary gradient magnitudes, interference terms, and alignment scores, it cannot fully represent the complexity of h and w's interactions, particularly when they simultaneously affect multiple objectives in non-linear ways.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::10::para::2",
+          "section_id": "2508.12086::section::10",
+          "text": "To address these limitations, we propose J + , an extended Jacobian-based scoring system that decomposes the full 2 × 2 gradient Jacobian matrix J into 15 interpretable components. These components enumerate all possible gradient magnitudes, alignments, and cross-objective contributions, thus providing a more granular and expressive optimization framework.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::10::para::3",
+          "section_id": "2508.12086::section::10",
+          "text": "The J + space consists of 4 × 4 -1 = 15 interpretable terms, where the \"4\" represents the four directional roles for each parameter group: h 1 , h 2 , h 1 + h 2 , and None for h; and similarly for w. The subtraction of 1 removes the degenerate case (None-None), which is uninformative in optimization.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2508.12086::section::10::para::4",
+          "section_id": "2508.12086::section::10",
+          "text": "These 15 interactions represent meaningful directional relationships between h and w, enabling both discrete and soft-weighted optimization strategies based on the gradient geometry.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2508.12086::section::10::para::5",
+          "section_id": "2508.12086::section::10",
+          "text": "Table 2: J + Gradient Interaction Matrix: Each cell represents a geometric interaction between h and w directions toward specific objectives.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2508.12086::section::10::para::6",
+          "section_id": "2508.12086::section::10",
+          "text": "Therefore, we can define the J + vector as:",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2508.12086::section::10::para::7",
+          "section_id": "2508.12086::section::10",
+          "text": "Compared to J6, the J + vector introduces additional gradient interactions and aggregated behaviors:",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2508.12086::section::10::para::8",
+          "section_id": "2508.12086::section::10",
+          "text": "• ⟨J 11 , J 21 ⟩ -Captures h's internal consistency across Heat and Confidence.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2508.12086::section::10::para::9",
+          "section_id": "2508.12086::section::10",
+          "text": "• ⟨J 12 , J 22 ⟩ -Captures w's internal consistency across Heat and Confidence.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2508.12086::section::10::para::10",
+          "section_id": "2508.12086::section::10",
+          "text": "• ⟨J 11 + J 21 , J 12 + J 22 ⟩ -Measures total coordination between h and w over both objectives.",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2508.12086::section::10::para::11",
+          "section_id": "2508.12086::section::10",
+          "text": "• ⟨J 11 , J 12 + J 22 ⟩ -Measures how h (on Heat) aligns with overall w.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2508.12086::section::10::para::12",
+          "section_id": "2508.12086::section::10",
+          "text": "• ⟨J 11 + J 21 , J 22 ⟩ -Measures how overall h aligns with w (on Confidence).",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2508.12086::section::10::para::13",
+          "section_id": "2508.12086::section::10",
+          "text": "• ∥J 11 + J 21 ∥ 2 , ∥J 12 + J 22 ∥ 2 -Aggregate total influence strengths of h and w, respectively.",
+          "paragraph_index": 13
+        },
+        {
+          "id": "2508.12086::section::10::para::14",
+          "section_id": "2508.12086::section::10",
+          "text": "This decomposition provides finer-grained attribution signals, allowing for nuanced role assignments and strategic adaptation in multi-objective tuning. J + serves as a superset of J6, forming the foundation for our soft optimization controller.",
+          "paragraph_index": 14
+        },
+        {
+          "id": "2508.12086::section::10::para::15",
+          "section_id": "2508.12086::section::10",
+          "text": "That we can conclude:",
+          "paragraph_index": 15
+        },
+        {
+          "id": "2508.12086::section::10::para::16",
+          "section_id": "2508.12086::section::10",
+          "text": "Given the full Jacobian alignment matrix J + ∈ R 15 , we define a decision mechanism that selects the dominant optimization pathway by identifying the most aligned gradient channel. Specifically, we compute: j_index = arg max j J + j Based on this matrix, we compile a detailed attribution and decision table to guide both hard and soft strategies under different optimization intents: The J + vector expands upon J6 by offering a finer decomposition of parameter-objective interactions, with 15 terms that cover all gradient alignments and cross-objective contributions. J6, as an orthogonal projection basis of J + , selectively retains the most interpretable components-direct magnitudes, interference terms, and cross-objective alignments-forming a compact yet expressive representation of the local gradient-field dynamics.",
+          "paragraph_index": 16
+        },
+        {
+          "id": "2508.12086::section::10::para::17",
+          "section_id": "2508.12086::section::10",
+          "text": "This allows J6 to provide a concise control signal for optimization. By applying a soft-weighted combination of J6 components, we can emulate J + 's directional guidance without the full dimensional cost, enabling both discrete and differentiable strategies for conflict-aware parameter updates.",
+          "paragraph_index": 17
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::11",
+      "paper_id": "2508.12086",
+      "heading": "Soft (Weighted) Strategy",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::11::para::0",
+          "section_id": "2508.12086::section::11",
+          "text": "To enhance optimization flexibility and interpretability, we introduce a soft (weighted) update strategy based on the geometry of the Jacobian matrix. This strategy is grounded in the relationship between the J6 vector and the full J + interaction matrix (Table 2).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::11::para::1",
+          "section_id": "2508.12086::section::11",
+          "text": "From J + to J6. The J + matrix represents all meaningful pairwise interactions between perturbation directions h, w and objectives (Heat, Confidence). It spans a 4×4 interaction space including alignment, interference, and composite behaviors. However, many of these components are interdependent or redundant in optimization.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::11::para::2",
+          "section_id": "2508.12086::section::11",
+          "text": "In contrast, the J6 vector is constructed as a low-dimensional projection of J + -specifically chosen for its semantic interpretability and optimization utility. It extracts six components: primary gradients (∥J 11 ∥ 2 , ∥J 22 ∥ 2 ), cross-objective interferences (∥J 12 ∥ 2 , ∥J 21 ∥ 2 ), and synergy terms (⟨J 11 , J 22 ⟩, ⟨J 21 , J 12 ⟩).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::11::para::3",
+          "section_id": "2508.12086::section::11",
+          "text": "This geometric foundation enables us to construct a differentiable soft routing mechanism over the J6 vector, allowing parameter updates to adaptively emphasize useful directions while remaining fully trainable. Our soft strategy thus acts as a low-rank controller that approximates the full behavior space of J + through interpretable, learnable signal composition.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2508.12086::section::11::para::4",
+          "section_id": "2508.12086::section::11",
+          "text": "Step 1: Temperature-scaled weighting. We begin by applying a softmax with temperature τ to the raw J6 scores:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2508.12086::section::11::para::5",
+          "section_id": "2508.12086::section::11",
+          "text": "where τ controls the sharpness of selection. A small τ leads to near-argmax behavior (hard attention), while a large τ yields more uniform weighting.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::12",
+      "paper_id": "2508.12086",
+      "heading": "Step 2: Competitive contrast enhancement.",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::12::para::0",
+          "section_id": "2508.12086::section::12",
+          "text": "To further amplify high-scoring components while preserving smoothness, we apply a competitive reward operator, squaring each weight and renormalizing:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::12::para::1",
+          "section_id": "2508.12086::section::12",
+          "text": ", where γ > 1.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::12::para::2",
+          "section_id": "2508.12086::section::12",
+          "text": "This enhances contrast (akin to energy-based methods) without excluding weaker signals. For example, (0.5, 0.3, 0.1, 0.1) → (0.25, 0.09, 0.01, 0.01) after squaring.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::12::para::3",
+          "section_id": "2508.12086::section::12",
+          "text": "Step 3: Weighted updates. Finally, the parameters are updated via weighted gradients over multiple objectives:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2508.12086::section::12::para::4",
+          "section_id": "2508.12086::section::12",
+          "text": "ob 1 , ob 2 represent Heat and Confidence objectives respectively. Additional components α 1 and α 5 can scale auxiliary updates, such as alignment penalties or entropy regularization. This soft strategy offers a continuous and interpretable optimization mechanism. It balances objectives dynamically using geometric signals, and encourages diverse directional exploration while maintaining differentiability. Algorithm 2 J6 Weighted Update: Soft Strategy Require: J6 vector J6 ∈ R 6 , temperature τ , exponent γ 1: αi ← exp(J6[i]/τ ) for i = 0, . . . , 5 2: Normalize: αi ← αi / j αj 3: Apply reward operator: α i ← αγ i 4: Renormalize: α i ← α i / j α j 5: Compute update for h: ∆h ← -η h (α 0 ∇ h ob 1 + α 3 ∇ h ob 2 ) 6: Compute update for w: ∆w ← -η w (α 2 ∇ w ob 1 + α 4 ∇ w ob 2 ) 7: return ∆h, ∆w",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2508.12086::section::13",
+      "paper_id": "2508.12086",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2508.12086::section::13::para::0",
+          "section_id": "2508.12086::section::13",
+          "text": "In this paper, we introduced J6, a structured Jacobian-based approach for multi-objective prompt optimization in large language models (LLMs). We identified the fundamental challenge of balancing multiple, often conflicting, objectives-specifically fidelity (accuracy) and certainty (confidence)-in the context of prompt tuning. Traditional methods fall short in modeling the complex interactions between parameters and objectives, typically relying on scalar aggregation techniques that ignore the underlying gradient geometry.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2508.12086::section::13::para::1",
+          "section_id": "2508.12086::section::13",
+          "text": "Our proposed solution, J6, decomposes the gradient interaction matrix into six interpretable components, providing a clear framework for dynamic role attribution. By using hard and soft strategies, J6 offers both discrete role assignments and continuous gradient blending, allowing the model to adaptively respond to local conflicts and synergies. This enables a more flexible, interpretable, and effective optimization process compared to existing methods.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2508.12086::section::13::para::2",
+          "section_id": "2508.12086::section::13",
+          "text": "We extended this approach to J+, a richer Jacobian space that incorporates 15 alignment terms, offering even finer granularity.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2508.12086::section::13::para::3",
+          "section_id": "2508.12086::section::13",
+          "text": "Our work presents a novel direction for integrating Jacobian-based reasoning into prompt optimization, offering both theoretical insight and practical performance gains. The J6 framework not only provides a more effective means of balancing accuracy and confidence but also opens the door for further exploration of structured gradient reasoning in neural network optimization.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2508.12086::section::13::para::4",
+          "section_id": "2508.12086::section::13",
+          "text": "Future work can explore extending J6 to even larger models, incorporating more complex multiobjective settings, and further refining the soft weighting strategies for finer control. Additionally, exploring the application of J6 in other areas such as reinforcement learning or multi-task learning could provide valuable insights into its broader applicability.",
+          "paragraph_index": 4
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2508.12086::citation::0",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "The unreasonable effectiveness of entropy minimization in llm reasoning",
+      "cited_authors": [
+        "Shivam Agarwal",
+        "Zimin Zhang",
+        "Lifan Yuan",
+        "Jiawei Han",
+        "Hao Peng"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::1",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Delta tuning: A comprehensive study of parameter efficient methods for pre-trained language models",
+      "cited_authors": [
+        "Ning Ding",
+        "Zhen Hu",
+        "Yulin Wang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::2",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Improving generalization performance using double backpropagation",
+      "cited_authors": [
+        "Harris Drucker",
+        "Yann Le Cun"
+      ],
+      "cited_year": 1992,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::3",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Sweeping heterogeneity with smart mops: Mixture of prompts for llm task adaptation",
+      "cited_authors": [
+        "Chen Dun",
+        "Mirian Hipolito Garcia",
+        "Guoqing Zheng",
+        "Ahmed Hassan Awadallah",
+        "Anastasios Kyrillidis",
+        "Robert Sim"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2310.02842",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::4",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Drawing conclusions from gradient-based explanations without gradient explosion",
+      "cited_authors": [
+        "Stanislav Fort",
+        "Jie Ren"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2101.11607",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::5",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Low-rank adaptation of large language models",
+      "cited_authors": [
+        "J Edward",
+        "Yelong Hu",
+        "Philip Shen",
+        "Wallis"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2106.09685",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::6",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Slot: Sample-specific language model optimization at test-time",
+      "cited_authors": [
+        "Yang Hu",
+        "Xingyu Zhang",
+        "Xueji Fang",
+        "Zhiyang Chen",
+        "Xiao Wang",
+        "Huatian Zhang",
+        "Guojun Qi"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::7",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Neural tangent kernel: Convergence and generalization in neural networks",
+      "cited_authors": [
+        "Arthur Jacot",
+        "Franck Gabriel",
+        "Clément Hongler"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::8",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Language models (still) can't solve arithmetic",
+      "cited_authors": [
+        "Saurav Kadavath"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2201.11903",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::9",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Factuality enhanced language models for open-domain qa",
+      "cited_authors": [
+        "Jinhyuk Lee"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2205.12011",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::10",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "The power of scale for parameter-efficient prompt tuning",
+      "cited_authors": [
+        "Brian Lester",
+        "Rami Al-Rfou",
+        "Noah Constant"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::11",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Prefix-tuning: Optimizing continuous prompts for generation",
+      "cited_authors": [
+        "Lisa Xiang",
+        "Percy Li",
+        "Liang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::12",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Measuring how models mimic human falsehoods",
+      "cited_authors": [
+        "Stephanie Lin",
+        "Jacob Hilton",
+        "Amanda Askell",
+        "Truthfulqa"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2109.07958",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::13",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Pareto multi-task learning",
+      "cited_authors": [
+        "Ziwei Lin",
+        "Fengxiang Yu",
+        "Cheng Liu",
+        "Yang Song",
+        "Baoxiang Li",
+        "Yu Qiao",
+        "Wei Wang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::14",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Conflict-averse gradient descent for multi-task learning",
+      "cited_authors": [
+        "Bo Liu",
+        "Xingchao Liu",
+        "Xiaojie Jin",
+        "Peter Stone",
+        "Qiang Liu"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::15",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Selfcheckgpt: Zero-resource black-box hallucination detection for generative large language models",
+      "cited_authors": [
+        "Phongtharin Manakul",
+        "Mark Gales"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2303.08896",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::16",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Multi-task learning as a sparse factorization problem",
+      "cited_authors": [
+        "Yair Navon",
+        "Shai Shalev-Schwartz",
+        "Gal Chechik"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2309.02734",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::17",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Evangelos Giakoumakis, and Bipana Thapaliya. Modp: Multi objective directional prompting",
+      "cited_authors": [
+        "Aashutosh Nema",
+        "Samaksh Gulati"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2504.18722",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::18",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Jacobian descent for multi-objective optimization",
+      "cited_authors": [
+        "Pierre Quinton",
+        "Valérian Rey"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2406.16232",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::19",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Multi-task learning as multi-objective optimization",
+      "cited_authors": [
+        "Ozan Sener",
+        "Vladlen Koltun"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::20",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Axiomatic attribution for deep networks",
+      "cited_authors": [
+        "Mukund Sundararajan",
+        "Ankur Taly",
+        "Qiqi Yan"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::21",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Role prompting guided domain adaptation with general capability preserve for large language models",
+      "cited_authors": [
+        "Rui Wang",
+        "Fei Mi",
+        "Yi Chen",
+        "Boyang Xue",
+        "Hongru Wang",
+        "Qi Zhu",
+        "Kam-Fai Wong",
+        "Ruifeng Xu"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2403.02756",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2508.12086::citation::22",
+      "paper_id": "2508.12086",
+      "raw_text": null,
+      "cited_title": "Gradient surgery for multi-task learning",
+      "cited_authors": [
+        "Tianhe Yu",
+        "Saurabh Kumar",
+        "Abhishek Gupta",
+        "Sergey Levine",
+        "Karol Hausman",
+        "Chelsea Finn"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

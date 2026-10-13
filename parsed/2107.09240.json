@@ -1,0 +1,1953 @@
+{
+  "arxiv_id": "2107.09240",
+  "title": "Generative Video Transformer: Can Objects be the Words?",
+  "authors": [
+    {
+      "name": "Yi-Fu Wu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Jaesik Yoon",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Sungjin Ahn",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Transformers have been successful for many natural language processing tasks. However, applying transformers to the video domain for tasks such as long-term video generation and scene understanding has remained elusive due to the high computational complexity and the lack of natural tokenization. In this paper, we propose the Object-Centric Video Transformer (OCVT) which utilizes an object-centric approach for decomposing scenes into tokens suitable for use in a generative video transformer. By factoring the video into objects, our fully unsupervised model is able to learn complex spatio-temporal dynamics of multiple interacting objects in a scene and generate future frames of the video. Our model is also significantly more memory-efficient than pixel-based models and thus able to train on videos of length up to 70 frames with a single 48GB GPU. We compare our model with previous RNN-based approaches as well as other possible video transformer baselines. We demonstrate OCVT performs well when compared to baselines in generating future frames. OCVT also develops useful representations for video reasoning, achieving start-of-the-art performance on the CATER task.",
+  "categories": [
+    "cs.LG",
+    "cs.CL",
+    "cs.CV"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2021-07-20T03:08:39"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "International Conference on Machine Learning",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2021-07-20",
+  "citation_count": 38,
+  "reference_count": 48,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2107.09240::section::0",
+      "paper_id": "2107.09240",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::0::para::0",
+          "section_id": "2107.09240::section::0",
+          "text": "Recent advances in natural language processing (NLP) have shown that models trained with an autoregressive language modeling objective using large transformers (Vaswani et al., 2017) can learn to generate realistic text passages (Radford, 2018;Radford et al., 2019;Brown et al., 2020). Furthermore, the representations learned with these generative pre-trained (GPT) models are effective at downstream tasks such as question answering, machine translation, reading comprehension, and summarization. While it is of primary interest to develop an analogous generative pre-training procedure for videos, the computational overhead in dealing with videos has made this a difficult endeavor.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::0::para::1",
+          "section_id": "2107.09240::section::0",
+          "text": "The main challenges in developing video transformers are (1) how to tokenize a video and (2) how to serialize the tokens because unlike text the ordered symbolic structure is not naturally given in videos. Several previous attempts for images (Chen et al., 2020;Parmar et al., 2018) and videos (Weissenborn et al., 2020) operate at the pixel level, flattening out an image into a sequence of pixels. However, since the memory and computation of the self-attention layers used in transformers are quadratic in the input sequence length, in order to train these models efficiently, these works either lower the resolution of the image or use local attention instead of global attention across the entire image or video.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::0::para::2",
+          "section_id": "2107.09240::section::0",
+          "text": "In this paper, we investigate a potentially different approach to tackling this quadratic cost. We leverage the inductive bias that our world is made of objects and working at an object-level granularity can be beneficial for many downstream tasks, especially in scenes where the objects interact with each other. To this end, we investigate different design choices for tokenizing and serializing a video and propose the Object-Centric Video Transformer (OCVT). In OCVT, we combine object-centric representations with a transformer trained using an autoregressive object-level next-frame prediction objective. Our model leverages a class of object-centric latent representations (Eslami et al., 2016;Crawford & Pineau, 2019b;Lin et al., 2020b;a) which can learn structured representations without object-level labeling. The learned object representation includes explicit location and size information about the objects in each video frame. We use this to find a bipartite matching of objects between frames, allowing us to construct the object-wise loss function. The use of an object-centric transformer allows OCVT to learn spatial and long-term temporal interactions between objects in a video.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2107.09240::section::0::para::3",
+          "section_id": "2107.09240::section::0",
+          "text": "We evaluate OCVT in a number of environments constructed to demonstrate the strengths and limitations of the model. Given a number of initial ground-truth video frames, OCVT is able to generate future predictions of a video, even in scenarios where the dynamics of the objects in the video depend on interactions made many frames in the past. Lastly, the representations OCVT learns are also able to handle downstream video understanding tasks that require long-term spatial-temporal reasoning, achieving results comparable with the state of the art on the CATER (Girdhar & Ramanan, 2020) snitch localization task.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::1",
+      "paper_id": "2107.09240",
+      "heading": "Related Works",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::1::para::0",
+          "section_id": "2107.09240::section::1",
+          "text": "Unsupervised Object-Centric Representation. Recent advances in unsupervised object-centric representation learning for images can be split into two approaches. Scenemixture models (Greff et al., 2017;Van Steenkiste et al., 2018;Burgess et al., 2019;Greff et al., 2019;Engelcke et al., 2019;Locatello et al., 2020) decompose a scene into objects using a mixture of image-sized components that are each generated by a distributed representation. Bounding box methods (Eslami et al., 2016;Crawford & Pineau, 2019b) use spatial attention to explicitly obtain object position and size information. SPACE (Lin et al., 2020b) combines these two approaches by obtaining both explicit bounding boxes for objects as well as image-sized object segmentation masks for parts of the image that cannot be cleanly captured by bounding boxes. Previous works that extend these models to videos utilize an RNN for temporal modeling (Veerapaneni et al., 2019;Watters et al., 2019;Kosiorek et al., 2018;Crawford & Pineau, 2019a;Jiang et al., 2019;Lin et al., 2020a). Several of these models, namely STOVE (Kossen et al., 2019) and GSWM (Lin et al., 2020a), also model interactions among objects with a graph neural network.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::2",
+      "paper_id": "2107.09240",
+      "heading": "Transformers for Images & Videos.",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::2::para::0",
+          "section_id": "2107.09240::section::2",
+          "text": "Several recent works have applied transformer-based architectures to various tasks for visual scenes. To handle the quadratic memory and computation cost in the number of pixels of an image, Parmar et al. (2018) restrict the self-attention mechanism to attend to local neighborhoods instead of the entire image. Weissenborn et al. (2020) extend this technique to videos. Other attempts at solving this quadratic cost lower reduce the resolution of the image (Chen et al., 2020), use approximations of global attention (Child et al., 2019), restrict self-attention along an axis (Ho et al., 2019;Wang et al., 2020), or work with patches of the original image (Dosovitskiy et al., 2021). Other works operate in the latent space instead of directly on the image pixels. DETR (Carion et al., 2020) uses the convolutional feature map as input to the transformer for effective object detection and Trackformer (Sun et al., 2020) extends this technique to videos for object tracking. Rakhimov et al. (2020) use a VQ-VAE (van den Oord et al., 2017) to obtain discrete latent representations before applying the transformer in the latent space.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::3",
+      "paper_id": "2107.09240",
+      "heading": "Object-centric Approaches with Transformers.",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::3::para::0",
+          "section_id": "2107.09240::section::3",
+          "text": "There have also been several recent attempts at combining objectcentric representations with transformers. Hopper (Zhou et al., 2021) uses object-centric representations obtained by DETR (Carion et al., 2020) in a multi-hop transformer for spatio-temporal reasoning and is applied to the CATER snitch localization task. In addition to requiring supervised object labels (bounding boxes) for the objects, Hopper also uses several auxiliary losses that require knowing the first and second movements of the snitch. AlignNet (Creswell et al., 2020b;a) uses MONet (Burgess et al., 2019) for objectcentric representations and leverages a transformer's attention matrix to align objects between frames to track objects over a video. While AlignNet provides good performance for tracking tasks that require modeling of object permanence, it is not experimented on any tasks that require the generation of future frames. Concurrent with our work, Objects-Align-Transition (Creswell et al., 2021) extends AlignNet by including a transition model to perform future generation. Ding et al. (2020)also use MONet to obtain object-centric representations and input the learned representations into a transformer. In addition to the supervised loss for the particular task, a self-supervised BERT-style (Devlin et al., 2019) masked prediction loss is included. While the self-supervised loss helps to improve the model's performance in downstream tasks, without autoregressive modeling, this model cannot generate future frames.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::4",
+      "paper_id": "2107.09240",
+      "heading": "DISCRETIZING VIDEO",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::4::para::0",
+          "section_id": "2107.09240::section::4",
+          "text": "To design a generative video transformer, we must first decide how to appropriately tokenize a video into discrete entities to use as input to a transformer. While the discrete structure of words or sub-words provides a natural choice for language modeling, it is not obvious what analogous tokenization is for video.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::4::para::1",
+          "section_id": "2107.09240::section::4",
+          "text": "One option is to consider each image as a token. However, without a properly disentangled representation, this choice may limit the ability of the transformer to model interactions within an image. This would be analogous to sentence-level tokenization in text, where the encoding of each sentence, e.g. using an RNN, is used as input to the transformer. The other extreme is to consider each pixel as a token. However, the quadratic memory and computation cost of transformers in sequence length would limit the ability of such a model to work on long videos. Therefore, we arrive at the following observations about the proper tokenization to use for a generative video transformer: the area for each visual discrete entity should (1) cover as large of a pixel area as possible for computational efficiency, but (2) without being too large as to prevent the modeling of interactions between different parts of the image.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::4::para::2",
+          "section_id": "2107.09240::section::4",
+          "text": "One possible approach to such a middle ground is to use con-volutional feature maps as a tokenization strategy for each image of the video. In this work, we investigate an objectcentric approach, tokenizing an image into its constituent object representations. We argue that this is a reasonable choice for videos because in the physical world, the spatiotemporal dynamics of a scene is governed mostly by the causal interaction among the objects of the scene. It is also true that an object may change its state rather independently of other objects, e.g., clock hands or a walking person, but the updated state would still be dependent on its previous states. Thus, we hypothesize that accessing such historical states at the individual object-level would also be beneficial compared to doing it at pixel, image, or feature map levels where the identity of the objects is not necessarily preserved in the representation across frames.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::5",
+      "paper_id": "2107.09240",
+      "heading": "SERIALIZING OBJECTS",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::5::para::0",
+          "section_id": "2107.09240::section::5",
+          "text": "Continuing the analogy with language modeling, if we consider objects as visual words, we may consider an image to be a visual sentence. However, unlike words in a sentence, objects in an image do not have a natural order because they consist of a set of object representations, not a sequence. Therefore, unlike the serialization of words in text, we cannot simply concatenate the object representations for use as input to the transformer. Suppose we were able to impose an artificial order for the objects in the image, e.g. raster scan order based on object positions. Then we would be able to concatenate the sorted objects in a predefined way and predict each object autoregressively. Since the generation of each object would depend on previous objects in the scene, this results in a flexible model capable of modeling dependencies within objects in the scene. However, in dynamic scenes where the object positions change over time with complex interactions, predicting the correct object ordering may not be an easy task to learn (Vinyals et al., 2015;Kosiorek et al., 2018). Further, such a model would scale linearly with the number of objects in an image and thus may not be practical for scenes with many objects.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::5::para::1",
+          "section_id": "2107.09240::section::5",
+          "text": "A different approach that we leverage in this work is to predict the entire image at once by generating all the objects in the image simultaneously given their previous states. The autoregressive prediction objective in this case would be an object-wise loss between subsequent video frames. Instead of requiring the model to learn an arbitrary ordering of the set of objects, we would only need to correctly align the objects in adjacent frames so that the object-wise loss can be applied. This alignment can be done based on object location by leveraging object representations with explicit position and size information of the objects, such as those given by SPACE (Lin et al., 2020b). By generating an entire image in one forward pass through the transformer, generation time for each video frame is constant with respect to the number of objects in a scene. Furthermore, this choice also provides a natural objective for future prediction in physical scenes as the object-wise loss forces the model to learn the dynamics for how objects change over time.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::6",
+      "paper_id": "2107.09240",
+      "heading": "Architecture",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::6::para::0",
+          "section_id": "2107.09240::section::6",
+          "text": "We now describe the overall architecture for our proposed model, the Object-Centric Video Transformer (OCVT). Given a length-T video x 1:T = (x 1 , . . . , x T ), we use an encoder to produce a set of latents z 1:T . This encoder is part of a structured VAE designed so that z 1:T are object-centric representations of the scene with explicit bounding box information. These latents are used as input to a transformer decoder to obtain ẑ2:T +1 , the predicted latents at the next timestep. In order to align the objects in ẑt with the objects in z t , we obtain a permutation matrix P t by leveraging the Hungarian algorithm with a cost matrix that consists of the pairwise matching cost between each object in z t and ẑt . This permutation matrix is then multiplied with z t to produce zt , which is aligned with ẑt . After alignment, we can then train our model with an object-wise loss between ẑt and zt . To generate a reconstruction of the image, we input ẑt into the decoder of the structured VAE to obtain xt . This architecture is depicted in Figure 1a. We now describe each of these components in more detail.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::7",
+      "paper_id": "2107.09240",
+      "heading": "OBJECT-CENTRIC REPRESENTATIONS",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::7::para::0",
+          "section_id": "2107.09240::section::7",
+          "text": "As described earlier, in order to correctly align objects between frames, it is crucial for the object-centric representations in our model to contain explicit location and size information. Thus, we leverage a structured VAE similar to SPACE (Lin et al., 2020b). The encoder of the VAE consists of a fully convolutional network that transforms the input image to a grid of H × W cells. The feature map of each grid cell is then run through another fully convolutional network to produce the latents z. Each latent variable z consists of four components z = [z pres , z where , z depth , z what ]. z pres ∈ {0, 1} is a binary random variable denoting the presence of an object, z where = [z h , z w , z x , z y ] represents the bounding box and center location of the object, z depth ∈ R specifies the depth of an object, and z what is a representation for everything else about the object (e.g., appearance).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::7::para::1",
+          "section_id": "2107.09240::section::7",
+          "text": "We do this for each timestep t resulting in one latent representation z t for each image in the video x t . Note that since each grid cell produces a set of latents for an object, we are able to detect up to H × W objects in one image. In our experiments, we choose H × W to be larger than the total number of objects O and use z pres to determine whether or not a grid cell detects an object.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::7::para::2",
+          "section_id": "2107.09240::section::7",
+          "text": "The decoder uses a series of deconvolutional layers to create an image for each object. z pres is used to determine the transparency of the object. A low z pres would result in an object not appearing in the reconstructed image. A spatial transformer (Jaderberg et al., 2015) is then used with z where to place each object onto the final reconstructed image. For scenes with a background that cannot be completely captured by objects, we also train a fully convolutional background module to generate a background latent z g . In this case, we also generate a foreground mask α that controls the weighting between the foreground objects and the background in the final rendered image.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2107.09240::section::7::para::3",
+          "section_id": "2107.09240::section::7",
+          "text": "We pretrain the encoder and decoder networks on the video frames and freeze the weights of the networks when the transformer is being trained. Full implementation and training details can be found in the Supplementary Material.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::8",
+      "paper_id": "2107.09240",
+      "heading": "OBJECT-CENTRIC TRANSFORMER",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::8::para::0",
+          "section_id": "2107.09240::section::8",
+          "text": "In order to model the dynamics of the objects over time, we use a transformer decoder where the inputs are the objectcentric latents z t . Compared to using an RNN as is done in other models (Kosiorek et al., 2018;Crawford & Pineau, 2019a;Jiang et al., 2019;Lin et al., 2020a), the transformer can model both dynamics of an object over time as well as interactions between objects without requiring a separate interaction module. Moreover, while RNNs store information from past states in their hidden state, transformers have direct access to states in the past, allowing for better modeling of long-term dependencies.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::8::para::1",
+          "section_id": "2107.09240::section::8",
+          "text": "In addition to z t , we also use a sinusoidal encoding for the timestep t, similar to the positional encoding in the original transformer (Vaswani et al., 2017) as input to the transformer decoder. Furthermore, we modify the causal attention mask from the traditional transformer decoder so that the objects within a timestep can attend to each other (Figure 1c).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::8::para::2",
+          "section_id": "2107.09240::section::8",
+          "text": "After the final transformer block, we run the output through a single hidden layer MLP to produce ẑt+1 , the predicted object representations for the next timestep. ẑwhat t+1 , ẑdepth t+1 , and ẑpres t+1 are predicted directly as the output of the MLP, but for the bounding box of the object ẑwhere t+1 , we predict an update ∆ẑ where t+1 . We then apply the following formula to obtain the predicted bounding box: ẑwhere t+1 = z where t + c • tanh(∆ẑ where t+1 ), where c is a hyperparameter between 0 and 1 controlling the maximum update in one timestep. This choice reflects the fact that objects generally do not change size and location significantly from one timestep to the next. Additionally, since the cost matrix used for alignment (discussed in the next section) is based on the distance between the predicted bounding box and the actual bounding box, centering ẑwhere t+1 around the previous bounding box z where t essentially initializes the alignment to be between objects that are the closest between two timesteps, which in most cases would be the correct alignment. This facilities training early on before the model has learned the correct dynamics of the objects.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::9",
+      "paper_id": "2107.09240",
+      "heading": "OBJECT ALIGNMENT",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::9::para::0",
+          "section_id": "2107.09240::section::9",
+          "text": "As an object moves around in the image, it may end up being detected by different grid cells at different time steps. This means that the objects in one timestep may not be aligned with the same objects at other timesteps. As discussed earlier, alignment is necessary for our model because we use an object-wise loss between frames. That is, we need the objects in our VAE inferred latents z t to be in the same order as the latents predicted by the transformer ẑt . It should be noted that the input of the transformer does not need to be aligned across timesteps because the object-wise selfattention works on an order-less set of objects.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::9::para::1",
+          "section_id": "2107.09240::section::9",
+          "text": "In order to align the objects between timesteps, we leverage the Hungarian algorithm (Kuhn, 1955), which solves the bipartite matching problem given a cost matrix in polynomial time. The explicit position and size information from the latent z where makes it easy to define a position-based cost function for the matching of objects in adjacent frames. Let us denote z t,k as the latent corresponding to grid cell k at timestep t. We construct a cost matrix that consists of the pairwise matching cost C match (ẑ t,i , z t,j ) between the transformer predicted latents ẑt,i and the VAE inferred latents z t,j . C match is defined as: C match (ẑ t,i , z t,j ) = ||ẑ where",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::9::para::2",
+          "section_id": "2107.09240::section::9",
+          "text": "To keep all the terms commensurate, we scale z where to be between 0 and 1 and use a standard normal distribution for the prior of z depth . In scenes that are strictly 2D with no occlusion, such as our bouncing ball experiments, we do not include the depth term in this loss.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2107.09240::section::9::para::3",
+          "section_id": "2107.09240::section::9",
+          "text": "After applying the Hungarian algorithm with this cost matrix, we obtain a permutation matrix P t . We then left multiply P t with z t to obtain the aligned latents zt . This process is depicted in Figure 1b. Note that since we pre-train the encoder and freeze the weights when training the transformer, this alignment operation is not part of the computational graph. Thus, we are able to leverage the non-differentiable Hungarian algorithm to obtain the permutation matrix.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2107.09240::section::9::para::4",
+          "section_id": "2107.09240::section::9",
+          "text": "We should also mention that while we leverage the object positions with the Hungarian algorithm in our architecture, other alignment strategies, e.g. incorporating appearance information and learning the permutation matrix, may be used as well. We leave this investigation for future work.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::10",
+      "paper_id": "2107.09240",
+      "heading": "OBJECT-WISE LOSS",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::10::para::0",
+          "section_id": "2107.09240::section::10",
+          "text": "After aligning the objects over all timesteps, we are then able to train the transformer using the object-wise next-step prediction loss:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::10::para::1",
+          "section_id": "2107.09240::section::10",
+          "text": "β where , β depth , and β pres are hyperparameters used to control the contribution of each loss term.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::11",
+      "paper_id": "2107.09240",
+      "heading": "Experiments",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::11::para::0",
+          "section_id": "2107.09240::section::11",
+          "text": "Goal. In our experiments, we seek to answer the following questions: (1) Can the model capture complex long-term spatiotemporal dependencies of the scene? (2) Can the model be effective at video generation? (3) Can the model provide good representations to use in downstream tasks? (4) How effective are our design choices (i.e., object-centric representations, transformer for dynamics prediction, scene prediction vs. autoregressive component prediction)?",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::11::para::1",
+          "section_id": "2107.09240::section::11",
+          "text": "Datasets. We evaluate OCVT on a series of bouncing ball datasets designed to test jointly the long-term dependency, object interaction dynamics, and generation aspect of our model. We also evaluate on the CATER dataset (Girdhar & Ramanan, 2020), a video-understanding benchmark that requires long-term temporal reasoning.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::11::para::2",
+          "section_id": "2107.09240::section::11",
+          "text": "Baselines. For the bouncing balls dataset, we compare our model with GSWM, the previous RNN-based state-of-theart for generation in this dataset. We further test against the following ablations of OCVT:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2107.09240::section::11::para::3",
+          "section_id": "2107.09240::section::11",
+          "text": "• LSTM+GNN: To test the effectiveness of using a transformer for temporal and interaction modeling, we replace the transformer in OCVT with an LSTM for temporal modeling and a GNN for interaction modeling. This model is conceptually similar to GSWM, except the encoder and decoder are pre-trained.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2107.09240::section::11::para::4",
+          "section_id": "2107.09240::section::11",
+          "text": "• To test the effectiveness of object-level tokenization, we replace the object-centric VAE with two other choices. (1) Single-Vector Video Transformer (SVVT): The latent here is a single distributed vector representation for each image, tokenizing the video at the image level. (2) ConvVT: The latent here is a 4x4 grid of convolutional feature map cells. The grid is flattened and then used as input to the transformer. Similar to OCVT, we modify the transformer decoder causal mask to allow cells at the same timestep to attend to each other. The outputs of the transformer would be the updated states for each input cell at the next timestep. Note that we do not compare with a pixel-level tokenization scheme because of the large amount of compute required for such a model.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2107.09240::section::11::para::5",
+          "section_id": "2107.09240::section::11",
+          "text": "• OCVT-AR: To test our design decision of generating an entire image in one forward pass of the transformer and the importance of aligning objects between frames, we sort the objects based on the position from the top left of the image to the bottom right of the image and then predict each object autoregressively in the sorted order.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2107.09240::section::11::para::6",
+          "section_id": "2107.09240::section::11",
+          "text": "• ConvVT-AR: We use convolutional feature map cells as input to the transformer and predict each cell autoregressively in raster scan order. The last cell of an image predicts the first cell of the next image. For CATER, we compare with Hopper (Zhou et al., 2021), (Ding et al., 2020), and OPNet (Shamsian et al., 2020).",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::12",
+      "paper_id": "2107.09240",
+      "heading": "Bouncing Balls",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::12::para::0",
+          "section_id": "2107.09240::section::12",
+          "text": "In this dataset, four colored balls bounce around in a frame. Balls bounce off the walls and each other upon interaction. Each ball is one of five colors and each color k has an associated ordinal number i k : i blue = 0, i red = 1, i yellow = 2, i violet = 3, i cyan = 4. If we denote the color of ball o at frame t by c o,t , then when a ball hits the wall at frame t, it changes color according to the following formula: (c o,t + c o ,t ) mod 5. Here t is the timestep of a previous interaction and o is the ball o interacted with at time t . We test 4 different settings for t in our experiments. The Mod1 dataset sets t to be the frame of the most recent interaction for object o. The Mod2 and Mod3 datasets set t to be the frame of the second and third most recent interaction of object o, respectively. The Mod1234 dataset uses a different t depending on the wall object o is interacting with at time t. If the ball interacts with the left wall, t is set to be the frame of the most recent interaction. If the ball interacts with the top wall, t is set to be the frame from the second most recent interaction, and so on.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::12::para::1",
+          "section_id": "2107.09240::section::12",
+          "text": "Each of these datasets is progressively more difficult in that they require longer-term and more complex (in the case of Mod1234) dependencies to be able to accurately predict future frames. In order for a model to do well on these tasks, it needs to learn both the physical dynamics of the bouncing balls as well as the pattern of the color changes, which requires modeling of long-term dependencies, since the interactions may happen many timesteps in the past. We evaluate the models under three settings: next-step predic- tion, long-term generation, and forced generation.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::13",
+      "paper_id": "2107.09240",
+      "heading": "Next-Step Prediction.",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::13::para::0",
+          "section_id": "2107.09240::section::13",
+          "text": "In the next-step prediction setting, we task the models with predicting the next frame of the video given the history of ground truth frames. To measure the accuracy of whether or not the models can correctly predict the color changes of the balls, we train a classifier that takes as input a patch from the ground truth image around each ball and predicts the color of that ball. During test time, we use the reconstructed image and the ground truth positions to obtain a patch from the reconstructed image and use this classifier to determine the predicted colors of the balls for the different models. Since the balls usually maintain their previous colors except for certain frames where they interact with the walls, this metric only contains the states where the color of the ball actually changes in the ground truth video. Note that since we classify the patch of the reconstructed image where the ground truth ball is, performing well on this metric requires good performance on both ball dynamics prediction and ball color change prediction.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::13::para::1",
+          "section_id": "2107.09240::section::13",
+          "text": "The results are shown in Table 1.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::13::para::2",
+          "section_id": "2107.09240::section::13",
+          "text": "We see that OCVT achieves the highest accuracy across all four datasets. ConvVT also performs well on the Mod1 dataset, but the accuracy degrades on the other datasets that require longerterm dependencies. This suggests the effectiveness of using object-centric representations in modeling objectlevel spatiotemporal interactions. Also, we notice a similar performance degradation for the RNN-based models (GSWM and LSTM+GNN), indicating the limitations of using an RNN for modeling very long-term dependencies. The models that autoregressively generate the scene (OCVT-AR and ConvVT-AR) do not perform as well as their non-autoregressive counterparts. ConvVT-AR , in particular, seems to not be able to correctly model this task at all, achieving lower accuracy than random (0.2 with five colors). This may be because the generation of a single image in these models requires multiple passes through the transformer and any prediction errors may be compounded. Furthermore, OCVT-AR requires the model to correctly learn the ordering of the objects based on their positions, which may not be an easy task.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2107.09240::section::13::para::3",
+          "section_id": "2107.09240::section::13",
+          "text": "Long-Term Generation. In the long-term generation set- ting, we provide a certain number of ground truth frames and ask the models to autoregressively predict a number of frames into the future. For Mod1, we train on 20 frames, provide 10 ground truth frames, and ask the models to predict the next 90 frames. For Mod2 and Mod3, we train on 50 frames, provide 50 ground truth frames and ask the models to predict the next 50 frames. For Mod1234, we train on 70 frames, provide 70 ground truth frames and ask the models to predict the next 80 frames.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2107.09240::section::13::para::4",
+          "section_id": "2107.09240::section::13",
+          "text": "Measuring performance of long-term generation in this setting is difficult since early errors compound and can lead to prediction errors later in the trajectory. In order to obtain the full picture of generation quality, we need to measure both the physical trajectories of the balls as well as the accuracy in the color change predictions of the balls. For the models that provide explicit object position information (OCVT, OCVT-AR, LSTM+GNN, GSWM), we can evaluate the trajectory by calculating the mean Euclidean distance between the predicted ball positions and the ground truth positions over time. For models that do not provide object position information (SVVT, ConvVT, ConvVT-AR), we can measure the pixel mean-squared error between the reconstructed image and the original image. However, the pixel MSE metric can be misleading because low values may not necessarily correlate with good predictions. For example, a model that predicts balls in the wrong positions would lead to a higher (worse) pixel MSE than a model that predicts a blank image, even though the model that predicts the blank image would be objectively incorrect. Nonetheless, this metric can still provide information about generation quality, especially in the early parts of the trajectory when the predictions are still close to the ground truth.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2107.09240::section::13::para::5",
+          "section_id": "2107.09240::section::13",
+          "text": "The results are shown in Figures 2 and 3. To highlight the early part of the trajectory, where pixel MSE is the most informative, we plot the curves until they flatten out instead of to the end of the trajectory. We notice that GSWM achieves the best mean Euclidean distance and pixel MSE in this setting. This is not surprising because GSWM's object-RNN encodes only the trajectory of a ball, isolated from the dynamics of the other objects. Since the prediction of the dynamics only depends on the last few timesteps, no modeling of long-term dependencies is needed. Interaction is dealt with by a separate graph neural network and is also well separated from the trajectory modeling. OCVT, on the other hand, needs to learn to perform the more complex operation of factoring out its own trajectory while considering interaction as well. Moreover, because GSWM is trained end-to-end, it can capture dynamics information in its latent variables, which would help in making trajectory predictions. Interestingly, we find that OCVT can still learn the dynamics reasonably despite this, outperforming the remaining baselines. Furthermore, we note that GSWM's training procedure requiring a curriculum makes it take four times longer to converge than OCVT. This can also lead to unstable training, especially for longer trajectories, as evidenced by the Mod1234 experiment where GSWM does not learn the dynamics well.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2107.09240::section::13::para::6",
+          "section_id": "2107.09240::section::13",
+          "text": "ConvVT performs similarly to OCVT in terms of pixel MSE, although as we see in the qualitative results below, it makes mistakes predicting the color change. We also see that ConvVT-AR flattens out quickly to a lower value than the other curves. This is actually a result of the poor generation when the model incorrectly remove balls from the scene (see the qualitative results below). However, since the pixel MSE between the ground truth and a blank image is around 0.06, this curve saturates at a lower value than the other curves. Lastly, we notice that OCVT-AR performs worse than OCVT across all the datasets, implying that autoregressive generation is not beneficial for of long-term generation. As mentioned previously, this is likely due to the compounding errors that result from autoregressive object generation per image.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::14",
+      "paper_id": "2107.09240",
+      "heading": "Qualitative Analysis.",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::14::para::0",
+          "section_id": "2107.09240::section::14",
+          "text": "Figure 4 shows the long-term generation results for the different models on the Mod1 dataset (see Supplementary for additional results). The first 20 predicted steps are shown in the figure. We see that GSWM predicts the locations of the balls fairly close to the ground truth, but makes several errors when predicting the color change of the balls. For example, in frame 7, it incorrectly predicts that the violet ball should change color to yellow instead of cyan. Similarly, LSTM+GNN and ConvVT incorrectly predict the color of the ball (eg. the violet ball at frame 10 for LSTM+GNN and the blue ball at frame 10 for ConvVT ) while also having worse dynamics prediction than GSWM. SVVT has even worse dynamics than the other models and also makes predictions of balls with mixed colors. ConvVT-AR predicts missing balls after several frames resulting in a plateau at a lower pixel MSE than other models, even though the generation is clearly incorrect. OCVT-AR predicts color changes earlier than the ground truth frames because of inaccurate dynamics as well as incorrect color changes later in the trajectory (eg. violet ball in frame 14).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::14::para::1",
+          "section_id": "2107.09240::section::14",
+          "text": "OCVT's dynamics prediction is relatively accurate compared to the other models (except for GSWM), but the slight difference in trajectory also causes the model to predict the color change of the yellow ball in frame 14 earlier than in the ground truth video. Note, however, that the color change here is correct. The ball is previously cyan, which has an ordinal value of 4, and following this ball earlier in the tra-jectory, we see the last interaction was with the violet ball in frame 4. The ordinal value of violet is 3, so the expected color of the ball when it interacts with the wall at frame 14 is yellow, which has an ordinal value of 2. Therefore, even though the color change occurred at an incorrect frame, the color change prediction is actually correct given the predicted dynamics. This analysis also illustrates the difficulty of measuring generation quality in this setting where errors early in the trajectory compound.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::14::para::2",
+          "section_id": "2107.09240::section::14",
+          "text": "Forced Generation. Since the trajectories of the balls in the long-term generation setting may deviate from the ground truth (and the deviation compounds over time), we cannot easily evaluate whether or not the color change of the balls is correct. To address this, we introduce a forced generation setting where we can perform this measurement. For the models that provide explicit location and size information via the z where latent, we can force the balls to follow the ground truth trajectories by directly manipulating z where during prediction. That is, during the prediction of the next frame, we manually set the z where to be equal to the ground truth location and size of each ball. All other latents are generated from the previous frame. This allows us to enforce the ground truth trajectory of the balls and measure how well the models learn the color change dynamics during long-term generation.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2107.09240::section::14::para::3",
+          "section_id": "2107.09240::section::14",
+          "text": "We calculate the accuracy using the same classifier as in the next-step prediction setting and plot the resulting color change accuracy over time in Figure 5. We see that OCVT outperforms all the other baselines in this setting, indicating that our model is better able to learn the color change dynamics of the videos. Even though GSWM is able to predict future object positions well, we notice that it does not perform well in this forced generation setting, with an accuracy of around 0.2 for Mod2, Mod3, and Mod1234, which is around the same accuracy of random guessing. Similarly, LSTM+GNN also performs poorly in this setting, suggesting that the use of the transformer is beneficial for modeling these long-term dependencies. While OCVT-AR achieves higher accuracy than the RNN-based baselines, it does not surpass OCVT. This may again be due to the compounding errors from the autoregressive generation.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::15",
+      "paper_id": "2107.09240",
+      "heading": "CATER Snitch Localization",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::15::para::0",
+          "section_id": "2107.09240::section::15",
+          "text": "CATER (Girdhar & Ramanan, 2020) is a 3D dataset that consists of videos of objects moving around in a scene. The objects lie on a 6x6 grid with the origin in the center of the scene. The initial number and placement of objects is chosen randomly and objects also move and potentially cover other objects randomly as well. Objects that cover other objects move together until they are uncovered. The flagship task for this dataset is a snitch localization task, that requires predicting the location of the golden snitch (one of the objects that are present in all scenes) at the end of the video. The snitch may be covered by another object (which may also be covered by other objects, and so on) so it may not be visible at the last frame and may have last been visible many frames prior to the last frame. Therefore, this task requires a model to understand the effect of different actions in the environment and reason about them. The final location is quantized into the 6x6 grid and the problem is set up as a single label classification task.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::15::para::1",
+          "section_id": "2107.09240::section::15",
+          "text": "In order to handle this task, we modify our model to include a CLS token with a learned embedding as input to the transformer. An attention mask is added so that the latents z cannot attend to the CLS token, but the CLS token can attend to all the latents at all timesteps. The output of the transformer corresponding to the CLS token is then used in an MLP to predict the final snitch location and a crossentropy loss is used with the ground truth snitch locations. We pre-train the transformer and then fine-tune the entire model with the snitch localization objective.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::15::para::2",
+          "section_id": "2107.09240::section::15",
+          "text": "Table 2 shows the results of our experiments. The Top 1 and Top 5 accuracy, as well as the final L1 distance between the prediction and the ground truth location, are reported. We compare OCVT with several previous attempts to solving this problem, including two approaches that also combine object-centric representations with transformers, Hopper (Zhou et al., 2021) and (Ding et al., 2020). Hopper requires several auxiliary losses to perform well on this task including a loss that requires knowing the first and second movements of the snitch. Ding et al. (2020) use a BERT-like bidirectional masking scheme and achieves the best performance by adding an L1 loss to the objective for the location of the snitch. Our model outperforms these baselines in Top 1 and Top 5 accuracy without the use of any auxiliary losses.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2107.09240::section::15::para::3",
+          "section_id": "2107.09240::section::15",
+          "text": "With the addition of the L1 auxiliary loss, our model also achieves the lowest L1 distance. This demonstrates that our model can learn good representations of the scene to be used in downstream tasks.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::16",
+      "paper_id": "2107.09240",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::16::para::0",
+          "section_id": "2107.09240::section::16",
+          "text": "We proposed OCVT, a generative video transformer that leverages the recent advances in unsupervised object-centric representation learning. Our model is able to generate future frames of videos with complex long-term dependencies and learn representations that are useful in downstream tasks. This study shows that given an appropriate representation, using objects as visual words can be a reasonable inductive bias for tokenizing a video. While our model uses SPACE to obtain object representations and leverages the explicit position information to align objects, future work may involve improving the object-centric representations to work for more complex, real-world scenes. Furthermore, it would be interesting to investigate alignment strategies with representations without explicit position latents. image decoder, we use a 6-layer sub-pixel convolutional network (Shi et al., 2016) with group normalization in the intermediate layers.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2107.09240::section::16::para::1",
+          "section_id": "2107.09240::section::16",
+          "text": "For the background image encoder, we use a 4-layer convolutional network with CELU activation (Barron, 2017) and group normalization followed by a final linear layer. For the background image decoder, we use a 6-layer convolutional network, each consisting of 2D bilinear upsampling followed by a convolution with leaky ReLU activation.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2107.09240::section::16::para::2",
+          "section_id": "2107.09240::section::16",
+          "text": "For the transformer, we use a linear layer to obtain the desired dimensions for the transformer input (see Hyperparameters). The output of the transformer runs through a single hidden layer MLP with ReLU activation to obtain the next step predictions.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::17",
+      "paper_id": "2107.09240",
+      "heading": "B.2. Hyperparameters",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::17::para::0",
+          "section_id": "2107.09240::section::17",
+          "text": "We provide the hyperparameters used in our experiments in Tables 3 and 4.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::18",
+      "paper_id": "2107.09240",
+      "heading": "C.1. Bouncing Balls",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::18::para::0",
+          "section_id": "2107.09240::section::18",
+          "text": "In all the bouncing ball datasets, we have 20,000 videos for training, 200 videos for validation, and 200 videos for testing. For the Mod1, Mod2, and Mod3 datasets, each video has an episode length of 100 frames. For the Mod1234 dataset, each video has an episode length of 150 frames. This longer episode length is to allow for a sufficient number of interactions (up to 4 for this dataset) in the videos. We choose the best model based on the change accuracy on the",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2107.09240::section::19",
+      "paper_id": "2107.09240",
+      "heading": "C.2. CATER",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2107.09240::section::19::para::0",
+          "section_id": "2107.09240::section::19",
+          "text": "This dataset consists of 3,080 videos for the training set, 770 videos for the validation set, and 1650 videos for the test set. Each video frame is reshaped to 64x64 pixels. Each video originally has 300 frames and we randomly sample 50 frames for training. For validation and testing, we take every sixth frame for a total of 50 frames. We choose the best model based on the best Top 5 Accuracy for the snitch localization task on the validation set and then use this model on the test set for evaluation.",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2107.09240::figure::0",
+      "paper_id": "2107.09240",
+      "figure_number": "Figure 1 .",
+      "caption": "Figure 1. (a) Overview of model architecture. Object-centric representations of a video are used in a transformer to predict future frames in the latent space. A alignment algorithm is used to ensure that an object-wise loss can be used between frames. (b) The alignment algorithm uses the Hungarian algorithm obtain a permutation matrix, which is then multiplied by zt to obtained the aligned latents zt. (c) The transformer's causal self-attention mask allows objects within the same timestep to attend to each other.",
+      "page_number": 4,
+      "bounding_box": {
+        "page": 4,
+        "x": 374.01,
+        "y": 270.75,
+        "width": 121.05,
+        "height": 123.68
+      },
+      "grobid_ref_id": "fig_0",
+      "image_path": "extracted_images\\2107.09240_figure_0.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::figure::1",
+      "paper_id": "2107.09240",
+      "figure_number": "Figure 2 .",
+      "caption": "Figure 2. Generation mean Euclidean distance.",
+      "page_number": 7,
+      "bounding_box": {
+        "page": 7,
+        "x": 55.44,
+        "y": 67.06,
+        "width": 485.97,
+        "height": 89.59
+      },
+      "grobid_ref_id": "fig_1",
+      "image_path": "extracted_images\\2107.09240_figure_1.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::figure::2",
+      "paper_id": "2107.09240",
+      "figure_number": "Figure 3 .",
+      "caption": "Figure 3. Generation pixel mean squared error",
+      "page_number": 7,
+      "bounding_box": {
+        "page": 7,
+        "x": 55.44,
+        "y": 183.58,
+        "width": 486.0,
+        "height": 89.61
+      },
+      "grobid_ref_id": "fig_2",
+      "image_path": "extracted_images\\2107.09240_figure_2.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::figure::3",
+      "paper_id": "2107.09240",
+      "figure_number": "Figure 4 .",
+      "caption": "Figure 4. Qualitative generation results for Mod1 dataset. Given the first 10 frames of the video, each model predicts the next 90 frames. The first 20 predicted frames are shown.",
+      "page_number": 8,
+      "bounding_box": {
+        "page": 8,
+        "x": 79.74,
+        "y": 67.06,
+        "width": 437.39,
+        "height": 170.1
+      },
+      "grobid_ref_id": "fig_3",
+      "image_path": "extracted_images\\2107.09240_figure_3.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::figure::4",
+      "paper_id": "2107.09240",
+      "figure_number": "Figure 5 .",
+      "caption": "Figure 5. Forced Generation Accuracy",
+      "page_number": 9,
+      "bounding_box": {
+        "page": 9,
+        "x": 55.44,
+        "y": 67.06,
+        "width": 485.98,
+        "height": 89.58
+      },
+      "grobid_ref_id": "fig_4",
+      "image_path": "extracted_images\\2107.09240_figure_4.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::figure::5",
+      "paper_id": "2107.09240",
+      "figure_number": "Figure 7 .",
+      "caption": "Figure 7. Qualitative generation results for Mod3 dataset. Given the first 50 frames of the video, each model predicts the next 50 frames. The first 20 predicted frames are shown.",
+      "page_number": 14,
+      "bounding_box": {
+        "page": 14,
+        "x": 79.74,
+        "y": 127.96,
+        "width": 437.4,
+        "height": 165.28
+      },
+      "grobid_ref_id": "fig_5",
+      "image_path": "extracted_images\\2107.09240_figure_5.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::figure::6",
+      "paper_id": "2107.09240",
+      "figure_number": "Figure 8 .",
+      "caption": "Figure 8. Qualitative generation results for Mod1234 dataset. Given the first 70 frames of the video, each model predicts the next 80 frames. The first 20 predicted frames are shown.",
+      "page_number": 14,
+      "bounding_box": {
+        "page": 14,
+        "x": 79.74,
+        "y": 456.84,
+        "width": 437.4,
+        "height": 163.49
+      },
+      "grobid_ref_id": "fig_6",
+      "image_path": "extracted_images\\2107.09240_figure_6.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::figure::7",
+      "paper_id": "2107.09240",
+      "figure_number": "Figure 9 .",
+      "caption": "Figure 9. Attention strength at 7 th layer during color change.",
+      "page_number": 15,
+      "bounding_box": {
+        "page": 15,
+        "x": 67.14,
+        "y": 67.06,
+        "width": 210.59,
+        "height": 219.76
+      },
+      "grobid_ref_id": "fig_7",
+      "image_path": "extracted_images\\2107.09240_figure_7.png",
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2107.09240::table::0",
+      "paper_id": "2107.09240",
+      "table_number": "Table 1 .",
+      "caption": "Average next-step prediction color change accuracy",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "",
+          "MOD1 MOD2 MOD3 MOD1234"
+        ],
+        [
+          "GSWM",
+          "71.69",
+          "17.51",
+          "14.63",
+          "11.72"
+        ],
+        [
+          "LSTM+GNN",
+          "73.64",
+          "69.08",
+          "22.30",
+          "51.38"
+        ],
+        [
+          "SVVT",
+          "37.53",
+          "18.23",
+          "11.96",
+          "29.47"
+        ],
+        [
+          "CONVVT",
+          "88.31",
+          "82.83",
+          "46.49",
+          "67.29"
+        ],
+        [
+          "CONVVT-AR",
+          "8.70",
+          "4.20",
+          "3.25",
+          "6.10"
+        ],
+        [
+          "OCVT-AR",
+          "78.70",
+          "76.99",
+          "54.49",
+          "64.97"
+        ],
+        [
+          "OCVT (OURS)",
+          "89.61",
+          "88.18",
+          "82.70",
+          "78.43"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::table::1",
+      "paper_id": "2107.09240",
+      "table_number": "Table 2 .",
+      "caption": "CATER results TOP 1 ↑ TOP 5 ↑ L1 ↓",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "DING ET AL",
+          "70.6",
+          "93.0",
+          "0.53"
+        ],
+        [
+          "DING ET AL W/ L1",
+          "74.0",
+          "94.0",
+          "0.44"
+        ],
+        [
+          "HOPPER",
+          "73.2",
+          "93.8",
+          "0.85"
+        ],
+        [
+          "OPNET",
+          "74.8",
+          "-",
+          "0.54"
+        ],
+        [
+          "OCVT (OURS)",
+          "76.0",
+          "94.4",
+          "0.45"
+        ],
+        [
+          "OCVT W/ L1 (OURS)",
+          "75.9",
+          "95.3",
+          "0.39"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::table::2",
+      "paper_id": "2107.09240",
+      "table_number": "Table 3 .",
+      "caption": "List of Hyperparameters for Bouncing Ball Datasets",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_2",
+      "raw_data": [
+        [
+          "Description",
+          "Value"
+        ],
+        [
+          "Image Size",
+          "(64,64)"
+        ],
+        [
+          "Grid size (H, W )",
+          "(4,4)"
+        ],
+        [
+          "Dimension per grid cell",
+          "128"
+        ],
+        [
+          "Dimension of z what",
+          "16"
+        ],
+        [
+          "Dimension of z bg",
+          "None"
+        ],
+        [
+          "Foreground Variance",
+          "0.2"
+        ],
+        [
+          "Background Variance",
+          "None"
+        ],
+        [
+          "Gumbel-Softmax Temp. for z pres t",
+          "0.01"
+        ],
+        [
+          "β where",
+          "20"
+        ],
+        [
+          "β depth",
+          "0"
+        ],
+        [
+          "β pres",
+          "1"
+        ],
+        [
+          "β what",
+          "4"
+        ],
+        [
+          "Dimension of transformer input",
+          "360"
+        ],
+        [
+          "Feedforward dimension in transformer 256"
+        ],
+        [
+          "Number of heads",
+          "8"
+        ],
+        [
+          "Number of transformer layers",
+          "15"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2107.09240::table::3",
+      "paper_id": "2107.09240",
+      "table_number": "Table 4 .",
+      "caption": "List of Hyperparameters for CATER Datasets then use this model on the test set for evaluation. All models are trained to convergence measured by the plateauing of the change accuracy on the validation set.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_3",
+      "raw_data": [
+        [
+          "Description",
+          "Value"
+        ],
+        [
+          "Image Size",
+          "(64,64)"
+        ],
+        [
+          "Grid size (H, W )",
+          "(8,8)"
+        ],
+        [
+          "Dimension per grid cell",
+          "128"
+        ],
+        [
+          "Dimension of z what",
+          "64"
+        ],
+        [
+          "Dimension of z bg",
+          "64"
+        ],
+        [
+          "Foreground Variance",
+          "0.05"
+        ],
+        [
+          "Background Variance",
+          "0.2"
+        ],
+        [
+          "Gumbel-Softmax Temp. for z pres t",
+          "0.01"
+        ],
+        [
+          "β where",
+          "50"
+        ],
+        [
+          "β depth",
+          "1"
+        ],
+        [
+          "β pres",
+          "1"
+        ],
+        [
+          "β what",
+          "1"
+        ],
+        [
+          "Dimension of transformer input",
+          "360"
+        ],
+        [
+          "Feedforward dimension in transformer 256"
+        ],
+        [
+          "Number of heads",
+          "6"
+        ],
+        [
+          "Number of transformer layers",
+          "15"
+        ],
+        [
+          "validation set and",
+          ""
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2107.09240::equation::0",
+      "paper_id": "2107.09240",
+      "latex": "t,i -z where t,j || 1 + ||ẑ depth t,i -z depth t,j || 1 -(ẑ pres t,i ) z pres t,j (1 -ẑpres t,i ) 1-z pres t,j .",
+      "equation_number": null,
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2107.09240::equation::1",
+      "paper_id": "2107.09240",
+      "latex": "L object (ẑ t,k , zt,k ) = ||ẑ what t,k -zwhat t,k || 1 + \\beta where ||ẑ where t,k -zwhere t,k || 1 + \\beta depth ||ẑ depth t,k -zdepth t,k || 1 - \\beta pres [z pres t,k log(ẑ pres t,k ) + (1 -zpres t,k ) log(1 -ẑpres t,k )].",
+      "equation_number": null,
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2107.09240::citation::0",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Continuously differentiable exponential linear units",
+      "cited_authors": [
+        "J T Barron"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::1",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Language models are few-shot learners",
+      "cited_authors": [
+        "T B Brown",
+        "B Mann",
+        "N Ryder",
+        "M Subbiah",
+        "J Kaplan",
+        "P Dhariwal",
+        "A Neelakantan",
+        "P Shyam",
+        "G Sastry",
+        "A Askell",
+        "S Agarwal",
+        "A Herbert-Voss",
+        "G Krueger",
+        "T Henighan",
+        "R Child",
+        "A Ramesh",
+        "D M Ziegler",
+        "J Wu",
+        "C Winter",
+        "C Hesse",
+        "M Chen",
+        "E Sigler",
+        "M Litwin",
+        "S Gray",
+        "B Chess",
+        "J Clark",
+        "C Berner",
+        "S Mccandlish",
+        "A Radford",
+        "I Sutskever",
+        "D Amodei"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::2",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Unsupervised scene decomposition and representation",
+      "cited_authors": [
+        "C P Burgess",
+        "L Matthey",
+        "N Watters",
+        "R Kabra",
+        "I Higgins",
+        "M Botvinick",
+        "A Lerchner",
+        "Monet"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1901.11390",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::3",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "End-to-end object detection with transformers",
+      "cited_authors": [
+        "N Carion",
+        "F Massa",
+        "G Synnaeve",
+        "N Usunier",
+        "A Kirillov",
+        "S Zagoruyko"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::4",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Generative pretraining from pixels",
+      "cited_authors": [
+        "M Chen",
+        "A Radford",
+        "R Child",
+        "J Wu",
+        "H Jun",
+        "D Luan",
+        "I Sutskever"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::5",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Generating long sequences with sparse transformers",
+      "cited_authors": [
+        "R Child",
+        "S Gray",
+        "A Radford",
+        "I Sutskever"
+      ],
+      "cited_year": 1904,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::6",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Exploiting spatial invariance for scalable unsupervised object tracking",
+      "cited_authors": [
+        "E Crawford",
+        "J Pineau"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1911.09033",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::7",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Spatially invariant unsupervised object detection with convolutional neural networks",
+      "cited_authors": [
+        "E Crawford",
+        "J Pineau"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::8",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Unsupervised entity alignment",
+      "cited_authors": [
+        "A Creswell",
+        "K Nikiforou",
+        "O Vinyals",
+        "A Saraiva",
+        "R Kabra",
+        "L Matthey",
+        "C Burgess",
+        "M Reynolds",
+        "R Tanburn",
+        "M Garnelo"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2007.08973",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::9",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Alignnet: Self-supervised alignment module",
+      "cited_authors": [
+        "A Creswell",
+        "L Piloto",
+        "D Barrett",
+        "K Nikiforou",
+        "D Raposo",
+        "M Garnelo",
+        "P Battaglia",
+        "M Shanahan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::10",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Unsupervised object-based transition models for 3d partially observable environments",
+      "cited_authors": [
+        "A Creswell",
+        "R Kabra",
+        "C Burgess",
+        "M Shanahan"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::11",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "BERT: pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "J Devlin",
+        "M Chang",
+        "K Lee",
+        "K Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/n19-1423",
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::12",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Objectbased attention for spatio-temporal reasoning: Outperforming neuro-symbolic models with flexible distributed architectures",
+      "cited_authors": [
+        "D Ding",
+        "F Hill",
+        "A Santoro",
+        "M Botvinick"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::13",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "An image is worth 16x16 words: Transformers for image recognition at scale",
+      "cited_authors": [
+        "A Dosovitskiy",
+        "L Beyer",
+        "A Kolesnikov",
+        "D Weissenborn",
+        "X Zhai",
+        "T Unterthiner",
+        "M Dehghani",
+        "M Minderer",
+        "G Heigold",
+        "S Gelly",
+        "J Uszkoreit",
+        "N Houlsby"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::14",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Genesis: Generative scene inference and sampling with object-centric latent representations",
+      "cited_authors": [
+        "M Engelcke",
+        "A R Kosiorek",
+        "O P Jones",
+        "I Posner"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::15",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Attend, infer, repeat: Fast scene understanding with generative models",
+      "cited_authors": [
+        "S A Eslami",
+        "N Heess",
+        "T Weber",
+        "Y Tassa",
+        "D Szepesvari",
+        "G E Hinton"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::16",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "CATER: A diagnostic dataset for compositional actions & temporal reasoning",
+      "cited_authors": [
+        "R Girdhar",
+        "D Ramanan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::17",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Neural expectation maximization",
+      "cited_authors": [
+        "K Greff",
+        "S Van Steenkiste",
+        "J Schmidhuber"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::18",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Multi-object representation learning with iterative variational inference",
+      "cited_authors": [
+        "K Greff",
+        "R L Kaufmann",
+        "R Kabra",
+        "N Watters",
+        "C Burgess",
+        "D Zoran",
+        "L Matthey",
+        "M Botvinick",
+        "A Lerchner"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1903.00450",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::19",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Deep residual learning for image recognition",
+      "cited_authors": [
+        "K He",
+        "X Zhang",
+        "S Ren",
+        "J Sun"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR.2016.90",
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::20",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Axial attention in multidimensional transformers",
+      "cited_authors": [
+        "J Ho",
+        "N Kalchbrenner",
+        "D Weissenborn",
+        "T Salimans"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::21",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Spatial transformer networks",
+      "cited_authors": [
+        "M Jaderberg",
+        "K Simonyan",
+        "A Zisserman",
+        "K Kavukcuoglu"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::22",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Categorical reparameterization with gumbel-softmax",
+      "cited_authors": [
+        "E Jang",
+        "S Gu",
+        "B Poole"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": "arXiv:1611.01144",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::23",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Generative world models with scalable object representations",
+      "cited_authors": [
+        "J Jiang",
+        "S Janghorbani",
+        "G De Melo",
+        "S Ahn",
+        "Scalor"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::24",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Sequential attend, infer, repeat: Generative modelling of moving objects",
+      "cited_authors": [
+        "A Kosiorek",
+        "H Kim",
+        "Y W Teh",
+        "I Posner"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::25",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Structured object-aware physics prediction for video modeling and planning",
+      "cited_authors": [
+        "J Kossen",
+        "K Stelzner",
+        "M Hussing",
+        "C Völcker",
+        "K Kersting"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::26",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "The hungarian method for the assignment problem",
+      "cited_authors": [
+        "H W Kuhn"
+      ],
+      "cited_year": 1955,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1002/nav.3800020109",
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::27",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Improving generative imagination in object-centric world models",
+      "cited_authors": [
+        "Z Lin",
+        "Y.-F Wu",
+        "S V Peri",
+        "J Jiang",
+        "S Ahn"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::28",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Space: Unsupervised objectoriented scene representation via spatial attention and decomposition",
+      "cited_authors": [
+        "Z Lin",
+        "Y.-F Wu",
+        "S V Peri",
+        "W Sun",
+        "G Singh",
+        "F Deng",
+        "J Jiang",
+        "S Ahn"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::29",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Object-centric learning with slot attention",
+      "cited_authors": [
+        "F Locatello",
+        "D Weissenborn",
+        "T Unterthiner",
+        "A Mahendran",
+        "G Heigold",
+        "J Uszkoreit",
+        "A Dosovitskiy",
+        "T Kipf"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::30",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Image transformer",
+      "cited_authors": [
+        "N Parmar",
+        "A Vaswani",
+        "J Uszkoreit",
+        "L Kaiser",
+        "N Shazeer",
+        "A Ku",
+        "D Tran"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::31",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Improving language understanding by generative pre-training",
+      "cited_authors": [
+        "A Radford"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::32",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Language models are unsupervised multitask learners",
+      "cited_authors": [
+        "A Radford",
+        "J Wu",
+        "R Child",
+        "D Luan",
+        "D Amodei",
+        "I Sutskever"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::33",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Latent video transformer. CoRR, abs",
+      "cited_authors": [
+        "R Rakhimov",
+        "D Volkhonskiy",
+        "A Artemov",
+        "D Zorin",
+        "E Burnaev"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::34",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Learning object permanence from video",
+      "cited_authors": [
+        "A Shamsian",
+        "O Kleinfeld",
+        "A Globerson",
+        "G Chechik"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-030-58517-4_3",
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::35",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Real-time single image and video super-resolution using an efficient sub-pixel convolutional neural network",
+      "cited_authors": [
+        "W Shi",
+        "J Caballero",
+        "F Huszar",
+        "J Totz",
+        "A P Aitken",
+        "R Bishop",
+        "D Rueckert",
+        "Z Wang"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/CVPR.2016.207",
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::36",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Multipleobject tracking with transformer",
+      "cited_authors": [
+        "P Sun",
+        "Y Jiang",
+        "R Zhang",
+        "E Xie",
+        "J Cao",
+        "X Hu",
+        "T Kong",
+        "Z Yuan",
+        "C Wang",
+        "P Luo",
+        "Transtrack"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2012.15460",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::37",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Neural discrete representation learning",
+      "cited_authors": [
+        "A Van Den Oord",
+        "O Vinyals",
+        "K Kavukcuoglu",
+        "I Guyon",
+        "U Von Luxburg",
+        "S Bengio",
+        "H M Wallach",
+        "R Fergus",
+        "S V Vishwanathan"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::38",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Relational neural expectation maximization: Unsupervised discovery of objects and their interactions",
+      "cited_authors": [
+        "S Van Steenkiste",
+        "M Chang",
+        "K Greff",
+        "J Schmidhuber"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1802.10353",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::39",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Attention is all you need",
+      "cited_authors": [
+        "A Vaswani",
+        "N Shazeer",
+        "N Parmar",
+        "J Uszkoreit",
+        "L Jones",
+        "A N Gomez",
+        "Ł Kaiser",
+        "I Polosukhin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::40",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Entity abstraction in visual model-based reinforcement learning",
+      "cited_authors": [
+        "R Veerapaneni",
+        "J D Co-Reyes",
+        "M Chang",
+        "M Janner",
+        "C Finn",
+        "J Wu",
+        "J B Tenenbaum",
+        "S Levine"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1910.12827",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::41",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Order matters: Sequence to sequence for sets",
+      "cited_authors": [
+        "O Vinyals",
+        "S Bengio",
+        "M Kudlur"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": "arXiv:1511.06391",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::42",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Axial-deeplab: Stand-alone axial-attention for panoptic segmentation",
+      "cited_authors": [
+        "H Wang",
+        "Y Zhu",
+        "B Green",
+        "H Adam",
+        "A L Yuille",
+        "L Chen"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-030-58548-8_7",
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::43",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "COBRA: data-efficient model-based RL through unsupervised object discovery and curiositydriven exploration",
+      "cited_authors": [
+        "N Watters",
+        "L Matthey",
+        "M Bosnjak",
+        "C P Burgess",
+        "A Lerchner"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::44",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Scaling autoregressive video models",
+      "cited_authors": [
+        "D Weissenborn",
+        "O Täckström",
+        "J Uszkoreit"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::45",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Group normalization",
+      "cited_authors": [
+        "Y Wu",
+        "K He"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-030-01261-8_1",
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2107.09240::citation::46",
+      "paper_id": "2107.09240",
+      "raw_text": null,
+      "cited_title": "Multihop transformer for spatiotemporal reasoning",
+      "cited_authors": [
+        "H Zhou",
+        "A Kadav",
+        "F Lai",
+        "A Niculescu-Mizil",
+        "M R Min",
+        "M Kapadia",
+        "H P Graf",
+        "Hopper"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

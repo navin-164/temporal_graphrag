@@ -1,0 +1,1028 @@
+{
+  "arxiv_id": "2009.05603",
+  "title": "UPB at SemEval-2020 Task 6: Pretrained Language Models for Definition   Extraction",
+  "authors": [
+    {
+      "name": "Andrei-Marius Avram",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Dumitru-Clementin Cercel",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Costin-Gabriel Chiru",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "This work presents our contribution in the context of the 6th task of SemEval-2020: Extracting Definitions from Free Text in Textbooks (DeftEval). This competition consists of three subtasks with different levels of granularity: (1) classification of sentences as definitional or non-definitional,(2) labeling of definitional sentences, and (3) relation classification. We use various pretrained language models (i.e., BERT, XLNet, RoBERTa, SciBERT, and ALBERT) to solve each of the three subtasks of the competition. Specifically, for each language model variant, we experiment by both freezing its weights and fine-tuning them. We also explore a multi-task architecture that was trained to jointly predict the outputs for the second and the third subtasks. Our best performing model evaluated on the DeftEval dataset obtains the 32nd place for the first subtask and the 37th place for the second subtask. The code is available for further research at: https://github.com/avramandrei/DeftEval.",
+  "categories": [
+    "cs.CL",
+    "cs.AI",
+    "cs.IR",
+    "cs.LG"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2020-09-11T18:36:22"
+    },
+    {
+      "version": "v2",
+      "created": "2020-09-16T19:33:05"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "International Workshop on Semantic Evaluation",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2020-09-11",
+  "citation_count": 7,
+  "reference_count": 33,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2009.05603::section::0",
+      "paper_id": "2009.05603",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::0::para::0",
+          "section_id": "2009.05603::section::0",
+          "text": "Definition extraction from text is a challenging research task, addressed by numerous researchers in the area of natural language processing (NLP). Factual question-answering systems are possible applications that can benefit from the results of this task (Zhang and Jiang, 2009). As a response to this challenge, Spala et al. (2019) introduced the Definition Extraction from Texts (DEFT) corpus, a human-annotated English dataset that contains multi-domain (e.g., biology, sociology, physics) term-definition pairs from two types of documents, free (i.e., Textbook) and semi-structured text (i.e., Contracts), as opposed to the domain-specific WCL dataset (Navigli and Velardi, 2010). In addition, a shared task was proposed by SemEval-2020 which was aimed at evaluating the performance of each participant system on three subtasks defined for the DEFT corpus. The three subtasks are the following:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2009.05603::section::0::para::1",
+          "section_id": "2009.05603::section::0",
+          "text": "Subtask 1: Given a labeled dataset of sentences, this subtask is to build a classifier capable of distinguishing between a sentence containing both a definition and the defined term or not. We provide two examples of sentences that contain a definition, from Biology and Physics domains, respectively:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2009.05603::section::0::para::2",
+          "section_id": "2009.05603::section::0",
+          "text": "• The metabolome is the complete set of metabolites that are related to the genetic makeup of an organism.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2009.05603::section::0::para::3",
+          "section_id": "2009.05603::section::0",
+          "text": "• Polarization is the separation of charges in an object that remains neutral.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2009.05603::section::0::para::4",
+          "section_id": "2009.05603::section::0",
+          "text": "Subtask 2: Given a dataset of tokenized sentences, we aim to label each token with one of the following classes: Term, Alias-Term, Referential-Term, Definition, Referential-Definition, or Qualifier. The meaning of each token can be found in the corpus description paper (Spala et al., 2019).",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2009.05603::section::0::para::5",
+          "section_id": "2009.05603::section::0",
+          "text": "Subtask 3: Given a dataset of tokenized sentences and the tag id of each token, our goal is to predict, for each token, the type of relationship it had with another token, and also the tag id of the token it had a relation with. This is a classical relation extraction task (Zeng et al., 2018) and the relations that must be extracted are: Direct-defines, Indirect-defines, Refers-to, AKA, and Supplements.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2009.05603::section::0::para::6",
+          "section_id": "2009.05603::section::0",
+          "text": "Previous approaches (Klavans and Muresan, 2001;Fahmi and Bouma, 2006;Zhang and Jiang, 2009) of recognizing definition sentences mainly focused on the use of linguistic clues (e.g., \"is\", \"means\", \"are\", \"a\", or \"()\"). However, these studies fail to classify sentences containing definitions, where the linguistic clues are non-existent. In recent years, neural network-oriented solutions are another line of research in order to capture definitions from the text. Anke and Schockaert (2018) have proposed an architecture that relies on two models, convolutional neural network (Fukushima and Miyake, 1982) and bidirectional long short-term memory network (Hochreiter and Schmidhuber, 1997). Recently, Veyseh et al. (2019) combines more advanced deep learning techniques by leveraging graph convolutional neural networks with both syntactic and semantic information. However, the existing methods for definition extraction cannot benefit from language pretrained models (Lan et al., 2019). Motivated by their recent performances in more NLP tasks, we employ these models for solving the previously mentioned subtasks.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2009.05603::section::0::para::7",
+          "section_id": "2009.05603::section::0",
+          "text": "Subtask 2 is related to many NLP tasks that can be formalized as a sequence labeling problem, such as part-of-speech tagging (Liu et al., 2018), named entity recognition (Ma and Hovy, 2016;Dumitrescu and Avram, 2019), metaphor detection (Wu et al., 2018), emphasis selection (Shirani et al., 2019), keyphrase extraction (Alzaidy et al., 2019), fragment-level propaganda detection (Da San Martino et al., 2019), complex word identification (Gooding and Kochmar, 2019), language identification (Mave et al., 2018), or cyber attacks detection in server logs (Ghimes et al., 2018).",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2009.05603::section::0::para::8",
+          "section_id": "2009.05603::section::0",
+          "text": "For the third subtask, we did not take into consideration the fact that we were given the set of correct tags of the second subtask (which tremendously help in the relation classification) and, thus, our approaches obtained poor results on both development and test datasets, so this subtask will not be discussed in the rest of the paper.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2009.05603::section::0::para::9",
+          "section_id": "2009.05603::section::0",
+          "text": "Our main contributions can be summarized as follows:",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2009.05603::section::0::para::10",
+          "section_id": "2009.05603::section::0",
+          "text": "• We explore various pretrained language models and we depict their results for the first and the second subtasks, respectively.",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2009.05603::section::0::para::11",
+          "section_id": "2009.05603::section::0",
+          "text": "• As has been shown on other corpora (Peters et al., 2019), we find that fine-tuning the weights of the pretrained language models on the DEFT corpus gives a boost in performance, as opposed to freezing them.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2009.05603::section::0::para::12",
+          "section_id": "2009.05603::section::0",
+          "text": "• Additionally, we investigate a RoBERTa model (Liu et al., 2019) within a multi-task architecture that jointly learns the outputs of the second and the third subtask. However, we report only its performance for the second subtask for the reason presented above.",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2009.05603::section::0::para::13",
+          "section_id": "2009.05603::section::0",
+          "text": "2 Neural Architectures",
+          "paragraph_index": 13
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::1",
+      "paper_id": "2009.05603",
+      "heading": "Pretrained Language Models",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::1::para::0",
+          "section_id": "2009.05603::section::1",
+          "text": "All pretrained language models presented below use the Transformer encoder (Vaswani et al., 2017) to produce contextualized embeddings. The Transformer is a self-attention mechanism that can capture long-distance dependencies between its inputs. For each language model, we use the implementation that is publicly available in the HuggingFace repositoryfoot_0 .",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::2",
+      "paper_id": "2009.05603",
+      "heading": "BERT",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::2::para::0",
+          "section_id": "2009.05603::section::2",
+          "text": "Bidirectional Encoder Representations from Transformers (BERT) (Devlin et al., 2019) was bidirectionally trained using two strategies: (1) Masked Language Modeling (MLM), and (2) Next Sentence Prediction (NSP), on both the BooksCorpus (Zhu et al., 2015) with a dimensionality of 800M words and the English Wikipedia with a dimensionality of 500M words. It has improved the existing results on the General Language Understanding Evaluation (GLUE) dataset (Wang et al., 2018) by 7%.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::3",
+      "paper_id": "2009.05603",
+      "heading": "XLNet",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::3::para::0",
+          "section_id": "2009.05603::section::3",
+          "text": "XLNet (Yang et al., 2019) trains with a new objective, called Permutation Language Modeling (PLM), that instead of predicting the tokens in a sequential order in the same way as a traditional autoregressive solution, it predicts the tokens in a random order. Moreover, aside from using PLM, XLNet relies on Transformer XL (Dai et al., 2019), a variation of the transformer structure that can capture a longer context through recurrence, as its base architecture. XLNet surpass BERT on a series of NLP tasks, and set the new state-of-the-art result on the GLUE dataset with an average F1-score of 88.4%.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::4",
+      "paper_id": "2009.05603",
+      "heading": "RoBERTa",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::4::para::0",
+          "section_id": "2009.05603::section::4",
+          "text": "Later on, the Robustly optimized BERT pretraining approach (RoBERTa) (Liu et al., 2019) uses the MLM strategy of BERT, but removes the NSP objective. Moreover, the model was trained with a much larger batch size and learning rate, on a much larger dataset and showed that the training procedure can significantly improve the performance of BERT on a variety of NLP tasks. In particular, with a F1-score of 88.5%, RoBERTa reached the top position on the GLUE leaderboard, outperforming the previous leader, XLNet. When RoBERTa was released, it obtained new state-of-the-art results on the GLUE dataset, improving the performance of BERT by 6.4% and over the previous leader by 0.1%.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::5",
+      "paper_id": "2009.05603",
+      "heading": "SciBERT",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::5::para::0",
+          "section_id": "2009.05603::section::5",
+          "text": "Science BERT (SciBERT) (Beltagy et al., 2019) is a pretrained language model based on BERT. As opposed to BERT, the novelty here is that SciBERT was trained on large multi-domain corpora of scientific publications to improve performance on domain-aware NLP tasks. Experimental results show that SciBERT significantly surpassed BERT on biomedical, computer science, and other scientific domains.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::6",
+      "paper_id": "2009.05603",
+      "heading": "ALBERT",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::6::para::0",
+          "section_id": "2009.05603::section::6",
+          "text": "A Lite BERT (ALBERT) (Lan et al., 2019) is a system that has fewer parameters than the classical BERT, but still maintains a high performance. The contributions of ALBERT consist in two key approaches of parameter reduction: factorized embedding parameterization and cross parameter sharing. In addition, ALBERT uses for training the sentence-order prediction instead of NSP. ALBERT obtained an average F1-score of 89.4% on the GLUE dataset, pushing the state-of-the-art by 0.6%.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::7",
+      "paper_id": "2009.05603",
+      "heading": "Conditional Random Fields",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::7::para::0",
+          "section_id": "2009.05603::section::7",
+          "text": "The most common method for treating a sequence labeling task is the Conditional Random Field (CRF) model (Lafferty et al., 2001). As was mentioned by Alzaidy et al. (2019), for a sequence x of input words and another sequence y of output tags, CRF works by constructing a conditional probability distribution in the following manner:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2009.05603::section::7::para::1",
+          "section_id": "2009.05603::section::7",
+          "text": "where the parameters W y i-1 ,y i and b y i-1 ,y i are called the weight matrix and the bias, respectively.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2009.05603::section::7::para::2",
+          "section_id": "2009.05603::section::7",
+          "text": "To estimate the parameters W and b, we perform a maximization of the log-likelihood function:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2009.05603::section::7::para::3",
+          "section_id": "2009.05603::section::7",
+          "text": "Once the CRF is trained, we use the Viterbi algorithm (Forney, 1973) to find the most probable sequence among all possible tag sequences.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::8",
+      "paper_id": "2009.05603",
+      "heading": "Approaches based on Pretrained Language Models",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::8::para::0",
+          "section_id": "2009.05603::section::8",
+          "text": "For the first subtask, we add a two-layered feed-forward neural network with 512 neurons in each layer on top of the [CLS] contextualized embedding (as proposed in the original paper of BERT for the single sentence classification tasks (Devlin et al., 2019)) that maps this embedding to a scalar. By applying a sigmoid function to this mapping, we obtain a trainable scalar that represents the probability of a sentence to contain a definition.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2009.05603::section::8::para::1",
+          "section_id": "2009.05603::section::8",
+          "text": "For the second subtask, we also map the contextualized embeddings generated by each pretrained language model in a lower-dimensional space using a two-layered feed-forward neural network. Then, we Figure 1: Label mismatch for the word \"extrapolate\" -green represents the chosen label. Left: the model predicts for two of the three subtokens the label B-TERM, so it will become the label of the word. Right: there is no label majority, so the first subtoken is chosen. use these mappings to train a CRF model that learns to predict the most probable sequence of labels for a given input. The main problem that we encountered in this subtask was that we needed to apply a special tokenization, namely Byte Pair Encoding (BPE), to train the language models, that was different than the one used to create the corpus. To mitigate this issue, we reconstructed the sentence from its tokens and splited it again in BPE subtokens. Then, to map the subtokens back to the original tokens, we employed a character matching algorithm that is similar to the one used by spacy-transformersfoot_1 .",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2009.05603::section::8::para::2",
+          "section_id": "2009.05603::section::8",
+          "text": "The BPE tokenization also introduced a problem at inference because the predicted labels for the subtokens of a word might not match, so a label for the whole word could not be inferred directly. To solve this problem, we took the label of the majority or, if the labels were equally distributed, we selected the label of the first subtoken. Figure 1 depicts the proposed solution for the problem of label mismatch for the word \"extrapolate\".",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::9",
+      "paper_id": "2009.05603",
+      "heading": "Multi-task Learning Approach",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::9::para::0",
+          "section_id": "2009.05603::section::9",
+          "text": "In this work, we also experimented with a language model that jointly learned to predict the tags, the tag ids, and the relations. Figure 2 depicts the architecture of the multi-task learning setting. To create the framework, we projected the contextualized embeddings generated by RoBERTa in three vectors, representing the outputs for the subtasks 2 and 3, respectively.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2009.05603::section::9::para::1",
+          "section_id": "2009.05603::section::9",
+          "text": "The approach on tag prediction subtask in the multi-task context is identical to its single subtask counterpart. To predict the tags ids, we consider that the maximum number of possible tags in a paragraph is 10 and that the id of the tag is given by its position in this context. Once we identify all tag ids, we predict the corresponding relations.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2009.05603::section::9::para::2",
+          "section_id": "2009.05603::section::9",
+          "text": "The learning objective of the multi-task method is to predict the outputs for the three subtasks by minimizing the following multi-task loss function: where y tag , y id , y rel are the true labels for tags, tag ids and relations, respectively, while ŷtag , ŷid , ŷrel are the corresponding predictions. Also, λ 1 , λ 2 , λ 3 and L 1 , L 2 , L 3 are the weights and the individual loss functions, respectively.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2009.05603::section::9::para::3",
+          "section_id": "2009.05603::section::9",
+          "text": "3 Performance Evaluation",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::10",
+      "paper_id": "2009.05603",
+      "heading": "Dataset and Preprocessing",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::10::para::0",
+          "section_id": "2009.05603::section::10",
+          "text": "The DeftEval dataset contains imbalanced classes for all the subtasks considered. For example, the first subtask has 11,090 sentences that do not contain a definition and 5,569 that contain. In order to handle this issue, we balance the classes by doubling the number of sentences that contain a definition, obtaining a new total of 11,138 positive samples. Moreover, the second task has highly imbalanced classes, ranging from 93,204 for the Definition tag to 256 for the Referential-Term tag. To balance the classes in this case, we oversampled each sentence that contains an under-represented tag by a factor inversely proportional to their numberfoot_2 . The number of the initial and final entries for each tag (i.e., before and after applying the oversampling technique), along with the corresponding multiplication factor are depicted in Table 1. As one can note, the final number of tags is not equal to the initial number of tags multiplied by its factor. This is because other tags were affected when we oversampled a sentence for a certain tag, with a particular multiplication factorfoot_3 . The preprocessing step consists of removing the artifacts that could interfere with the language model representation of the sentences. For the first task, we replace the URLs and equations with two special tokens, <url> and <equation>, respectively, during the fine-tuning process, and remove them while freezing the language model weights. We also eliminate the artifacts that came from the text formattingfoot_4 and the spaces before punctuation. For the second subtask, we discard the characters that were not recognized by the language models and that could break down the tag-subtoken matching process, like the \"Â o \" character or Greek letters. We also replace the accented characters with their corresponding unaccented version.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::11",
+      "paper_id": "2009.05603",
+      "heading": "Experimental Settings",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::11::para::0",
+          "section_id": "2009.05603::section::11",
+          "text": "For training purposes, we employ the Adam optimizer (Kingma and Ba, 2015) with a learning rate of 2e -5 for both the frozen and fine-tuned versions. We train each language model for 100 epochs with a batch size of 16 and we save only the language model that obtained the highest performance on the development dataset. We decided not to use the early stopping setting because we observed that the models can significantly improve the efficiency of our results even after a long period of stagnation.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2009.05603::section::11::para::1",
+          "section_id": "2009.05603::section::11",
+          "text": "The feed-forward layer, which is placed on top of each language model to project the contextualized embeddings in the output space, has a hidden layer of size 512. Thus, a more complex family of functions can be learned by the system. We regularize the hidden layer with a high 80% dropout for the fine-tuned versions in order to make their learning slower and more robust, and with a 20% dropout for the frozen versions to avoid underfitting.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2009.05603::section::11::para::2",
+          "section_id": "2009.05603::section::11",
+          "text": "Dev Test Model Precision Recall F1-score Precision Recall F1-score Frozen BERT 76.0 75.1 75.5 ---Frozen RoBERTa 74.1 74.4 74.3 ---Frozen SciBERT 71.7 80.6 75.9 ---Frozen XLNet 66.8 70.8 68.7 ---Frozen ALBERT 77.2 69.3 73.0 ---Fine-tuned BERT 78.4 84.1 81.2 ---Fine-tuned RoBERTa 78.2 84.5 81.3 75.0 80.6 77.7 Fine-tuned SciBERT 79.4 79.7 79.6 ---Fine-tuned XLNet 75.5 85.2 80.1 ---Fine-tuned ALBERT 69.5 85.9 76.8 ---The winning team -----87.7 Dev Test Model Precision Recall F1-score Precision Recall F1-score Frozen BERT+CRF 27.1 39.8 26.1 ---Frozen RoBERTa+CRF 32.7 27.7 22.6 ---Frozen SciBERT+CRF 29.0 37.5 26.2 ---Frozen XLNet+CRF 29.6 33.4 26.8 ---Frozen Multi-task Learning 4.0 8.9 8.0 ---Fine-tuned BERT+CRF 47.9 51.7 45.6 ---Fine-tuned RoBERTa+CRF 41.4 66.4 46.0 39.4 55.6 43.9 Fine-tuned SciBERT+CRF 46.7 46.6 41.7 ---Fine-tuned XLNet+CRF 33.0 58.5 39.2 ---Fine-tuned Multi-task Learning 25.7 25.2 25.5 ---The winning team -----84.7",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2009.05603::section::11::para::3",
+          "section_id": "2009.05603::section::11",
+          "text": "Table 2: Comparison of performance on both the development and test datasets for the first subtask (up) and the second subtask (down), respectively. The frozen versions denote that the weights of the respective language model were not updated during the training phase, while the fine-tuned versions denote that their weights were updated during the training process.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2009.05603::section::11::para::4",
+          "section_id": "2009.05603::section::11",
+          "text": "Due to the computational constraints, we adopt only the base version of all the language models tested in the current work. Furthermore, we use only the cased version of each language model when there is the case. Finally, we select the cross-entropy loss function for the multi-task architecture and we set all the weights λ 1 , λ 2 , λ 3 equal to 0.33.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::12",
+      "paper_id": "2009.05603",
+      "heading": "Results and Analysis",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::12::para::0",
+          "section_id": "2009.05603::section::12",
+          "text": "As mentioned above, we conducted experiments with a total of five pretrained language models, including BERT, XLNet, RoBERTa, SciBERT, and ALBERT. More specifically, we use each language model by freezing and fine-tuning its weights. We also experiment with a multi-task architecture that is a joint learning technique to predict the outputs for both the second and the third subtask. Table 2 reports the evaluation metrics, Macro-Precision, Recall, and F1-scores, respectively, on both development and test datasets.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2009.05603::section::12::para::1",
+          "section_id": "2009.05603::section::12",
+          "text": "It can be observed from the two tables that fine-tuning the weights of the language models offers a high boost in performance. That is, the results show an improvement of up to 11.4% on the development dataset for the first subtask (in case of XLNet) and up to 23.4% on the development dataset for the second subtask (in case of RoBERTa). Moreover, the results on the development dataset also show that a fine-tuned RoBERTa is the best performing language model among all others, for both subtasks. Thereby, this was the only model submitted for evaluation, and it obtained a F1-score of 0.777 for the first subtask, and a macro F1-score of 0.439 for the second subtask, ranking 32nd and 37th on the leaderboard, respectively.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2009.05603::section::12::para::2",
+          "section_id": "2009.05603::section::12",
+          "text": "Figure 3 depicts the detailed confusion matrices of the submitted models for the first and the second subtasks on the evaluation dataset. In the case of the first subtask, we can observe that the model is slightly biased towards predicting positive labels, resulting in more false positives for the input sentences, which is somewhat expected, given the balancing method we have applied. To improve the visualization of the results, the confusion matrix for the second subtask was normalized along the true labels for the test set. It can be seen that the dominant tags, Definition and Term, and also the Ref-Term, the tag that was highly oversampled, were the least confused by the model, obtaining an accuracy of 64%, which is almost double than the accuracy obtained by the rest of the tags. Moreover, it should be noted that most of the tags are misclassified by the model with the O tag, exception making the Ref-Term tag which is misclassified with the Definition tag, 36% of the time.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2009.05603::section::13",
+      "paper_id": "2009.05603",
+      "heading": "Conclusions and Future Developments",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2009.05603::section::13::para::0",
+          "section_id": "2009.05603::section::13",
+          "text": "In this paper, we have presented our solution for the SemEval-2020 Task 6: Extracting Definitions from Free Text in Textbooks (DeftEval). We evaluated different state-of-the-art language models both by freezing and fine-tuning their weights. We observed that the performance of all the selected models can be significantly improved by fine-tuning their weights. Through a series of experiments conducted on the development dataset, we showed that RoBERTa significantly outperforms other language models for the two subtasks. According to the official leaderboard, we obtained the 32nd place out of 56 submissions for the first subtask and the 37th place out of 51 submissions for the second subtask. One possible direction for future work is to evaluate the multi-task scenario using other language models. We also consider that a larger annotated dataset together with the large variants of the pretrained language models could drastically improve definition extraction performance. Moreover, we believe that by using class weights instead of oversampling for the first subtask, one can mitigate the problems observed in its confusion matrix.",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2009.05603::citation::0",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Bi-lstm-crf sequence labeling for keyphrase extraction from scholarly documents",
+      "cited_authors": [
+        "Rabah Alzaidy",
+        "Cornelia Caragea",
+        "C Lee Giles"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::1",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Syntactically aware neural architectures for definition extraction",
+      "cited_authors": [
+        "Luis Espinosa",
+        "Anke",
+        "Steven Schockaert"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::2",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Scibert: A pretrained language model for scientific text",
+      "cited_authors": [
+        "Iz Beltagy",
+        "Kyle Lo",
+        "Arman Cohan"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::3",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Findings of the nlp4if-2019 shared task on fine-grained propaganda detection",
+      "cited_authors": [
+        "Giovanni Da",
+        "San Martino",
+        "Alberto Barron-Cedeno",
+        "Preslav Nakov"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::4",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Transformer-xl: Attentive language models beyond a fixed-length context",
+      "cited_authors": [
+        "Zihang Dai",
+        "Zhilin Yang",
+        "Yiming Yang",
+        "Jaime G Carbonell",
+        "Quoc Le",
+        "Ruslan Salakhutdinov"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::5",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Bert: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::6",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Introducing ronec-the romanian named entity corpus",
+      "cited_authors": [
+        "Stefan Daniel",
+        "Dumitrescu",
+        "Andrei-Marius Avram"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1909.01247",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::7",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Learning to identify definitions using syntactic features",
+      "cited_authors": [
+        "Ismail Fahmi",
+        "Gosse Bouma"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::8",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "The viterbi algorithm",
+      "cited_authors": [
+        "David Forney"
+      ],
+      "cited_year": 1973,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::9",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Neocognitron: A self-organizing neural network model for a mechanism of visual pattern recognition",
+      "cited_authors": [
+        "Kunihiko Fukushima",
+        "Sei Miyake"
+      ],
+      "cited_year": 1982,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::10",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "A character prediction approach in a security context using a recurrent neural network",
+      "cited_authors": [
+        "Ana-Maria Ghimes",
+        "Andrei-Marius Avram",
+        "Valentin-Alexandru Vladuta"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::11",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Complex word identification as a sequence labelling task",
+      "cited_authors": [
+        "Sian Gooding",
+        "Ekaterina Kochmar"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::12",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Long short-term memory",
+      "cited_authors": [
+        "Sepp Hochreiter",
+        "Jürgen Schmidhuber"
+      ],
+      "cited_year": 1997,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::13",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Adam: A method for stochastic optimization",
+      "cited_authors": [
+        "P Diederik",
+        "Jimmy Kingma",
+        "Ba"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::14",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Evaluation of the definder system for fully automatic glossary construction",
+      "cited_authors": [
+        "L Judith",
+        "Smaranda Klavans",
+        "Muresan"
+      ],
+      "cited_year": 2001,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::15",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Conditional random fields: Probabilistic models for segmenting and labeling sequence data",
+      "cited_authors": [
+        "John Lafferty",
+        "Andrew Mccallum",
+        "Fernando Cn Pereira"
+      ],
+      "cited_year": 2001,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::16",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Albert: A lite bert for self-supervised learning of language representations",
+      "cited_authors": [
+        "Zhenzhong Lan",
+        "Mingda Chen",
+        "Sebastian Goodman",
+        "Kevin Gimpel",
+        "Piyush Sharma",
+        "Radu Soricut"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::17",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Empower sequence labeling with task-aware neural language model",
+      "cited_authors": [
+        "Liyuan Liu",
+        "Jingbo Shang",
+        "Xiang Ren",
+        "Frank Fangzheng Xu",
+        "Huan Gui",
+        "Jian Peng",
+        "Jiawei Han"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::18",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Roberta: A robustly optimized bert pretraining approach",
+      "cited_authors": [
+        "Yinhan Liu",
+        "Myle Ott",
+        "Naman Goyal",
+        "Jingfei Du",
+        "Mandar Joshi",
+        "Danqi Chen",
+        "Omer Levy",
+        "Mike Lewis",
+        "Luke Zettlemoyer",
+        "Veselin Stoyanov"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1907.11692",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::19",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "End-to-end sequence labeling via bi-directional lstm-cnns-crf",
+      "cited_authors": [
+        "Xuezhe Ma",
+        "Eduard Hovy"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::20",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Language identification and analysis of code-switched social media text",
+      "cited_authors": [
+        "Deepthi Mave",
+        "Suraj Maharjan",
+        "Thamar Solorio"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::21",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Learning word-class lattices for definition and hypernym extraction",
+      "cited_authors": [
+        "Roberto Navigli",
+        "Paola Velardi"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::22",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "To tune or not to tune? adapting pretrained representations to diverse tasks",
+      "cited_authors": [
+        "Sebastian Matthew E Peters",
+        "Noah A Ruder",
+        "Smith"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::23",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Learning emphasis selection for written text in visual media from crowd-sourced label distributions",
+      "cited_authors": [
+        "Amirreza Shirani",
+        "Franck Dernoncourt",
+        "Paul Asente",
+        "Nedim Lipka",
+        "Seokhwan Kim",
+        "Jose Echevarria",
+        "Thamar Solorio"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::24",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Deft: A corpus for definition extraction in free-and semi-structured text",
+      "cited_authors": [
+        "Sasha Spala",
+        "Nicholas A Miller",
+        "Yiming Yang",
+        "Franck Dernoncourt",
+        "Carl Dockhorn"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::25",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Attention is all you need",
+      "cited_authors": [
+        "Ashish Vaswani",
+        "Noam Shazeer",
+        "Niki Parmar",
+        "Jakob Uszkoreit",
+        "Llion Jones",
+        "Aidan N Gomez",
+        "Łukasz Kaiser",
+        "Illia Polosukhin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::26",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "A joint model for definition extraction with syntactic connection and semantic consistency",
+      "cited_authors": [
+        "Ben Amir Pouran",
+        "Franck Veyseh",
+        "Dejing Dernoncourt",
+        "Thien Huu Dou",
+        "Nguyen"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1911.01678",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::27",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Glue: A multi-task benchmark and analysis platform for natural language understanding",
+      "cited_authors": [
+        "Alex Wang",
+        "Amanpreet Singh",
+        "Julian Michael",
+        "Felix Hill",
+        "Omer Levy",
+        "Samuel Bowman"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::28",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Neural metaphor detecting with cnn-lstm model",
+      "cited_authors": [
+        "Chuhan Wu",
+        "Fangzhao Wu",
+        "Yubo Chen",
+        "Sixing Wu",
+        "Zhigang Yuan",
+        "Yongfeng Huang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::29",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Xlnet: Generalized autoregressive pretraining for language understanding",
+      "cited_authors": [
+        "Zhilin Yang",
+        "Zihang Dai",
+        "Yiming Yang",
+        "Jaime Carbonell",
+        "Russ R Salakhutdinov",
+        "Quoc V Le"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::30",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Large scaled relation extraction with reinforcement learning",
+      "cited_authors": [
+        "Xiangrong Zeng",
+        "Shizhu He",
+        "Kang Liu",
+        "Jun Zhao"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::31",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Automatic extraction of definitions",
+      "cited_authors": [
+        "Chunxia Zhang",
+        "Peng Jiang"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2009.05603::citation::32",
+      "paper_id": "2009.05603",
+      "raw_text": null,
+      "cited_title": "Aligning books and movies: Towards story-like visual explanations by watching movies and reading books",
+      "cited_authors": [
+        "Yukun Zhu",
+        "Ryan Kiros",
+        "Rich Zemel",
+        "Ruslan Salakhutdinov",
+        "Raquel Urtasun",
+        "Antonio Torralba",
+        "Sanja Fidler"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

@@ -1,0 +1,3260 @@
+{
+  "arxiv_id": "2507.07414",
+  "title": "GNN-CNN: An Efficient Hybrid Model of Convolutional and Graph Neural Networks for Text Representation",
+  "authors": [
+    {
+      "name": "Fardin Rastakhiz",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Time, cost, and energy efficiency are critical considerations in Deep-Learning (DL), particularly when processing long texts. Transformers, which represent the current state of the art, exhibit quadratic computational complexity relative to input length, making them inefficient for extended documents. This study introduces a novel model architecture that combines Graph Neural Networks (GNNs) and Convolutional Neural Networks (CNNs), integrated with a real-time, end-to-end graph generation mechanism. The model processes compact batches of character-level inputs without requiring padding or truncation. To enhance performance while maintaining high speed and efficiency, the model incorporates information from Large Language Models (LLMs), such as token embeddings and sentiment polarities, through efficient dictionary lookups. It captures local contextual patterns using CNNs, expands local receptive fields via lattice-based graph structures, and employs small-world graphs to aggregate document-level information. The generated graphs exhibit structural properties indicative of meaningful semantic organization, with an average clustering coefficient of approximately 0.45 and an average shortest path length ranging between 4 and 5. The model is evaluated across multiple text classification tasks, including sentiment analysis and news-categorization, and is compared against state-of-the-art models. Experimental results confirm the proposed model's efficiency and competitive performance.",
+  "categories": [
+    "cs.CL",
+    "cs.AI"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2025-07-10T04:13:53"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2025-07-09",
+  "citation_count": 1,
+  "reference_count": 61,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2507.07414::section::0",
+      "paper_id": "2507.07414",
+      "heading": "Introduction 1.Importance",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::0::para::0",
+          "section_id": "2507.07414::section::0",
+          "text": "Transitioning models from research to production introduces challenges in data collection, and high computational costs for scalability and resource efficiency [Paleyes et al., 2022]. The escalating demands of time, cost, and energy in Deep Learning, especially with larger models, pose significant challenges to Artificial Intelligence (AI) businesses, both environmental and economic requiring researchers to seek efficient architectures and reduce raw floating-point operations (FLOPs) [Sharir et al., 2020, Sevilla et al., 2022, Strubell et al., 2020]. Deep learning models must be developed and deployed within realistic budgetary constraints to deliver timely business value [Benitez et al., 2018]. Factors such as dataset size, model complexity, and training duration significantly influence the required FLOPs [Amodei and Hernandez, 2018]. Consequently, the design and optimization of new deep learning models should explicitly address these factors. Various methods exist to achieve this, including model compression [Han et al., 2015], knowledge distillation [Hinton, 2015], and hardware-aware training strategies [Li and Meng, 2023], which aim to reduce computational complexity, accelerate training and inference, and minimize energy consumption. By prioritizing these considerations, researchers and practitioners can unlock the full potential of AI while ensuring its responsible and sustainable integration into real-world applications.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::0::para::1",
+          "section_id": "2507.07414::section::0",
+          "text": "Natural Language Processing (NLP), at the intersection of AI and linguistics, empowers computers to understand and interact with human language, bridging the gap between human communication and machine understanding [Khurana et al., 2023]. The field encompasses a diverse range of text processing tasks, each with its own unique challenges and applications. These include fundamental tasks such as text classification [Reusens et al., 2024, Fields et al., 2024] and named entity recognition [Hu et al., 2024], as well as more complex tasks such as text embedding [Daneshfar et al., 2024] and text generation [Li et al., 2024a]. These capabilities underpin a wide array of real-world applications, from machine translation [He et al., 2024, Li et al., 2024b] and spam detection [Maurya et al., 2023, Yadav andKaur, 2023] to more sophisticated uses in healthcare, finance, and education.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::0::para::2",
+          "section_id": "2507.07414::section::0",
+          "text": "To tackle these diverse NLP tasks, a plethora of model architectures has been developed, ranging from classical machine learning techniques like Term Frequency-Inverse Document Frequency (TF-IDF), Support Vector Machine (SVM), and Random Forests (RF) to deep learning models such as Recurrent Neural Networks (RNNs), CNNs, GNNs, Transformers, and numerous variants thereof.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::0::para::3",
+          "section_id": "2507.07414::section::0",
+          "text": "Within the broader landscape of AI and NLP, deep learning has revolutionized NLP, enabling significant advancements in tasks such as machine translation, text summarization, sentiment analysis, and question answering [Young et al., 2018]. However, the success of deep learning in NLP has often come at the cost of increased model complexity and computational demands, exacerbating the challenges of time, cost, and energy efficiency discussed previously [Vaswani et al., 2017]. The trend toward larger language models, exemplified by models such as ChatGPT (Generative Pre-training Transformer), highlights this tension, offering impressive performance gains but requiring substantial resources for both training and deployment [Brown et al., 2020]. This necessitates a focused investigation into methods for developing and deploying efficient deep learning models specifically tailored for NLP applications, balancing performance with practical constraints. Deep learning's adaptability and parallel processing capabilities have driven its dominance in NLP, surpassing traditional methods by eliminating the need for complex feature engineering. While RNNs struggle with parallelism and CNNs are limited by local information processing, Transformers excel at capturing both local and global contexts; however, they face challenges with longer texts and input sizes. Studies emphasize evaluating model complexity against performance, noting that simpler models can rival more complex ones depending on the task and dataset. Models such as Fast-BERT [Liu et al., 2020], a distilled version of BERT (Bidirectional Encoder Representations from Transformers), offer efficiency gains through distillation, although they introduce training complexities and retain quadratic complexity with respect to input size.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::0::para::4",
+          "section_id": "2507.07414::section::0",
+          "text": "The quest for efficient NLP models has motivated significant research into architectures capable of effectively processing both local and global textual information while minimizing computational overhead. Processing local information, crucial for capturing immediate contextual cues, has been addressed through various architectural innovations. For instance, architectures such as QuickCharNet [Rastakhiz et al., 2024] and MobyDeep [Romero et al., 2022] focus on computational constraints, leveraging techniques such as dilated and deformable convolutions [Chen et al., 2024] and adapting local feature extraction strategies. Key components include convolutional layers, residual blocks, and global average pooling, all optimized for efficiency. Other approaches include standard Transformers and Heterogeneous Graph Attention Networks (HGAT) [Yang et al., 2021].",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::0::para::5",
+          "section_id": "2507.07414::section::0",
+          "text": "Capturing long-range dependencies and global context remains a central challenge. Near-linear complexity is a key consideration for deploying NLP models in real-world scenarios, especially when dealing with large volumes of text data. Transformer networks [Vaswani et al., 2017] have achieved state-of-the-art results on many NLP tasks, largely due to their attention mechanism's ability to model relationships between distant words in a sequence. However, the quadratic complexity of the standard attention mechanism with respect to sequence length has motivated the development of more efficient variants.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2507.07414::section::0::para::6",
+          "section_id": "2507.07414::section::0",
+          "text": "Sparse Transformers, such as Exphormer [Shirzad et al., 2023], and dynamic sparsity approaches [Jaszczur et al., 2021] address this limitation by employing sparse attention patterns, reducing computational cost while retaining the ability to model long-range dependencies through graph-based structures. Dynamic sparsity provides a solution with reduced complexity of O(n 1.5 ) by selecting subsets of parameters per token.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2507.07414::section::0::para::7",
+          "section_id": "2507.07414::section::0",
+          "text": "GNNs represent another approach to capturing global context, particularly in tasks where the input data can be naturally represented as a graph [Zhou et al., 2020]. By propagating information across graph nodes, GNNs can effectively model relationships between entities and capture global dependencies within the data.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2507.07414::section::0::para::8",
+          "section_id": "2507.07414::section::0",
+          "text": "Another method for optimizing large models is the use of Sparse Transformers, first introduced in [Child et al., 2019]. That paper proposed several enhancements to the Transformer architecture aimed at improving efficiency. These include reducing memory and time complexity relative to sequence length to O(n log n) through matrix factorization, and refining the model architecture to facilitate the training of deeper networks by restructuring residual blocks and optimizing weight initialization.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2507.07414::section::0::para::9",
+          "section_id": "2507.07414::section::0",
+          "text": "In addition to this work, many other papers have addressed the challenge of making Transformer models more efficient. The survey by [Tay et al., 2022] provides a comprehensive overview of these approaches, collectively referred to as \"X-formers\", a term derived from model names such as Performer, Linformer, and Longformer.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2507.07414::section::0::para::10",
+          "section_id": "2507.07414::section::0",
+          "text": "Due to the sparsity of most graphs and the flexibility of graph structures, they can be effectively adapted to sparse Transformer architectures, opening up a research avenue for optimizing Transformer model design. The study by [Rampášek et al., 2022] proposed an architecture called General, Powerful, Scalable (GPS), which combines positional and structural encoding with local message passing and global attention mechanisms to enhance information aggregation across graphs. This model achieves linear complexity, enabling scalability to graphs with thousands of nodes. The GPS architecture demonstrates competitive performance compared to state-of-the-art models.",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2507.07414::section::0::para::11",
+          "section_id": "2507.07414::section::0",
+          "text": "Another example of applying GNNs to improve Transformers is presented in [Shirzad et al., 2023], which introduces Exphormer, a framework for building graph Transformers that allow nodes to attend to all other nodes. Exphormer utilizes virtual global nodes and expander graphs to enhance scalability and efficiency in graph learning tasks, enabling direct modeling of long-range interactions. By incorporating properties such as spectral expansion and pseudorandomness, Exphormer reduces the number of training parameters, accelerates training speed, and maintains linear (O(n)) memory complexity proportional to the graph size.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2507.07414::section::0::para::12",
+          "section_id": "2507.07414::section::0",
+          "text": "The paper by Xie et al. [2025] presents HCT-learn, a hybrid CNN-Transformer (HCT) framework that fuses spatial and temporal electroencephalogram (EEG) features to predict student learning outcomes. Initial convolutional layers extract local spatial patterns across multi-channel EEG, while a lightweight Transformer with sparse TopK self-attention captures long-range temporal dependencies at a reduced computational cost. By combining CNN-based spatial encoding with efficient global attention, the model achieves over 90% accuracy.",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2507.07414::section::0::para::13",
+          "section_id": "2507.07414::section::0",
+          "text": "Computing power is an important consideration in web development, where text content varies widely in length. Titles are short, comments are of medium length, and blog posts are long. Various tasks operate over web content, such as recommender systems, search engines, and sentiment analysis. The goal of this project is to develop a lightweight deep learning model capable of understanding both short and long texts, making it applicable to a range of tasks.",
+          "paragraph_index": 13
+        },
+        {
+          "id": "2507.07414::section::0::para::14",
+          "section_id": "2507.07414::section::0",
+          "text": "As the main contribution of this paper, we propose a new architecture that addresses these challenges by combining several solutions, including embedding and polarity injection, sparse transformers, efficient real-time graph generation, and a hybrid of convolution and attention mechanisms.",
+          "paragraph_index": 14
+        },
+        {
+          "id": "2507.07414::section::0::para::15",
+          "section_id": "2507.07414::section::0",
+          "text": "• Developed a novel real-time graph generation layer to create more controlled and meaningful connections for sparse transformers.",
+          "paragraph_index": 15
+        },
+        {
+          "id": "2507.07414::section::0::para::16",
+          "section_id": "2507.07414::section::0",
+          "text": "• Removed the need for padding and truncation, enabling the model to handle texts of any length.",
+          "paragraph_index": 16
+        },
+        {
+          "id": "2507.07414::section::0::para::17",
+          "section_id": "2507.07414::section::0",
+          "text": "• Integrated additional architectural engineering techniques, such as embedding and polarity injection, to improve performance while maintaining high efficiency.",
+          "paragraph_index": 17
+        },
+        {
+          "id": "2507.07414::section::0::para::18",
+          "section_id": "2507.07414::section::0",
+          "text": "• Designed a lightweight preprocessing pipeline to maximize the practical benefits of the model.",
+          "paragraph_index": 18
+        },
+        {
+          "id": "2507.07414::section::0::para::19",
+          "section_id": "2507.07414::section::0",
+          "text": "Finally, the proposed model was compared with state-of-the-art models, and, using explainable AI methods, its features were visualized. The proposed model has memory and time complexity of O(n) relative to text length.",
+          "paragraph_index": 19
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::1",
+      "paper_id": "2507.07414",
+      "heading": "Methodology",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::1::para::0",
+          "section_id": "2507.07414::section::1",
+          "text": "This section is structured to highlight the contributions of the proposed neural architecture by dividing it into three main subsections: data processing, real-time graph generation, and model design. First, we describe how raw inputs are curated and transformed to ensure both statistical integrity and reproducibility. Then, in the two subsequent subsections on graph generation and model architecture, we detail the architectural choices that distinguish our network from existing baselines, emphasizing both theoretical motivations and practical constraints.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::2",
+      "paper_id": "2507.07414",
+      "heading": "Data Processing",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::2::para::0",
+          "section_id": "2507.07414::section::2",
+          "text": "Data is a fundamental component of every deep learning model. Although one of the goals of deep learning is to minimize data engineering, there remains a need for some degree of data processing and, occasionally, feature extraction. However, the extracted features are generally not domain-specific and can be efficiently computed. In this section, we prepare three sets of token embeddings for future efficient integration into our model, outline the metadata extracted from raw texts for input, and analyze the time and space complexity of these practical processes.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::3",
+      "paper_id": "2507.07414",
+      "heading": "Prepare Metadata",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::3::para::0",
+          "section_id": "2507.07414::section::3",
+          "text": "Prepare token embeddings from LLMs:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::3::para::1",
+          "section_id": "2507.07414::section::3",
+          "text": "In our previous work Rastakhiz et al. [2024], we found that using the BERT tokenizer for URLs yields better results. However, this study explores a broader range of tasks involving natural language text, which follows more diverse linguistic structures. Therefore, three sets of embeddings were extracted from the following pre-trained models: DeBERTaV3-large with a vocabulary size of 128,100; OpenAI-GPT/tiktoken with 100,256 tokens; and SpaCy-large with 684,830 vocabulary items. The DeBERTa embeddings have 1,024 dimensions, GPT-3 embeddings have 3,072 dimensions, and SpaCy-large embeddings have 300 dimensions.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::3::para::2",
+          "section_id": "2507.07414::section::3",
+          "text": "According to benchmarks on Papers with Code across various datasets, DeBERTaV3 [He et al., 2021a] outperforms BERT [Devlin et al., 2019], RoBERTa [Liu, 2019], and DeBERTa [He et al., 2021b]. As a result, most of our experiments utilize DeBERTa embeddings. The DeBERTa tokenizer employs a subword tokenization strategy, breaking words into subword units to efficiently handle rare or out-of-vocabulary terms. Importantly, the tokenizer and the injected token embeddings must be compatible.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::3::para::3",
+          "section_id": "2507.07414::section::3",
+          "text": "Using the extracted embeddings directly poses two major challenges: (1) the dimensionality varies across models, and",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::3::para::4",
+          "section_id": "2507.07414::section::3",
+          "text": "(2) the embeddings are too large to be practical for lightweight models. To address these issues, Uniform Manifold Approximation and Projection (UMAP) was applied with 15 neighbors, reducing the dimensionality to either 64 or 128 components. The resulting reduced embeddings were then saved as compressed files for efficient storage and retrieval.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::3::para::5",
+          "section_id": "2507.07414::section::3",
+          "text": "For downstream usage, the reduced embeddings were normalized using Min-Max normalization. These normalized embeddings were stored in a dictionary and integrated into the data loader, enabling dynamic construction of embedding tensors based on each document's tokens during training and inference.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::4",
+      "paper_id": "2507.07414",
+      "heading": "Prepare tokens' polarities:",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::4::para::0",
+          "section_id": "2507.07414::section::4",
+          "text": "To enhance the model's ability to understand sentiment within texts, polarity and subjectivity scores were extracted for each token in the SpaCy vocabulary using the TextBlob package. Similar sentiment information was also obtained for ChatGPT and DeBERTaV3 tokens using the GPT-Chat API, and the results were saved in separate files. During preprocessing, these sentiment attributes were incorporated as token-level metadata and injected into the model to support downstream tasks such as sentiment classification.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::4::para::1",
+          "section_id": "2507.07414::section::4",
+          "text": "A major challenge in this process lies in identifying an efficient method for integrating auxiliary sentiment information into the model architecture without significantly increasing computational complexity or compromising performance. This issue is further examined in the ablation study presented in Section 2.5.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::5",
+      "paper_id": "2507.07414",
+      "heading": "Character-token indices:",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::5::para::0",
+          "section_id": "2507.07414::section::5",
+          "text": "An index tensor is constructed to aggregate the character embeddings corresponding to each token, utilizing a token-tocharacter index dictionary. The number of tokens in each document is also recorded and used for various purposes, including graph generation and global pooling across the document. To accurately define tokens, several tokenization methods-such as Tiktoken, SpaCy tokenizer, and BERT tokenizer-are evaluated for suitability.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::5::para::1",
+          "section_id": "2507.07414::section::5",
+          "text": "Input data structure: Some information is prepared within the data loaders. Figure 1 illustrates several key components necessary for graph construction. In the batch data, no padding or truncation is applied. Instead, the processed data from documents are concatenated into a single, continuous sequence. In this structure, the character index of the first token in each document immediately follows the last character index of the preceding document, as illustrated in Figure 1. This batching strategy is referred to as the 'compact batch' approach in this paper. The remaining metadata components are described below.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::5::para::2",
+          "section_id": "2507.07414::section::5",
+          "text": "• Character indices are used to retrieve character-level embeddings within the model.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::5::para::3",
+          "section_id": "2507.07414::section::5",
+          "text": "• Character count per document is required to construct compact batches by ensuring sequential alignment across documents.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::5::para::4",
+          "section_id": "2507.07414::section::5",
+          "text": "• Token positions are utilized for positional encoding in compact batches.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::5::para::5",
+          "section_id": "2507.07414::section::5",
+          "text": "• Token count per document serves multiple purposes, including graph construction and compact batch creation.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2507.07414::section::5::para::6",
+          "section_id": "2507.07414::section::5",
+          "text": "• Token indices and token character counts are used to aggregate character-level embeddings into token-level embeddings.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2507.07414::section::5::para::7",
+          "section_id": "2507.07414::section::5",
+          "text": "• Cumulative token indices and compact batches are generated by the data loader using each document's token count, token indices, and character counts. This enables the construction of a compact character sequence while preserving all relevant metadata.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2507.07414::section::5::para::8",
+          "section_id": "2507.07414::section::5",
+          "text": "• Token polarity and subjectivity scores are auxiliary sentiment features injected into the model.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2507.07414::section::5::para::9",
+          "section_id": "2507.07414::section::5",
+          "text": "• Token embedding tensors are constructed in the dataset using token indices and a precomputed token-toembedding dictionary, and are passed to the model as input features.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2507.07414::section::5::para::10",
+          "section_id": "2507.07414::section::5",
+          "text": "• Token sub-sampling probability tensors are used to downweight frequently occurring tokens, such as stopwords or punctuation marks, during training.",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2507.07414::section::5::para::11",
+          "section_id": "2507.07414::section::5",
+          "text": "One major challenge in using compact batches is the uncontrolled variation in document lengths. In some cases, a batch may consist primarily of large documents, while in others, it may include only short texts. Figure 2 illustrates the distribution of document lengths in the Internet Movie Database (IMDB) dataset. As shown, a small number of very large documents are present, and their simultaneous inclusion in a batch may cause GPU memory overflow, becoming a critical bottleneck.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2507.07414::section::5::para::12",
+          "section_id": "2507.07414::section::5",
+          "text": "To address this issue, it is necessary to partition the dataset into batches with approximately equal total character counts while maintaining a consistent number of samples per batch. This requirement transforms the batching process into a k-way partitioning problem. To solve it, we adopt a modified version of the greedy number partitioning algorithm, as outlined in Algorithm 1. To ensure that the dataset size is divisible by the number of partitions k, additional dummy samples are introduced when necessary.",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2507.07414::section::5::para::13",
+          "section_id": "2507.07414::section::5",
+          "text": "Algorithm 1 Greedy k-way number partitioning with equal batch sizes",
+          "paragraph_index": 13
+        },
+        {
+          "id": "2507.07414::section::5::para::14",
+          "section_id": "2507.07414::section::5",
+          "text": "ranges ← GENERATEFIXEDSIZERANGES(0, n, k)",
+          "paragraph_index": 14
+        },
+        {
+          "id": "2507.07414::section::5::para::15",
+          "section_id": "2507.07414::section::5",
+          "text": "5: if shuf f le and epoch > 0 then 6: LA ← SHUFFLEINRANGES(LA, ranges) 7: L ← L[LA] 8: S[1 . . . k] ← array of k empty lists 9: sum[1 . . . k] ← array of k zeros 10: count[1 . . . k] ← array of k zeros 11:",
+          "paragraph_index": 15
+        },
+        {
+          "id": "2507.07414::section::5::para::16",
+          "section_id": "2507.07414::section::5",
+          "text": "for i = 1 to n do 12:",
+          "paragraph_index": 16
+        },
+        {
+          "id": "2507.07414::section::5::para::17",
+          "section_id": "2507.07414::section::5",
+          "text": "CI ← WHERE(count[j] < n/k)",
+          "paragraph_index": 17
+        },
+        {
+          "id": "2507.07414::section::5::para::18",
+          "section_id": "2507.07414::section::5",
+          "text": "13: j ← partition index with smallest sum in CI 14: S[j] ← S[j] ∪ {LA[i]} 15: sum[j] ← sum[j] + L[i] 16: count[j] ← count[j] + 1 17: Sort S respect to the sum in descending order 18: return S Figure 2: Document lengths in characters for the IMDB dataset Algorithm 2 Token frequencies for sub-sampling 1: Input: documents, vocabularies 2: Output: f t 3: f t ← mapping each token t in vocabularies to 1 4: temp ← empty dictionary 5: for each doc in documents do 6: tokens_list ← tokenize(doc) 7: new_tokens ← {lower(t) | t ∈ tokens_list} 8:",
+          "paragraph_index": 18
+        },
+        {
+          "id": "2507.07414::section::5::para::19",
+          "section_id": "2507.07414::section::5",
+          "text": "for each token t in new_tokens do 9:",
+          "paragraph_index": 19
+        },
+        {
+          "id": "2507.07414::section::5::para::20",
+          "section_id": "2507.07414::section::5",
+          "text": "if t / ∈ temp then 10:",
+          "paragraph_index": 20
+        },
+        {
+          "id": "2507.07414::section::5::para::21",
+          "section_id": "2507.07414::section::5",
+          "text": "if t l ∈ temp then 15:",
+          "paragraph_index": 21
+        },
+        {
+          "id": "2507.07414::section::5::para::22",
+          "section_id": "2507.07414::section::5",
+          "text": "Algorithm 3 Linear token sub-sampling probabilities To introduce randomness into the greedy partitioning process described in Algorithm 1, two additional steps were incorporated. Specifically, at the beginning of each epoch, the data are shuffled to generate a new random order. This ensures that while the batch sizes remain controlled and balanced, the composition of each batch varies across epochs, promoting better generalization during training.",
+          "paragraph_index": 22
+        },
+        {
+          "id": "2507.07414::section::5::para::23",
+          "section_id": "2507.07414::section::5",
+          "text": "A well-known challenge in text processing is managing term frequency and document-term frequency, which has been addressed in various works through techniques such as TF-IDF. In this work, for the purpose of real-time processing, a term-frequency dictionary was constructed using a large corpus of text and saved for subsequent use. In the data loader, this dictionary is employed to compute sub-sampling probabilities for each term. These probabilities are then incorporated into the model's input data to reduce the influence of high-frequency terms and improve learning efficiency.",
+          "paragraph_index": 23
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::6",
+      "paper_id": "2507.07414",
+      "heading": "Preprocessing Time and Space Complexity",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::6::para::0",
+          "section_id": "2507.07414::section::6",
+          "text": "• One-hot encoding for labels: Time complexity is O(n d • n c ), where n d is the number of documents and n c is the number of classes.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::6::para::1",
+          "section_id": "2507.07414::section::6",
+          "text": "• WordPiece tokenization: Time complexity is O(n) and space complexity is O(n + V ), where n is the length of a document and V is the vocabulary size.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::6::para::2",
+          "section_id": "2507.07414::section::6",
+          "text": "• Repeat-interleave functions: All have O(n) time complexity, where n is the length of the document.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::6::para::3",
+          "section_id": "2507.07414::section::6",
+          "text": "• Sub-sampling equation: Dictionary generation is a one-time operation with time and space complexity of O(n d • n + V ). Subsequent token lookups in each document are performed in O(n) time.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::6::para::4",
+          "section_id": "2507.07414::section::6",
+          "text": "• Greedy K-Way partitioning algorithm: Time complexity: O(n d log n d ) Space complexity: O(n d )",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::6::para::5",
+          "section_id": "2507.07414::section::6",
+          "text": "Therefore, with considering one-time sub-sampling dictionary setup the preprocessing has O(n d .(n + n c ) + V + n d .log(n d )) for time complexity and O(n d .(n + n c ) + V ) for space complexity. without considering one-time subsampling dictionary setup and assuming that n >> n c and n >> log(n d ), it has O(n d .n) for time complexity and O(n d .n + V ) for space complexity.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::7",
+      "paper_id": "2507.07414",
+      "heading": "Real-time Graph Construction",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::7::para::0",
+          "section_id": "2507.07414::section::7",
+          "text": "The real-time graph generator is integrated into the model; however, its primary role is to transform text-derived metadata into graph data. Accordingly, we describe it in this section.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::8",
+      "paper_id": "2507.07414",
+      "heading": "Important Graph Topological Features",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::8::para::0",
+          "section_id": "2507.07414::section::8",
+          "text": "Graph topological features are critical for Graph Neural Networks (GNNs), as they capture the structural properties of the input data and inform the model about relationships and dependencies among nodes. The following topological features were considered in constructing the graphs used in our model:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::8::para::1",
+          "section_id": "2507.07414::section::8",
+          "text": "Degree: The degree of a node represents the number of edges connected to it. Nodes with high degrees often play a central role in the graph and may exhibit distinct characteristics compared to low-degree nodes. With the aid of sub-sampling during graph generation, high-frequency tokens that appear less frequently across the entire corpus tend to gain higher degrees in the constructed graph.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::8::para::2",
+          "section_id": "2507.07414::section::8",
+          "text": "Centrality Measures: Centrality metrics such as betweenness centrality, closeness centrality, and eigenvector centrality quantify the importance of nodes based on their position within the graph structure.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::8::para::3",
+          "section_id": "2507.07414::section::8",
+          "text": "Clustering Coefficient: The clustering coefficient measures the extent to which nodes in a graph tend to form tightly knit groups, indicating the presence of local structures such as communities or cliques. As shown by Kaiser [2008], this metric is particularly informative in small-world networks and reveals the organizational patterns of the graph, including the influence of isolated nodes and leaves on classification and clustering. Saramäki et al. [2007] further extend this concept by providing a generalized method to compute clustering coefficients for graphs with weighted edges.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::9",
+      "paper_id": "2507.07414",
+      "heading": "Graph Diameter:",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::9::para::0",
+          "section_id": "2507.07414::section::9",
+          "text": "The graph diameter is defined as the longest shortest path between any pair of nodes. It offers insight into the overall connectivity and the efficiency of information propagation within the graph. As discussed by Loukas Graph Density: Graph density is the ratio of the number of existing edges to the total number of possible edges. It reflects the level of connectivity and highlights whether the graph is sparse or dense. In contrast to fully connected architectures such as dense transformers, low-density graphs are computationally more efficient, often requiring significantly fewer FLOPs.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::9::para::1",
+          "section_id": "2507.07414::section::9",
+          "text": "By incorporating these key graph topological features, GNNs can effectively capture the structural properties of the graph and learn meaningful representations for various graph-based tasks, including node classification, link prediction, and graph classification.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::10",
+      "paper_id": "2507.07414",
+      "heading": "Construction of the graph:",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::10::para::0",
+          "section_id": "2507.07414::section::10",
+          "text": "Real-world networks often exhibit high average clustering and low average distances between node pairs. Several studies have addressed these properties and proposed solutions for various tasks, such as Exphormer [Shirzad et al., 2023]. In this study, both speed and performance are critical considerations. Therefore, a fast graph construction method that preserves these graph characteristics was integrated into the model to enable real-time execution. An efficient approach was also proposed for constructing both lattice and random graphs over the text data.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::10::para::1",
+          "section_id": "2507.07414::section::10",
+          "text": "Algorithm 5 Graph generation process",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::10::para::2",
+          "section_id": "2507.07414::section::10",
+          "text": "5: Identify each token's document, its number in the document, and its number in the batch. 6: Generate a random number for each token concerning the corresponding token's document length |D n |. Then, select K 1 random nodes to create links like Figure 3 using the following formula: ) 7: Generate an array of K 2 regular nodes to create lattice links like Figure 4 using the following formula:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::10::para::3",
+          "section_id": "2507.07414::section::10",
+          "text": ") Algorithm 7 sub-sampling and clustering edges 1: Input: E, p ss,b , p keep 2: Output: E 3: p E = sum(p ss,b [E], axis = 0) 4: keep_count = int(p keep * edge_count head ) 5: top_k_indices ← topk(p E , keep_count, axis = 0) 6: E ← E[top_k_indices] 7: return E 1 P keep is the ratio of the edge counts to keep.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::10::para::4",
+          "section_id": "2507.07414::section::10",
+          "text": "replace the least important edges in the graph, followed by repeating the graph construction process. To evaluate the quality and effectiveness of the generated graphs, several sample features are presented below.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::10::para::5",
+          "section_id": "2507.07414::section::10",
+          "text": "• For a document with 360 tokens: Density = 0.0551, Diameter = 4, Average Clustering = 0.463, Average Shortest Path = 2.55",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2507.07414::section::10::para::6",
+          "section_id": "2507.07414::section::10",
+          "text": "• For a document with 1,018 tokens: Density = 0.0196, Diameter = 4, Average Clustering = 0.450, Average Shortest Path = 2.94",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2507.07414::section::10::para::7",
+          "section_id": "2507.07414::section::10",
+          "text": "• For a document with 1,709 tokens: Density = 0.0117, Diameter = 5, Average Clustering = 0.447, Average Shortest Path = 3.17",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2507.07414::section::10::para::8",
+          "section_id": "2507.07414::section::10",
+          "text": "The following graph construction settings were used to obtain the above results:",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2507.07414::section::10::para::9",
+          "section_id": "2507.07414::section::10",
+          "text": "• Lattice begin distance: 2",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2507.07414::section::10::para::10",
+          "section_id": "2507.07414::section::10",
+          "text": "• Lattice step: 2",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2507.07414::section::10::para::11",
+          "section_id": "2507.07414::section::10",
+          "text": "• Number of lattice edges per node: 8",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2507.07414::section::10::para::12",
+          "section_id": "2507.07414::section::10",
+          "text": "• Number of random edges per node: 4",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2507.07414::section::10::para::13",
+          "section_id": "2507.07414::section::10",
+          "text": "For longer texts with around 1,709 tokens (e.g., from the RT-2K movie reviews dataset), the resulting graph has a density of approximately 0.012. This observation, combined with other topological features mentioned earlier, demonstrates how the graph remains sparse even as text size increases, while still maintaining strong token connectivity and desirable structural properties for efficient learning. Figure 4: Regular node selection for lattice graph creation",
+          "paragraph_index": 13
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::11",
+      "paper_id": "2507.07414",
+      "heading": "Memory and Computational Complexity of the Real-Time Graph Generator",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::11::para::0",
+          "section_id": "2507.07414::section::11",
+          "text": "Since the number of edges per node is fixed, the total number of edges grows linearly with the number of tokens in the batch, denoted by n. Therefore, both the memory usage and computational complexity of the graph generation process are O(n).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::11::para::1",
+          "section_id": "2507.07414::section::11",
+          "text": "Top-k over edges using quicksort: The time complexity is O(n + k). Since k is fixed and k ≪ n, this simplifies to O(n).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::11::para::2",
+          "section_id": "2507.07414::section::11",
+          "text": "Repeat interleave: This operation has a time complexity of O(n).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::11::para::3",
+          "section_id": "2507.07414::section::11",
+          "text": "'calculate_graph' function: This function includes generating a matrix of size n, performing repeat interleave, computing cumulative sums, and applying element-wise arithmetic operations. Each of these operations has at most O(n) complexity.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::11::para::4",
+          "section_id": "2507.07414::section::11",
+          "text": "'fill_lattice_and_random_edges' function: This function involves concatenating edge head indices with complexity O(n • (k 1 + k 2 )), where k 1 is the number of lattice edges and k 2 is the number of random edges per node. Given that k 1 and k 2 are both fixed and satisfy k 1 ≪ n, k 2 ≪ n, the overall complexity simplifies to O(n).",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::11::para::5",
+          "section_id": "2507.07414::section::11",
+          "text": "Therefore, the overall time and space complexity of the graph generation process, relative to the input size n, is O(n). However, when accounting for all contributing variables, it can be more precisely described as O(n • (k 1 + k 2 )).",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::12",
+      "paper_id": "2507.07414",
+      "heading": "Model",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::12::para::0",
+          "section_id": "2507.07414::section::12",
+          "text": "In this work, we propose an efficient model that combines key features from CNNs, GNNs, and Transformers to effectively handle long textual inputs. The architecture is designed to balance performance and efficiency, incorporating multiple components such as character-level input processing, token-level representation, semantic and sentiment injection, real-time graph construction, and a hybrid of GNNs, or modified attention mechanisms, and CNNs. Figure 6 illustrates the overall architecture of the proposed model, with detailed descriptions of each component presented in the following sections.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::12::para::1",
+          "section_id": "2507.07414::section::12",
+          "text": "Inputs: As described in Section 2.1, the model input consists of more than just character indices. It takes token information, their associated embeddings, polarity and subjectivity scores to enrich the token representations. Additionally, the model requires graph metadata to support the real-time graph construction process. In summary, all input components necessary for preparing the compact batch and related computations are detailed in Section 2.1 and Equation 7.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::12::para::2",
+          "section_id": "2507.07414::section::12",
+          "text": "• For document i with n i character counts, the list of document characters is:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::12::para::3",
+          "section_id": "2507.07414::section::12",
+          "text": "• In the following formulas for document i with m i tokens, token t j i is the jth token in ith document and L is the number of characters in each tokens and f is the character-token index array:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::12::para::4",
+          "section_id": "2507.07414::section::12",
+          "text": "The first layer of the model generates character-level embeddings using the provided character indices.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::12::para::5",
+          "section_id": "2507.07414::section::12",
+          "text": "where h i is the embedding vector of sample x i , and Z is the embedding weight matrix. Character-Level Processing: Character-level input offers several advantages over token-level input, such as a smaller vocabulary size-which leads to a smaller embedding layer [Kim et al., 2016], improved domain adaptation across various languages and specialized contexts, and reduced preprocessing requirements [Xue et al., 2022, Clark et al., 2022]. However, character-level models also present challenges, including longer input sequences and a tendency to require deeper architectures [Clark et al., 2022]. These issues are addressed in this paper as well as in [Rastakhiz et al., 2024, Clark et al., 2022].",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2507.07414::section::12::para::6",
+          "section_id": "2507.07414::section::12",
+          "text": "Character-Level Processing: Character-level input offers several advantages over token-level input, such as a smaller vocabulary size, resulting in a more compact embedding layer [Kim et al., 2016], better domain adaptation across various languages or specialized use cases, and reduced preprocessing requirements [Xue et al., 2022, Clark et al., 2022]. However, it also presents challenges, including longer sequences and a tendency to require deeper models [Clark et al., 2022]. These challenges are addressed in this paper, as well as in [Rastakhiz et al., 2024, Clark et al., 2022].",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2507.07414::section::12::para::7",
+          "section_id": "2507.07414::section::12",
+          "text": "As illustrated in Figure 6, the model processes character-level input by applying character embeddings to two convolutional layers with Rectified Linear Unit (ReLU) activation functions, following the approach of [Zhang et al., 2015] and [Rastakhiz et al., 2024]. A kernel size of 5 is used in the convolutional layers to capture broader contextual information. Unlike traditional approaches, no padding or truncation is required for input documents; instead, the input is treated as a compact sequence of all documents in the batch. Following this, aggregation functions, are applied over the character embeddings of each token. These functions are slightly modified to improve efficiency and compatibility with the new architecture, enabling the model to better capture the morphological structure of each token.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::13",
+      "paper_id": "2507.07414",
+      "heading": "Character-to-Token Representation:",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::13::para::0",
+          "section_id": "2507.07414::section::13",
+          "text": "The following equation describes the computation of the convolution operation.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::13::para::1",
+          "section_id": "2507.07414::section::13",
+          "text": "here, H out i (C out ) represents the output for sample i in the batch, and C out represents the number of output channels. b Cout is the bias term associated with the output channels. Based on [O'Shea and Nash, 2015], the output size is computed through the following formula:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::13::para::2",
+          "section_id": "2507.07414::section::13",
+          "text": "where n in and n out are the input and output sequence lengths, respectively; k is the kernel size, p is the padding size, and s is the stride. Character feature aggregation into token-level representation is illustrated in Figure 10. Generate graph: This component of the model, due to its close relation to data processing, has been described in Section 2.2; however, it is also considered a part of the model.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::14",
+      "paper_id": "2507.07414",
+      "heading": "CNN-GNN Combination Layer:",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::14::para::0",
+          "section_id": "2507.07414::section::14",
+          "text": "This layer is a combination of a convolution layer and graph neural network; hence, it is referred to as CNN-GNN. The GNN and CNN layers operate in parallel, as illustrated in Figure 11, to harness the strengths of both models and compensate for each other's limitations. For the GNN layer, either an improved version of the Graph Attention Network (GAT) [Brody et al., 2022] or a modified version of a sparse attention layer is used. For the CNN layer, a one-dimensional convolution with kernel size three and padding one is employed.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::14::para::1",
+          "section_id": "2507.07414::section::14",
+          "text": "Both CNNs and GNNs offer significant advantages for text processing. Notably, CNNs are well-suited for learning local spatial or temporal patterns, while GNNs are effective at capturing long-range, irregular, and complex dependencies.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::14::para::2",
+          "section_id": "2507.07414::section::14",
+          "text": "Additionally, both architectures support fast and parallel processing on various hardware platforms. However, aspects such as bias and variance warrant further research and consideration. The outputs of both layers are combined and passed to subsequent layers, allowing the model to efficiently leverage both local and global information. The Graph Attention Network (GAT), introduced in [Veličković et al., 2018], uses masked self-attention layers to assign different weights to different nodes, eliminating the need for costly matrix operations. Additionally, it does not require prior knowledge of the graph structure. However, as noted in [Brody et al., 2022], the original GAT has certain limitations, most notably, it computes only static attention, which assigns neighbor weights based solely on node scores.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::14::para::3",
+          "section_id": "2507.07414::section::14",
+          "text": "To address this, a dynamic GAT approach was proposed, offering improved accuracy and greater robustness to noise. The equations for the GAT layer are provided below:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::14::para::4",
+          "section_id": "2507.07414::section::14",
+          "text": "where α i,j represents the dynamic attention coefficient used in the aggregation of neighboring nodes and in the self-update mechanism, allowing the model to assign greater weight to the most relevant neighbors.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::14::para::5",
+          "section_id": "2507.07414::section::14",
+          "text": "Here is the modified multi-head attention mechanism, which operates over a sparse graph of text using both edge and token weights. First, the inputs are prepared as follows:",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2507.07414::section::14::para::6",
+          "section_id": "2507.07414::section::14",
+          "text": "Reshaping and Permuting the Tensors:",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2507.07414::section::14::para::7",
+          "section_id": "2507.07414::section::14",
+          "text": "where N ′ = E/H and p represents the edge's node 0 or 1. Gather the features of the nodes connected by each edge:",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2507.07414::section::14::para::8",
+          "section_id": "2507.07414::section::14",
+          "text": "Query, Key, and Attention Scores:",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2507.07414::section::14::para::9",
+          "section_id": "2507.07414::section::14",
+          "text": "Value Update and Aggregation:",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2507.07414::section::14::para::10",
+          "section_id": "2507.07414::section::14",
+          "text": "Update graph: After the first CNN-GNN layer, the attention weights from each layer are used to retain only the top few links for each node. The remaining edges are replaced with new ones using the graph generation approach described in Section 2.2. Figure 12 also illustrates this process. Positional encoding: Positional encoding was first introduced in [Gehring et al., 2017] to provide a sense of order to token representations in convolutional networks. Since then, it has become a widely used technique in sequenceto-sequence models, particularly in attention mechanisms such as transformers. Unlike recurrent neural networks, transformers lack inherent sequential information due to their self-attention mechanism. Positional encoding addresses this limitation by injecting positional information directly into the input embeddings.",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2507.07414::section::14::para::11",
+          "section_id": "2507.07414::section::14",
+          "text": "Typically, positional encoding involves creating fixed-length vectors that represent the position of tokens within the input sequence. By incorporating positional encoding, models can more effectively capture the order and relative positions of tokens, thereby enhancing the model's ability to understand sequential relationships between elements. The following formula is used here to create the positional encoding vectors:",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2507.07414::section::14::para::12",
+          "section_id": "2507.07414::section::14",
+          "text": "Token Embedding Injection: The preparation of token embeddings is described in Section 2.1. After the second graph construction layer, the model concatenates the generated representations with the corresponding token embeddings.",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2507.07414::section::14::para::13",
+          "section_id": "2507.07414::section::14",
+          "text": "Global Pooling: This aggregates the token embeddings of each document in the batch and uses the ELU activation function, which helps address the vanishing gradient problem and produces a mean output closer to zero-similar to batch normalization, but with faster performance [Clevert et al., 2016].",
+          "paragraph_index": 13
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::15",
+      "paper_id": "2507.07414",
+      "heading": "MLP:",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::15::para::0",
+          "section_id": "2507.07414::section::15",
+          "text": "The following are the computation steps for the classification layers:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::15::para::1",
+          "section_id": "2507.07414::section::15",
+          "text": "In the above equations, h represents the input to the MLP. The term hΘ T 1 + b 1 denotes the linear transformation applied to h, where Θ 1 represents the weights and b 1 the biases.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::15::para::2",
+          "section_id": "2507.07414::section::15",
+          "text": "In the second equation, the output of first equation g is further processed by another linear transformation. The result of this transformation is the final output of the MLP.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::16",
+      "paper_id": "2507.07414",
+      "heading": "Memory and Computational Complexity of the Model",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::16::para::0",
+          "section_id": "2507.07414::section::16",
+          "text": "The calculation of memory and computational complexity is as follows:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::16::para::1",
+          "section_id": "2507.07414::section::16",
+          "text": "• One-dimensional convolution layers have complexity O(nkd 2 ), where n is the input length, k is the kernel size, and d is both the number of input features and filters [Vaswani et al., 2017]. Kiranyaz et al. [2021] mention it as O(nk); assuming fixed kernel size, embedding size, and number of filters, we can consider it O(n).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::16::para::2",
+          "section_id": "2507.07414::section::16",
+          "text": "• As described in Section 2.2.3, the graph generator layers have O(n) time and space complexity relative to the input size. Relative to all variables, the complexity is O(n(k 1 + k 2 )), where k 1 and k 2 are the number of lattice and random edges, respectively.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::16::para::3",
+          "section_id": "2507.07414::section::16",
+          "text": "• For GATv2 layers, according to [Brody et al., 2022], the complexity is O(|ν|dd ′ + |ϵ|d ′ ), where |ν| = n is the number of input tokens and |ϵ| = kn, with k being a fixed number of neighbors. d is the size of input features, and d ′ is the size of output features. Assuming fixed d and d ′ , the complexity simplifies to O(n).",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::16::para::4",
+          "section_id": "2507.07414::section::16",
+          "text": "• The torch scatter operation involves a memory mapping and a reduce function (mean and max in our case), both having O(n) complexity.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::16::para::5",
+          "section_id": "2507.07414::section::16",
+          "text": "• Linear layers have O(bd 2 ) complexity, where b is the batch size and d is the embedding size. Given that b ≪ n and d ≪ n, this complexity can be considered negligible relative to n.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2507.07414::section::16::para::6",
+          "section_id": "2507.07414::section::16",
+          "text": "• All activation functions used in the model have O(n) complexity.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2507.07414::section::16::para::7",
+          "section_id": "2507.07414::section::16",
+          "text": "• The embedding layer and embedding injection steps also have O(n) complexity.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2507.07414::section::16::para::8",
+          "section_id": "2507.07414::section::16",
+          "text": "Therefore, the model has overall O(n) time and space complexity relative to the input length n. However, beyond input length, some layers exhibit higher complexity relative to embedding size, number of features, number of filters d, and batch size b. Taking all variables into account, the overall complexity is:",
+          "paragraph_index": 8
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::17",
+      "paper_id": "2507.07414",
+      "heading": "Datasets",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::17::para::0",
+          "section_id": "2507.07414::section::17",
+          "text": "In this project, we aimed to use standard datasets with various features for the tasks of topic classification and sentiment analysis. The datasets listed in Table 1 were used for the target tasks:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::17::para::1",
+          "section_id": "2507.07414::section::17",
+          "text": "Table 1: Information on the datasets used in this paper",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::18",
+      "paper_id": "2507.07414",
+      "heading": "Dataset Samples",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::18::para::0",
+          "section_id": "2507.07414::section::18",
+          "text": "Split Classes Classes Distribution IMDB [Maas et al., 2011] 50,000 0.5 2 25,000 / 25000 Movie Review (RT-2K) [Pang and Lee, 2004] 2,000 0.1 (10-fold-CV) 2 1,000 / 1000 AG-News [Gulli, 2004] 127,600 0.06 4 31,900 / 31,900 / 31,900 / 31,900 Yelp [Zhang et al., 2015] 35,626 0.1 12 Descibed in the paper Amazon-Review [McAuley andLeskovec, 2013, Zhang et al., 2015] 400,000 0.1 12 Descibed in the paper",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::19",
+      "paper_id": "2507.07414",
+      "heading": "Sentiment Analysis:",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::19::para::0",
+          "section_id": "2507.07414::section::19",
+          "text": "IMDB, from [Maas et al., 2011], contains 50,000 samples, with 25,000 for training and 25,000 for validation. This dataset is balanced between two classes of negative and positive samples.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::19::para::1",
+          "section_id": "2507.07414::section::19",
+          "text": "MR (Movie Reviews) polarity, from [Pang and Lee, 2004], contains 2,000 balanced polarity reviews from 312 authors. Like in the paper [Ionescu and Butnaru, 2019], 10-fold cross-validation is also used to evaluate this dataset.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::19::para::2",
+          "section_id": "2507.07414::section::19",
+          "text": "A subset of Amazon-Review Polarity, from [McAuley andLeskovec, 2013, Zhang et al., 2015], contains 4,000,000 samples, with 3,600,000 train samples and 400,000 test samples. Here, only the first 10% of the data, including 360,000 train and 40,000 test samples, were used. The dataset contains balanced negative and positive samples.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::19::para::3",
+          "section_id": "2507.07414::section::19",
+          "text": "Yelp Polarity, from [Zhang et al., 2015], contains 598,000 samples, with 560,000 train samples and 38,000 test samples. This dataset is also balanced with negative and positive sample classes. The proposed model was trained five times on a 40% random subset of this dataset.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::20",
+      "paper_id": "2507.07414",
+      "heading": "Topic Classification:",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::20::para::0",
+          "section_id": "2507.07414::section::20",
+          "text": "AG-News subset, from [Zhang et al., 2015], is a subset of the corpus of more than 1 million news articles from [Gulli, 2004]. The dataset contains four categories, including 'World', 'Sports', 'Business', and 'Sci/Tech'. In this dataset, each class has 30,000 training samples and 19,000 test samples.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::21",
+      "paper_id": "2507.07414",
+      "heading": "Ablation Study",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::21::para::0",
+          "section_id": "2507.07414::section::21",
+          "text": "This section evaluates the model's performance across various configurations on standard datasets, such as the Rotten-Tomato Movie-Reviews (RT-2K) dataset from [Pang and Lee, 2004]. Key aspects analyzed include normalization methods, convolution types, embedding injection techniques, semantic injection strategies, positional encoding schemes, and the handling of stop words and punctuation.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::22",
+      "paper_id": "2507.07414",
+      "heading": "Normalization Method",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::22::para::0",
+          "section_id": "2507.07414::section::22",
+          "text": "Normalization plays a crucial role in standardizing features, improving learning speed, preventing gradient explosion or vanishing, and enhancing the generalizability of the model [Huang et al., 2023]. In the current architecture, batch normalization is difficult to apply due to the varying lengths of input sequences. As a result, layer normalization is a more suitable alternative. However, when samples are vertically stacked, a customized implementation of layer normalization is required. Another viable approach is token-level normalization, which aligns more naturally with the model's data structure and offers faster computation. Experimental results also indicate that this method yields better overall performance.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::22::para::1",
+          "section_id": "2507.07414::section::22",
+          "text": "Another normalization approach involves normalizing each feature across all tokens, which is also computationally efficient. Several normalization techniques were evaluated, and Table 2 presents the average of the best results obtained for each method. For each normalization type, the model was trained 30 times on the Rotten-Tomato Movie-Reviews (RT-2K) dataset from [Pang and Lee, 2004]. The best results from each configuration were averaged and summarized in Table 2. As shown, normalizing each feature across all tokens achieves the best performance across most evaluation metrics, except for the loss, where it performs the worst. This method applies the following formula to each feature across all tokens after the GNN layer:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::22::para::2",
+          "section_id": "2507.07414::section::22",
+          "text": "where x denotes the feature column, µ represents the mean of the feature column, σ is the standard deviation, and γ and β are learnable parameters representing the scale (variance) and shift (bias) for the feature, respectively.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::23",
+      "paper_id": "2507.07414",
+      "heading": "Depth-wise Separable Convolutions",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::23::para::0",
+          "section_id": "2507.07414::section::23",
+          "text": "As noted in several studies, depth-wise separable convolutions offer high computational efficiency with minimal performance degradation. We conducted a comparison between depth-wise separable convolutions and standard 1D convolutions. The results are summarized in Table 3. As shown, depth-wise separable convolutions require significantly fewer FLOPs, often by an order of magnitude, compared to standard convolutions. However, the drop in performance was substantial, leading us to retain the standard 1D convolution in subsequent experiments.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::24",
+      "paper_id": "2507.07414",
+      "heading": "Tokenization and Inject embeddings",
+      "section_type": null,
+      "order": 24,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::24::para::0",
+          "section_id": "2507.07414::section::24",
+          "text": "In this study, embeddings extracted from SpaCy, BERT, and GPT are compressed using UMAP and subsequently evaluated. These dimensionality-reduced embeddings are injected into the model to conduct performance comparisons and identify the most effective configuration for the proposed architecture.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::24::para::1",
+          "section_id": "2507.07414::section::24",
+          "text": "Figure 13 presents the t-SNE (t-distributed Stochastic Neighbor Embedding) visualizations of the original embeddings as well as the 64-dimensional and 128-dimensional reduced embeddings from the three model types (SpaCy, BERT, and GPT). As shown, all models exhibit relatively well-structured distributions in their original embedding spaces. Notably, GPT shows the most distinct separation of categories, with semantically related concepts tightly clustered within each class. DeBERTa demonstrates slightly more overlap between categories and concepts, though the structure remains largely preserved.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::24::para::2",
+          "section_id": "2507.07414::section::24",
+          "text": "For the dimensionality-reduced embeddings, all three models show some degree of distortion and category overlap due to information loss during compression. This effect is most visible in GPT, likely due to its higher initial embedding dimensionality. After reduction, SpaCy embeddings demonstrate the best category separation with the least overlap. DeBERTa shows marginally more overlap than SpaCy but still maintains a reasonably clear distinction between classes.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::25",
+      "paper_id": "2507.07414",
+      "heading": "Token Sematic Embedding:",
+      "section_type": null,
+      "order": 25,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::25::para::0",
+          "section_id": "2507.07414::section::25",
+          "text": "Table 4 presents the results of various experiments conducted on the RT-2K dataset using different embedding injection strategies. All forms of embedding injection improve performance over the base model without injection. Among them, DeBERTa achieves the highest accuracy, while SpaCy offers the fastest inference speed. The differences in computational efficiency can be attributed to the additional overhead introduced by embedding computation, as well as variations in tokenization strategies. Specifically, the SpaCy tokenizer generates the fewest tokens, whereas the Tiktoken tokenizer produces the most. The superior performance of DeBERTa may be attributed to its tokenizer design and the nature of the data it was pre-trained on.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::25::para::1",
+          "section_id": "2507.07414::section::25",
+          "text": "Token Sentiment Embedding: This section examines whether incorporating the sentiment polarity of individual tokens can enhance the model's understanding of the overall document sentiment. However, since the sentiment of a token can be influenced by the broader document context, it is crucial to determine the optimal point of injection so that the model can effectively consider both local token-level and global document-level sentiment information. To this end, three distinct injection positions-along with their combinations-were evaluated. Each configuration was tested five times, and the average results are reported in Table 5. Having identified the optimal position for injecting sentiment information, we next compare three types of sentiment processing layers, two MLP-based architectures and one convolutional layers, to determine which yields the best performance. The architectures are illustrated in Figures 14, 15, and 16. As shown in Table 6, the convolutional approach achieves the highest accuracy, albeit with a moderate increase in computational cost (FLOPs). Token-level sentiment is often influenced by neighboring tokens, such as contextual cues, phrases, or modifying words. Convolutional layers are particularly well-suited to capturing such local patterns, which likely contributes to their superior performance in this task.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::26",
+      "paper_id": "2507.07414",
+      "heading": "Stop-Words and Punctuations",
+      "section_type": null,
+      "order": 26,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::26::para::0",
+          "section_id": "2507.07414::section::26",
+          "text": "A common challenge in text analysis is the presence of high-frequency tokens with low informational value, such as stop words and punctuation. One effective approach to addressing this issue is adapting the subsampling technique within the graph generation process, inspired by its use in reducing the impact of frequent words in language modeling [Mikolov et al., 2013]. This adaptation allows for the mitigation of both stop words and punctuation at the graph construction stage.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2507.07414::section::26::para::1",
+          "section_id": "2507.07414::section::26",
+          "text": "The subsampling method probabilistically reduces the occurrence of frequent tokens by removing them from the training data with a certain probability, while simultaneously assigning higher weights to the remaining, more informative edges. This results in a more balanced representation that emphasizes semantically meaningful tokens, thereby enhancing both training efficiency and model performance.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2507.07414::section::26::para::2",
+          "section_id": "2507.07414::section::26",
+          "text": "The proposed subsampling strategy is detailed in Algorithms 2, 3, 4, and 7. Figure 17 illustrates the attribution of after first token-level convolution layer in the model for two modes of with and without token frequencies sub-sampling for two documents. Documnet 1 shows that without subsampling it gave the wrong answer while with subsampling it gave correct one, and Document 2 shows the opposit. The attributions show the two models almost give attribution to the same tokens, while the model with subsampling has a little more tendency toward less frequent tokens. While expected that using subsampling improve the model, Table 7 shows the opposit. The model without subsampling has slightly better result. Some reason that we examine in future works include: (1) BERT embedding can have some information about token imporance, punctuations, and stop words. (2) The generated graph has fixed lower bound number of edges per token, so the tokens with more frequency in document has more edges equivalent to term frequency. (3) The GNN uses attention mechanism, that can learn the weights for token embeddings, which can result in lower weight for less important tokens. (4) The integration of method into the model might need more in depth research and tests.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2507.07414::section::26::para::3",
+          "section_id": "2507.07414::section::26",
+          "text": "Figure 17 visualizes the token attributions after the first token-level convolution layer for two versions of the model, one with and one without token frequency subsampling, on two example documents. Document 1 demonstrates that the model without subsampling produces an incorrect prediction, whereas the version with subsampling yields the correct result. In contrast, Document 2 shows the opposite behavior.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2507.07414::section::26::para::4",
+          "section_id": "2507.07414::section::26",
+          "text": "The attribution maps indicate that both models largely attend to the same tokens; however, the model with subsampling exhibits a slightly stronger tendency to focus on less frequent tokens. While we expected subsampling to improve overall performance, the results in Table 7 show the opposite: the model without subsampling achieves marginally better accuracy.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2507.07414::section::26::para::5",
+          "section_id": "2507.07414::section::26",
+          "text": "Several potential explanations are considered for this outcome, which we plan to investigate in future work:",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2507.07414::section::26::para::6",
+          "section_id": "2507.07414::section::26",
+          "text": "1. BERT embeddings may already encode information related to token importance, punctuation, and stop words, potentially reducing the added value of explicit subsampling. 2. The graph generation process enforces a fixed lower bound on the number of edges per token, meaning that more frequent tokens naturally accumulate more connections, a behavior analogous to term frequency weighting. 3. The GNN employs an attention mechanism that learns dynamic weights for token embeddings, potentially down-weighting unimportant tokens automatically.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2507.07414::section::26::para::7",
+          "section_id": "2507.07414::section::26",
+          "text": "slightly exceeds DistilBERT (95.61% vs. 95.89% on Yelp, 94.37% vs. 94.28% on Amazon-Reviews), demonstrating strong scalability.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2507.07414::section::26::para::8",
+          "section_id": "2507.07414::section::26",
+          "text": "Discussion and Future Work: The results confirm that lightweight architectures can provide an excellent computeaccuracy trade-off for many text classification tasks, particularly when pretrained models are too expensive for edge or low-power deployment. The proposed model is highly flexible and offers multiple paths for further enhancement. For example, its architecture could be adapted to incorporate natural language principles, such as graph generation guided by linguistic rules. Potential future improvements include:",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2507.07414::section::26::para::9",
+          "section_id": "2507.07414::section::26",
+          "text": "• Incorporating pretraining or transfer learning: to close the remaining performance gap on smaller datasets such as RT-2K.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2507.07414::section::26::para::10",
+          "section_id": "2507.07414::section::26",
+          "text": "• Applying knowledge distillation: leveraging a larger teacher model to improve performance without increasing inference costs.",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2507.07414::section::26::para::11",
+          "section_id": "2507.07414::section::26",
+          "text": "• Exploring alternative mechanisms to regulate high-frequency tokens: for instance, integrating token frequency constraints inspired by Zipf's law.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2507.07414::section::26::para::12",
+          "section_id": "2507.07414::section::26",
+          "text": "• Investigating novel local information processing techniques: exploring methods beyond traditional CNNs.",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2507.07414::section::26::para::13",
+          "section_id": "2507.07414::section::26",
+          "text": "• Analyzing the impact of architectural choices: studying how different layer types affect the bias-variance trade-off.",
+          "paragraph_index": 13
+        },
+        {
+          "id": "2507.07414::section::26::para::14",
+          "section_id": "2507.07414::section::26",
+          "text": "• Optimizing the architecture and preprocessing pipeline: reducing unnecessary complexity and dependencies on metadata.",
+          "paragraph_index": 14
+        },
+        {
+          "id": "2507.07414::section::26::para::15",
+          "section_id": "2507.07414::section::26",
+          "text": "• Extending the model to new tasks: such as named entity recognition and text embedding generation for information retrieval systems.",
+          "paragraph_index": 15
+        },
+        {
+          "id": "2507.07414::section::26::para::16",
+          "section_id": "2507.07414::section::26",
+          "text": "• Introducing dynamic token representations: replacing fixed tokens with dynamic tokens through new layers and exploring alternative types of knowledge injection.",
+          "paragraph_index": 16
+        },
+        {
+          "id": "2507.07414::section::26::para::17",
+          "section_id": "2507.07414::section::26",
+          "text": "With these enhancements, the proposed approach has the potential to become an even more versatile and efficient solution across a wide range of natural language processing applications.",
+          "paragraph_index": 17
+        }
+      ]
+    },
+    {
+      "id": "2507.07414::section::27",
+      "paper_id": "2507.07414",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 27,
+      "paragraphs": [
+        {
+          "id": "2507.07414::section::27::para::0",
+          "section_id": "2507.07414::section::27",
+          "text": "This study introduced an efficient deep learning model designed to deliver high performance across texts of varying lengths. Ablation studies were conducted to assess the contribution of individual components, leading to the design of the final architecture. The proposed model was then rigorously evaluated on multiple text classification tasks and benchmarked against state-of-the-art models across diverse datasets. Experimental results demonstrate that the model achieves competitive accuracy while significantly reducing computational and memory requirements, making it a strong candidate for deployment in resource-constrained environments.",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2507.07414::figure::0",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 1 :",
+      "caption": "Figure 1: Token metadata required for graph construction",
+      "page_number": 4,
+      "bounding_box": {
+        "page": 4,
+        "x": 72.0,
+        "y": 548.13,
+        "width": 468.0,
+        "height": 161.91
+      },
+      "grobid_ref_id": "fig_0",
+      "image_path": "extracted_images\\2507.07414_figure_0.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::1",
+      "paper_id": "2507.07414",
+      "figure_number": "1:",
+      "caption": "Input: f t,b 2: Output: p ss,b 3: f norm,t,b = f t,b base_corpus_token_count 4: p ss,b = min 1, threshold f norm,t,b 1 f t,b : Frequencies of batch tokens. 2 p ss,b : sub-sampling probabilities of batch tokens. Algorithm 4 Experimental sigmoid sub-sampling probabilities 1: Input: f t,b 2: Output: p ss,b 3: f norm,t,b = f t,b base_corpus_token_count 4: p ss,b = 1 -0.95.σ(0.05.(( f t,b threshold ) -90)) 1 f t,b : Frequencies of batch tokens. 2 p ss,b : sub-sampling probabilities of batch tokens.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_1",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::2",
+      "paper_id": "2507.07414",
+      "figure_number": null,
+      "caption": "[2019], the ability of GNNs to capture global information is influenced by the graph's diameter, as message passing in GNNs propagates information one hop per layer. Although deeper GNNs can theoretically capture long-range dependencies, in our proposed model, additional components such as convolutional layers also play a significant role in facilitating global information flow.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_2",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::3",
+      "paper_id": "2507.07414",
+      "figure_number": "1:",
+      "caption": "Input: X t , metadata 2: Output: graph_data 3: R b , L b , p b ← calculate_graph(X t , metadata) 4: E ← create_edges(R b , L b , p b ) 5: E ← subsample_edges(E, p ss,b ) 6: data ← Data(x = X t , edge_index = E) 7: Return: data 1 p b : token position over the batch 2 L b : lattice links over the batch 3 R b : random links over the batch 3 E: Edge indices To construct the graph, each token is treated as a node. Figures 3, 4, and 5 illustrate the final arrangement of random and lattice edges used to establish the graph structure. The random edges are regenerated in each iteration to prevent rapid overfitting and enhance the model's generalizability. The model's first Graph Attention Network (GAT) or attention layer operates on the constructed graph, producing both the output embeddings and the corresponding attention weights. These attention weights are then used to identify and Algorithm 6 Graph metadata calculation 1: Input: X t , metadata 2: Output: R b , L b , p b 3: Calculate the number of tokens in the batch |B t |, in each document of the batch |D n |, the lower bound l n , and upper bound u n of each document set D n . 4: The tokens' positions in the batch p b and their positions in their documents p n , all starting from 0:",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_3",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::4",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 3 :",
+      "caption": "Figure 3: Random node selection for graph creation",
+      "page_number": 10,
+      "bounding_box": {
+        "page": 10,
+        "x": 72.0,
+        "y": 72.0,
+        "width": 468.0,
+        "height": 139.52
+      },
+      "grobid_ref_id": "fig_4",
+      "image_path": "extracted_images\\2507.07414_figure_4.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::5",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 5 :",
+      "caption": "Figure 5: Edge creation by pairing source and target nodes",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_5",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::6",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 6 :",
+      "caption": "Figure 6: Diagram of the proposed model architecture. The model consists of several modules, some of which are illustrated in Figure 7 for the GNN-CNN update.",
+      "page_number": 11,
+      "bounding_box": {
+        "page": 11,
+        "x": 72.0,
+        "y": 72.0,
+        "width": 468.0,
+        "height": 171.62
+      },
+      "grobid_ref_id": "fig_6",
+      "image_path": "extracted_images\\2507.07414_figure_6.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::7",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 7 :",
+      "caption": "Figure7: This module includes graph generation, sentiment incorporation (Figures 14, 15, 16), multi-head clustering (Figure9), and graph processing using the CNN-GNN layer (Figure11).",
+      "page_number": 11,
+      "bounding_box": {
+        "page": 11,
+        "x": 72.0,
+        "y": 275.37,
+        "width": 467.99,
+        "height": 80.0
+      },
+      "grobid_ref_id": "fig_7",
+      "image_path": "extracted_images\\2507.07414_figure_7.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::8",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 8 :",
+      "caption": "Figure 8: Sample graph generated for a batch containing three texts, each with approximately 50 characters and about 12 tokens.",
+      "page_number": 12,
+      "bounding_box": {
+        "page": 12,
+        "x": 72.0,
+        "y": 72.0,
+        "width": 468.01,
+        "height": 355.36
+      },
+      "grobid_ref_id": "fig_8",
+      "image_path": "extracted_images\\2507.07414_figure_8.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::9",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 9 :",
+      "caption": "Figure9: A clustering layer for multi-layer graph generation. This layer learns related concepts from previous layers and clusters nodes along with their metadata accordingly.",
+      "page_number": 12,
+      "bounding_box": {
+        "page": 12,
+        "x": 72.0,
+        "y": 454.05,
+        "width": 467.99,
+        "height": 96.79
+      },
+      "grobid_ref_id": "fig_9",
+      "image_path": "extracted_images\\2507.07414_figure_9.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::10",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 10 :",
+      "caption": "Figure10: The aggregation of character-level features into token-level features[Rastakhiz et al., 2024]",
+      "page_number": 13,
+      "bounding_box": {
+        "page": 13,
+        "x": 72.0,
+        "y": 319.16,
+        "width": 468.03,
+        "height": 249.61
+      },
+      "grobid_ref_id": "fig_10",
+      "image_path": "extracted_images\\2507.07414_figure_10.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::11",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 11 :",
+      "caption": "Figure 11: The CNN-GNN layer consists of a GAT/Attention layer and a 1D convolutional layer.",
+      "page_number": 14,
+      "bounding_box": {
+        "page": 14,
+        "x": 72.0,
+        "y": 118.1,
+        "width": 468.0,
+        "height": 144.0
+      },
+      "grobid_ref_id": "fig_11",
+      "image_path": "extracted_images\\2507.07414_figure_11.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::12",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 12 :",
+      "caption": "Figure 12: Retaining the k most important edges of the graph",
+      "page_number": 15,
+      "bounding_box": {
+        "page": 15,
+        "x": 189.0,
+        "y": 364.51,
+        "width": 234.0,
+        "height": 345.52
+      },
+      "grobid_ref_id": "fig_12",
+      "image_path": "extracted_images\\2507.07414_figure_12.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::13",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 13 :",
+      "caption": "Figure 13: Comparison of original and size-reduced embeddings from three state-of-the-art sources using t-SNE visualization",
+      "page_number": 19,
+      "bounding_box": {
+        "page": 19,
+        "x": 72.0,
+        "y": 72.0,
+        "width": 468.0,
+        "height": 324.27
+      },
+      "grobid_ref_id": "fig_13",
+      "image_path": "extracted_images\\2507.07414_figure_13.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::14",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 14 :",
+      "caption": "Figure14: Architecture of the sentiment type 1 layer. In this layer, the two values for polarity and subjectivity are first concatenated with the token hidden embedding, then processed through linear layers.",
+      "page_number": 19,
+      "bounding_box": {
+        "page": 19,
+        "x": 72.0,
+        "y": 522.0,
+        "width": 468.0,
+        "height": 104.87
+      },
+      "grobid_ref_id": "fig_14",
+      "image_path": "extracted_images\\2507.07414_figure_14.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::15",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 15 :",
+      "caption": "Figure15: Architecture of the sentiment type 2 layer. In this layer, the polarity and subjectivity values are first processed by a linear layer for feature expansion, concatenated with the token hidden embedding, and then processed through another linear layer.",
+      "page_number": 20,
+      "bounding_box": {
+        "page": 20,
+        "x": 72.0,
+        "y": 247.52,
+        "width": 468.0,
+        "height": 104.07
+      },
+      "grobid_ref_id": "fig_15",
+      "image_path": "extracted_images\\2507.07414_figure_15.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::16",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 16 :",
+      "caption": "Figure16: Architecture of the sentiment type 3 layer. This layer is similar to sentiment type 2 in Figure15, except that it uses convolutional layers instead of linear layers.",
+      "page_number": 20,
+      "bounding_box": {
+        "page": 20,
+        "x": 72.0,
+        "y": 386.25,
+        "width": 468.0,
+        "height": 104.07
+      },
+      "grobid_ref_id": "fig_16",
+      "image_path": "extracted_images\\2507.07414_figure_16.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::figure::17",
+      "paper_id": "2507.07414",
+      "figure_number": "Figure 17 :",
+      "caption": "Figure 17: Comparison of layer attributions before and after implementing subsampling in graph generation",
+      "page_number": 21,
+      "bounding_box": {
+        "page": 21,
+        "x": 72.0,
+        "y": 160.09,
+        "width": 467.99,
+        "height": 204.32
+      },
+      "grobid_ref_id": "fig_17",
+      "image_path": "extracted_images\\2507.07414_figure_17.png",
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2507.07414::table::0",
+      "paper_id": "2507.07414",
+      "table_number": "Table 2 :",
+      "caption": "Different normalizations for the new architecture",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "",
+          "Model",
+          "Loss",
+          "Acc. Prec. Recall F1-Score FLOPs(M)"
+        ],
+        [
+          "1",
+          "Without normalization",
+          "0.7776 67.26 67.64 66.94",
+          "67.28",
+          "20.723"
+        ],
+        [
+          "2",
+          "Cutom Layer Normalization",
+          "0.8858 63.52 63.99 63.45",
+          "63.72",
+          "20.723"
+        ],
+        [
+          "3",
+          "Normalization on each feature of all tokens 0.9398 82.61 82.95 82.60",
+          "82.78",
+          "20.723"
+        ],
+        [
+          "4",
+          "Normalization at token level",
+          "0.7611 69.85 70.21 69.81",
+          "70.01",
+          "20.723"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::table::1",
+      "paper_id": "2507.07414",
+      "table_number": "Table 3 :",
+      "caption": "Different convolution layers for the new architecture",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "1",
+          "Model",
+          "Loss",
+          "Acc. Prec. Recall F1-Score FLOPs(M) Params(K)"
+        ],
+        [
+          "2",
+          "Basic Form of 1D Convolution 0.9619 81.96 82.31 81.96",
+          "82.13",
+          "20.723",
+          "409"
+        ],
+        [
+          "3",
+          "Depth-wise convolution 1",
+          "0.7153 76.38 77.43 76.17",
+          "71.53",
+          "6.401",
+          "344"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::table::2",
+      "paper_id": "2507.07414",
+      "table_number": "Table 4 :",
+      "caption": "Token embeddings from different sources",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_2",
+      "raw_data": [
+        [
+          "1",
+          "Model",
+          "Loss",
+          "Acc. Prec. Recall F1-Score FLOPs(M) Params(K)"
+        ],
+        [
+          "2",
+          "Without semantic embedding",
+          "0.9619 81.96 82.31 81.96",
+          "82.13",
+          "20.723",
+          "409"
+        ],
+        [
+          "3",
+          "Inject SpaCy embeddings",
+          "0.9319 82.30 82.59 82.31",
+          "82.44",
+          "24.523",
+          "466"
+        ],
+        [
+          "4",
+          "Inject debertav3 64-d embeddings 0.7292 84.04 84.31 84.02",
+          "84.16",
+          "27.858",
+          "466"
+        ],
+        [
+          "5",
+          "Inject gpt-large embeddings",
+          "0.9180 82.52 82.96 82.46",
+          "82.71",
+          "27.941",
+          "553"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::table::3",
+      "paper_id": "2507.07414",
+      "table_number": "Table 5 :",
+      "caption": "Testing different positions and methods for injecting token polarity and subjectivity information. Pi denotes position i, etc. P1 adds two additional channels to the third convolution layer, while P2 and P3 introduce new MLP or Convolution layers.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_3",
+      "raw_data": [
+        [
+          "1",
+          "Model",
+          "Loss",
+          "Acc. Prec. Recall F1-Score FLOPs(M)"
+        ],
+        [
+          "2",
+          "No Injection",
+          "0.8217 83.30 83.61 83.18",
+          "83.39",
+          "27858"
+        ],
+        [
+          "3",
+          "P 1",
+          "0.8241 84.36 84.86 84.21",
+          "84.53",
+          "27890"
+        ],
+        [
+          "4",
+          "P 2",
+          "0.8176 85.15 85.50 85.15",
+          "85.32",
+          "28541"
+        ],
+        [
+          "5",
+          "P 3",
+          "0.8831 82.38 82.74 82.39",
+          "82.56",
+          "28541"
+        ],
+        [
+          "6",
+          "P 1 and P 2",
+          "0.8265 85.00 85.18 84.93",
+          "85.06",
+          "28573"
+        ],
+        [
+          "7",
+          "P 1 and P 3",
+          "0.8355 84.18 84.61 84.16",
+          "84.38",
+          "28573"
+        ],
+        [
+          "8",
+          "P 2 and P 3",
+          "0.7696 85.78 86.06 85.78",
+          "85.92",
+          "29224"
+        ],
+        [
+          "9",
+          "P 1 , P 2 and P 3 0.6902 85.53 85.74 85.47",
+          "85.61",
+          "29256"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2507.07414::table::4",
+      "paper_id": "2507.07414",
+      "table_number": "Table 6 :",
+      "caption": "Testing two custom sentiment injection layers: one using MLP and the other using convolutional layers. This test includes token semantic embeddings.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_4",
+      "raw_data": [
+        [
+          "1",
+          "Model",
+          "Loss",
+          "Acc. Prec. Recall F1-Score FLOPs(M) Parameters(K)"
+        ],
+        [
+          "2",
+          "Without sentiment injection",
+          "0.7292 84.04 84.31 84.02",
+          "84.16",
+          "27.858",
+          "466"
+        ],
+        [
+          "3",
+          "P 2 and P 3 custom layer (linear Type 1) 0.7696 85.78 86.06 85.78",
+          "85.92",
+          "29224",
+          "483"
+        ],
+        [
+          "4",
+          "P 2 and P 3 custom layer (linear Type 2) 0.7506 85.24 85.54 85.30",
+          "85.42",
+          "29224",
+          "483"
+        ],
+        [
+          "5",
+          "P 2 and P 3 custom layer (conv)",
+          "0.7205 86.71 86.89 86.68",
+          "86.78",
+          "31.956",
+          "516"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2507.07414::equation::0",
+      "paper_id": "2507.07414",
+      "latex": "1: procedure GREEDYKPARTITION(L, k) 2: n ← length of L 3: LA ← DESCENDINGSORTARGS(L) 4:",
+      "equation_number": null,
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::1",
+      "paper_id": "2507.07414",
+      "latex": "temp[t] ← 0 11: temp[t] ← temp[t] + 1 12: for each (k, v) in f t do 13: t l ← lower(k) 14:",
+      "equation_number": null,
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::2",
+      "paper_id": "2507.07414",
+      "latex": "f t [k] ← temp[t l ] 16: else 17: f t [k] ← 1 1 f t : All tokens frequencies.",
+      "equation_number": null,
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::3",
+      "paper_id": "2507.07414",
+      "latex": "p b = {0, 1, 2, . . . , |batchtokens| -1}",
+      "equation_number": "(1)",
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::4",
+      "paper_id": "2507.07414",
+      "latex": "p n = {i -l n | i \\in p b ∧ t i \\in D n }",
+      "equation_number": "(2)",
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::5",
+      "paper_id": "2507.07414",
+      "latex": "r vi = int((2 * |D n | + 1) • rand()) (3) R b = (((r vi mod |D n |) + p n + 1) mod |D n |) + l n (",
+      "equation_number": "4",
+      "grobid_ref_id": "formula_5",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::6",
+      "paper_id": "2507.07414",
+      "latex": "l vi = {m, m + s, m + 2 • s, . . . , m + k • s} (",
+      "equation_number": "5",
+      "grobid_ref_id": "formula_6",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::7",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_7",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::8",
+      "paper_id": "2507.07414",
+      "latex": "L b = ((l vi + p n ) mod |D n |) + l n (",
+      "equation_number": "6",
+      "grobid_ref_id": "formula_8",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::9",
+      "paper_id": "2507.07414",
+      "latex": "x i = x 1 i , x 2 i , . . . , x ni i",
+      "equation_number": "(7)",
+      "grobid_ref_id": "formula_9",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::10",
+      "paper_id": "2507.07414",
+      "latex": "l j i = len(t j i ) L = l t,1 i , l t,2 i , . . . , l t,mi i f ((0, 1, . . . , m i ), L) = ⟨0, . . . , 0, 1, . . . , 1, . . . , m i , . . . , m i ⟩ Embeddings:",
+      "equation_number": null,
+      "grobid_ref_id": "formula_10",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::11",
+      "paper_id": "2507.07414",
+      "latex": "h i = Zx i",
+      "equation_number": "(8)",
+      "grobid_ref_id": "formula_11",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::12",
+      "paper_id": "2507.07414",
+      "latex": "H out i (C out ) = b Cout + Cin-1 k=0 W k Cout * H in i (k)",
+      "equation_number": "(9)",
+      "grobid_ref_id": "formula_12",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::13",
+      "paper_id": "2507.07414",
+      "latex": "n out = n in + 2p -k s + 1 (",
+      "equation_number": "10",
+      "grobid_ref_id": "formula_13",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::14",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_14",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::15",
+      "paper_id": "2507.07414",
+      "latex": "e(h ℓ i , h ℓ j ) = a ⊤ LeakyReLU \\Theta [h ℓ i ∥ h ℓ j ] (",
+      "equation_number": "11",
+      "grobid_ref_id": "formula_15",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::16",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_16",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::17",
+      "paper_id": "2507.07414",
+      "latex": "\\alpha i,j = exp e(h ℓ i , h ℓ j ) k \\in N (i) \\cup {j} exp e(h ℓ i , h ℓ k ) (",
+      "equation_number": "12",
+      "grobid_ref_id": "formula_17",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::18",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_18",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::19",
+      "paper_id": "2507.07414",
+      "latex": "f (ℓ+1) \\theta (h ℓ i , h ℓ j ) = \\alpha i,i \\Theta x i + j \\in N (i) \\alpha i,j \\Theta x j (",
+      "equation_number": "13",
+      "grobid_ref_id": "formula_19",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::20",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_20",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::21",
+      "paper_id": "2507.07414",
+      "latex": "H = heads count, N = batch token count, d = input features M = d H , E = number of edges, x \\in R N \\times d , e \\in Z 2 \\times E W q , W k , W agg , W upd \\in R M \\times M .",
+      "equation_number": null,
+      "grobid_ref_id": "formula_21",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::22",
+      "paper_id": "2507.07414",
+      "latex": "x ′ h,i,m ← x i, h M +m h = 0, . . . , H -1; i = 0, . . . , N -1; m = 0, . . . , M -1 (",
+      "equation_number": "14",
+      "grobid_ref_id": "formula_22",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::23",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_23",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::24",
+      "paper_id": "2507.07414",
+      "latex": "e ′ h,p,j ← e p, h N ′ +j p \\in {0, 1}; j = 0, . . . , N ′ -1 (",
+      "equation_number": "15",
+      "grobid_ref_id": "formula_24",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::25",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_25",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::26",
+      "paper_id": "2507.07414",
+      "latex": "S h,p,j,m = x ′ h, e ′ h,p,j , m \\in R H \\times 2 \\times N ′ \\times M (",
+      "equation_number": "16",
+      "grobid_ref_id": "formula_26",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::27",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_27",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::28",
+      "paper_id": "2507.07414",
+      "latex": "Q h,j,m = 1 p=0 M -1 ℓ=0 S h,p,j,ℓ W q h,ℓ,m",
+      "equation_number": "(17)",
+      "grobid_ref_id": "formula_28",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::29",
+      "paper_id": "2507.07414",
+      "latex": "K h,j,m = 1 p=0 M -1 ℓ=0 S h,p,j,ℓ W k h,ℓ,m",
+      "equation_number": "(18)",
+      "grobid_ref_id": "formula_29",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::30",
+      "paper_id": "2507.07414",
+      "latex": "a h,j = M -1 m=0 Q h,j,m K h,j,m , \\alpha h,j = exp(a h,j ) N ′ -1 j ′ =0 exp(a h,j ′ ) 1 \\sqrt M (",
+      "equation_number": "19",
+      "grobid_ref_id": "formula_30",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::31",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_31",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::32",
+      "paper_id": "2507.07414",
+      "latex": "V upd h,i,m = M -1 ℓ=0 x (1) h,i,ℓ W upd h,ℓ,m",
+      "equation_number": "(20)",
+      "grobid_ref_id": "formula_32",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::33",
+      "paper_id": "2507.07414",
+      "latex": "V agg h,j,m = 1 p=0 M -1 ℓ=0 S h,p,j,ℓ W agg h,ℓ,m",
+      "equation_number": "(21)",
+      "grobid_ref_id": "formula_33",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::34",
+      "paper_id": "2507.07414",
+      "latex": "Y h,i,m = V upd h,i,m + j: e h,0,j =i \\alpha h,j V agg h,j,m + j: e h,1,j =i \\alpha h,j V agg h,j,m (",
+      "equation_number": "22",
+      "grobid_ref_id": "formula_34",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::35",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_35",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::36",
+      "paper_id": "2507.07414",
+      "latex": "PE(pos, 2i) = sin pos 10000 2i/dmodel + cos pos 10000 2i/dmodel (",
+      "equation_number": "23",
+      "grobid_ref_id": "formula_36",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::37",
+      "paper_id": "2507.07414",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_37",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::38",
+      "paper_id": "2507.07414",
+      "latex": "g(h) = ReLU h \\Theta T 1 + b 1 , out(g) = g \\Theta T 2 + b 2",
+      "equation_number": "(24)",
+      "grobid_ref_id": "formula_38",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::39",
+      "paper_id": "2507.07414",
+      "latex": "O(n(d 2 + (k 1 + k 2 ).d) + b.d) or, in simplified form: O(n(d 2 + (k 1 + k 2 ).d))",
+      "equation_number": "(25)",
+      "grobid_ref_id": "formula_39",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2507.07414::equation::40",
+      "paper_id": "2507.07414",
+      "latex": "y = x -µ \\sqrt \\sigma * \\gamma + \\beta",
+      "equation_number": "(26)",
+      "grobid_ref_id": "formula_40",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2507.07414::citation::0",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Fardin Rastakhiz",
+        "Cnn-Gnn-Text"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.17632/d3cw4gyz85.3",
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::1",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Challenges in deploying machine learning: a survey of case studies",
+      "cited_authors": [
+        "Andrei Paleyes",
+        "Raoul-Gabriel Urma",
+        "Neil D Lawrence"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::2",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "The cost of training nlp models: A concise overview",
+      "cited_authors": [
+        "Or Sharir",
+        "Barak Peleg",
+        "Yoav Shoham"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2004.08900",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::3",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Compute trends across three eras of machine learning",
+      "cited_authors": [
+        "Jaime Sevilla",
+        "Lennart Heim",
+        "Anson Ho",
+        "Tamay Besiroglu",
+        "Marius Hobbhahn",
+        "Pablo Villalobos"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::4",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Energy and policy considerations for modern deep learning research",
+      "cited_authors": [
+        "Emma Strubell",
+        "Ananya Ganesh",
+        "Andrew Mccallum"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::5",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Impact of information technology infrastructure flexibility on mergers and acquisitions",
+      "cited_authors": [
+        "Jose Benitez",
+        "Gautam Ray",
+        "Jörg Henseler"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::6",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Ai and compute",
+      "cited_authors": [
+        "Dario Amodei",
+        "Danny Hernandez ; Han",
+        "Huizi Mao",
+        "William J Dally"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": "arXiv:1510.00149",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::7",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Hardware-aware approach to deep neural network optimization",
+      "cited_authors": [
+        "Geoffrey Hinton",
+        "; Hengyi",
+        "Li",
+        "Lin Meng"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": "arXiv:1503.02531",
+      "cited_doi": "10.1016/j.neucom.2023.126808",
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::8",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Natural language processing: state of the art, current trends and challenges",
+      "cited_authors": [
+        "Diksha Khurana",
+        "Aditya Koli",
+        "Kiran Khatter",
+        "Sukhdev Singh"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::9",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Evaluating text classification: A benchmark study. Expert Systems with Applications",
+      "cited_authors": [
+        "Manon Reusens",
+        "Alexander Stevens",
+        "Jonathan Tonglet",
+        "Johannes De Smedt",
+        "Wouter Verbeke",
+        "Seppe Vanden Broucke",
+        "Bart Baesens"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::10",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "A survey of text classification with transformers: How wide?",
+      "cited_authors": [
+        "John Fields",
+        "Kevin Chovanec",
+        "Praveen Madiraju"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::11",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Deep learning for named entity recognition: a survey",
+      "cited_authors": [
+        "Zhentao Hu",
+        "Wei Hou",
+        "Xianxing Liu"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::12",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Elastic deep autoencoder for text embedding clustering by an improved graph regularization",
+      "cited_authors": [
+        "Fatemeh Daneshfar",
+        "Sayvan Soleymanbaigi",
+        "Ali Nafisi",
+        "Pedram Yamini"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::13",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Pre-trained language models for text generation: A survey",
+      "cited_authors": [
+        "Junyi Li",
+        "Tianyi Tang",
+        "Wayne Xin Zhao",
+        "Jian-Yun Nie",
+        "Ji-Rong Wen"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::14",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Exploring human-like translation strategy with large language models",
+      "cited_authors": [
+        "Zhiwei He",
+        "Tian Liang",
+        "Wenxiang Jiao",
+        "Zhuosheng Zhang",
+        "Yujiu Yang",
+        "Rui Wang",
+        "Zhaopeng Tu",
+        "Shuming Shi",
+        "Xing Wang"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::15",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Eliciting the translation ability of large language models via multilingual finetuning with translation instructions",
+      "cited_authors": [
+        "Jiahuan Li",
+        "Hao Zhou",
+        "Shujian Huang",
+        "Shanbo Cheng",
+        "Jiajun Chen"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::16",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Deceptive opinion spam detection approaches: a literature survey",
+      "cited_authors": [
+        "Sushil Kumar Maurya",
+        "Dinesh Singh",
+        "Ashish Kumar Maurya"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::17",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Machine learning models for email spam detection: A review",
+      "cited_authors": [
+        "Deepak Yadav",
+        "Er Bhupinder",
+        "Kaur"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::18",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Recent trends in deep learning based natural language processing",
+      "cited_authors": [
+        "Tom Young",
+        "Devamanyu Hazarika"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::19",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Attention is all you need",
+      "cited_authors": [
+        "Ashish Vaswani",
+        "Noam Shazeer",
+        "Niki Parmar",
+        "Jakob Uszkoreit",
+        "Llion Jones",
+        "Aidan N Gomez",
+        "Łukasz Kaiser",
+        "Illia Polosukhin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::20",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Language models are few-shot learners",
+      "cited_authors": [
+        "Tom Brown",
+        "Benjamin Mann",
+        "Nick Ryder",
+        "Melanie Subbiah",
+        "Jared D Kaplan",
+        "Prafulla Dhariwal",
+        "Arvind Neelakantan",
+        "Pranav Shyam",
+        "Girish Sastry",
+        "Amanda Askell"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::21",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Fastbert: a self-distilling bert with adaptive inference time",
+      "cited_authors": [
+        "Weijie Liu",
+        "Peng Zhou",
+        "Zhe Zhao",
+        "Zhiruo Wang",
+        "Haotang Deng",
+        "Qi Ju"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2004.02178",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::22",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Quickcharnet: An efficient url classification framework for enhanced search engine optimization",
+      "cited_authors": [
+        "Fardin Rastakhiz",
+        "Mahdi Eftekhari",
+        "Sahar Vahdati"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/ACCESS.2024.3484578",
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::23",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Mobydeep: A lightweight cnn architecture to configure models for text classification",
+      "cited_authors": [
+        "Rubén Romero",
+        "Pedro Celard",
+        "José Manuel Sorribes-Fdez",
+        "Seara Vieira",
+        "Eva Lorenzo Iglesias",
+        "L Borrajo"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::24",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Review of lightweight deep convolutional neural networks",
+      "cited_authors": [
+        "Fanghui Chen",
+        "Shouliang Li",
+        "Jiale Han",
+        "Fengyuan Ren",
+        "Zhen Yang"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::25",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Hgat: Heterogeneous graph attention networks for semi-supervised short text classification",
+      "cited_authors": [
+        "Tianchi Yang",
+        "Linmei Hu",
+        "Chuan Shi",
+        "Houye Ji",
+        "Xiaoli Li",
+        "Liqiang Nie"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::26",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Exphormer: Sparse transformers for graphs",
+      "cited_authors": [
+        "Hamed Shirzad",
+        "Ameya Velingker",
+        "Balaji Venkatachalam",
+        "Danica J Sutherland",
+        "Ali Kemal",
+        "Sinop"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::27",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Sparse is enough in scaling transformers",
+      "cited_authors": [
+        "Sebastian Jaszczur",
+        "Aakanksha Chowdhery",
+        "Afroz Mohiuddin",
+        "Lukasz Kaiser",
+        "Wojciech Gajewski",
+        "Henryk Michalewski",
+        "Jonni Kanerva"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::28",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Graph neural networks: A review of methods and applications",
+      "cited_authors": [
+        "Jie Zhou",
+        "Ganqu Cui",
+        "Shengding Hu",
+        "Zhengyan Zhang",
+        "Cheng Yang",
+        "Zhiyuan Liu",
+        "Lifeng Wang",
+        "Changcheng Li",
+        "Maosong Sun"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/j.aiopen.2021.01.001",
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::29",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Generating long sequences with sparse transformers",
+      "cited_authors": [
+        "Rewon Child",
+        "Scott Gray",
+        "Alec Radford",
+        "Ilya Sutskever"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1904.10509",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::30",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Efficient transformers: A survey",
+      "cited_authors": [
+        "Yi Tay",
+        "Mostafa Dehghani",
+        "Dara Bahri",
+        "Donald Metzler"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::31",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Recipe for a general, powerful, scalable graph transformer",
+      "cited_authors": [
+        "Ladislav Rampášek",
+        "Michael Galkin",
+        "Vijay Prakash Dwivedi",
+        "Anh Tuan Luu",
+        "Guy Wolf",
+        "Dominique Beaini"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::32",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Cnn-transformer network for student learning effect prediction using eeg signals based on spatio-temporal feature fusion",
+      "cited_authors": [
+        "Hui Xie",
+        "Zexiao Dong",
+        "Huiting Yang",
+        "Yanxia Luo",
+        "Shenghan Ren",
+        "Pengyuan Zhang",
+        "Jiangshan He",
+        "Chunli Jia",
+        "Yuqiang Yang",
+        "Mingzhe Jiang",
+        "Xinbo Gao",
+        "Xueli Chen"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/j.asoc.2024.112631",
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::33",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Debertav3: Improving deberta using electra-style pre-training with gradient-disentangled embedding sharing",
+      "cited_authors": [
+        "Pengcheng He",
+        "Jianfeng Gao",
+        "Weizhu Chen"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::34",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova",
+        "Bert"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::35",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "A robustly optimized bert pretraining approach",
+      "cited_authors": [
+        "Yinhan Liu",
+        "Roberta"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1907.11692",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::36",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Deberta: Decoding-enhanced bert with disentangled attention",
+      "cited_authors": [
+        "Pengcheng He",
+        "Xiaodong Liu",
+        "Jianfeng Gao",
+        "Weizhu Chen"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::37",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Mean clustering coefficients: the role of isolated nodes and leafs on clustering measures for small-world networks",
+      "cited_authors": [
+        "Marcus Kaiser"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::38",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Generalizations of the clustering coefficient to weighted complex networks",
+      "cited_authors": [
+        "Jari Saramäki",
+        "Mikko Kivelä",
+        "Jukka-Pekka Onnela",
+        "Kimmo Kaski",
+        "Janos Kertesz"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::39",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "What graph neural networks cannot learn: depth vs width",
+      "cited_authors": [
+        "Andreas Loukas"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1907.03199",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::40",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Character-aware neural language models",
+      "cited_authors": [
+        "Yoon Kim",
+        "Yacine Jernite",
+        "David Sontag",
+        "Alexander Rush"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1609/aaai.v30i1.10362",
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::41",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Byt5: Towards a token-free future with pre-trained byte-to-byte models",
+      "cited_authors": [
+        "Linting Xue",
+        "Aditya Barua",
+        "Noah Constant",
+        "Rami Al-Rfou",
+        "Sharan Narang",
+        "Mihir Kale",
+        "Adam Roberts",
+        "Colin Raffel"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1162/tacl_a_00461",
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::42",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Canine: Pre-training an efficient tokenization-free encoder for language representation",
+      "cited_authors": [
+        "Jonathan H Clark",
+        "Dan Garrette",
+        "Iulia Turc",
+        "John Wieting"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1162/tacl_a_00448",
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::43",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Character-level convolutional networks for text classification",
+      "cited_authors": [
+        "Xiang Zhang",
+        "Junbo Zhao",
+        "Yann Lecun"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::44",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "An introduction to convolutional neural networks",
+      "cited_authors": [
+        "O' Keiron",
+        "Ryan Shea",
+        "Nash"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": "arXiv:1511.08458",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::45",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "How attentive are graph attention networks?",
+      "cited_authors": [
+        "Shaked Brody",
+        "Uri Alon",
+        "Eran Yahav"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::46",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Petar Veličković",
+        "Guillem Cucurull",
+        "Arantxa Casanova",
+        "Adriana Romero",
+        "Pietro Liò",
+        "Yoshua Bengio"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::47",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Convolutional sequence to sequence learning",
+      "cited_authors": [
+        "Jonas Gehring",
+        "Michael Auli",
+        "David Grangier",
+        "Denis Yarats",
+        "Yann N Dauphin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::48",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Fast and accurate deep network learning by exponential linear units",
+      "cited_authors": [
+        "Djork-Arné Clevert",
+        "Thomas Unterthiner",
+        "Sepp Hochreiter"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::49",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "1d convolutional neural networks and applications: A survey",
+      "cited_authors": [
+        "Serkan Kiranyaz",
+        "Onur Avci",
+        "Osama Abdeljaber",
+        "Turker Ince",
+        "Moncef Gabbouj",
+        "Daniel J Inman"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/j.ymssp.2020.107398",
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::50",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Learning word vectors for sentiment analysis",
+      "cited_authors": [
+        "Andrew L Maas",
+        "Raymond E Daly",
+        "Peter T Pham",
+        "Dan Huang",
+        "Andrew Y Ng",
+        "Christopher Potts"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b50",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::51",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "A sentimental education: Sentiment analysis using subjectivity summarization based on minimum cuts",
+      "cited_authors": [
+        "Bo Pang",
+        "Lillian Lee"
+      ],
+      "cited_year": 2004,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b51",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::52",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Ag's corpus of news articles",
+      "cited_authors": [
+        "Antonio Gulli"
+      ],
+      "cited_year": 2004,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b52",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::53",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Hidden factors and hidden topics: understanding rating dimensions with review text",
+      "cited_authors": [
+        "Julian Mcauley",
+        "Jure Leskovec"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b53",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::54",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Vector of locally-aggregated word embeddings (vlawe): A novel document-level representation",
+      "cited_authors": [
+        "Tudor Radu",
+        "Andrei M Ionescu",
+        "Butnaru"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1902.08850",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b54",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::55",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Normalization techniques in training dnns: Methodology, analysis and application",
+      "cited_authors": [
+        "Lei Huang",
+        "Jie Qin",
+        "Yi Zhou",
+        "Fan Zhu",
+        "Li Liu",
+        "Ling Shao"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b55",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::56",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Distributed representations of words and phrases and their compositionality",
+      "cited_authors": [
+        "Tomas Mikolov",
+        "Ilya Sutskever",
+        "Kai Chen",
+        "Greg S Corrado",
+        "Jeff Dean"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b56",
+      "in_text_context": null
+    },
+    {
+      "id": "2507.07414::citation::57",
+      "paper_id": "2507.07414",
+      "raw_text": null,
+      "cited_title": "Distilbert, a distilled version of bert: smaller, faster, cheaper and lighter",
+      "cited_authors": [
+        "Victor Sanh",
+        "Lysandre Debut",
+        "Julien Chaumond",
+        "Thomas Wolf"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1910.01108",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b57",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

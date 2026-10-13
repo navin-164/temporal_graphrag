@@ -1,0 +1,730 @@
+{
+  "arxiv_id": "2110.04754",
+  "title": "Towards High-fidelity Singing Voice Conversion with Acoustic Reference   and Contrastive Predictive Coding",
+  "authors": [
+    {
+      "name": "Chao Wang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Zhonghao Li",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Benlai Tang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Xiang Yin",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yuan Wan",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yibiao Yu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Zejun Ma",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Recently, phonetic posteriorgrams (PPGs) based methods have been quite popular in non-parallel singing voice conversion systems. However, due to the lack of acoustic information in PPGs, style and naturalness of the converted singing voices are still limited. To solve these problems, in this paper, we utilize an acoustic reference encoder to implicitly model singing characteristics. We experiment with different auxiliary features, including mel spectrograms, HuBERT, and the middle hidden feature (PPG-Mid) of pretrained automatic speech recognition (ASR) model, as the input of the reference encoder, and finally find the HuBERT feature is the best choice. In addition, we use contrastive predictive coding (CPC) module to further smooth the voices by predicting future observations in latent space. Experiments show that, compared with the baseline models, our proposed model can significantly improve the naturalness of converted singing voices and the similarity with the target singer. Moreover, our proposed model can also make the speakers with just speech data sing.",
+  "categories": [
+    "cs.SD",
+    "cs.CL",
+    "eess.AS"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2021-10-10T10:27:20"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "Interspeech",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2021-10-10",
+  "citation_count": 21,
+  "reference_count": 27,
+  "fields_of_study": [
+    "Computer Science",
+    "Engineering"
+  ],
+  "sections": [
+    {
+      "id": "2110.04754::section::0",
+      "paper_id": "2110.04754",
+      "heading": "INTRODUCTION",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::0::para::0",
+          "section_id": "2110.04754::section::0",
+          "text": "Singing voice conversion is intended to change the timbre of singing voices while keeping the musical contents like melody and lyrics maintained. It has achieved more and more attention in recent years, since it can be used in many aspects, like improving the singer's vocal quality and creating a virtual singer.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04754::section::0::para::1",
+          "section_id": "2110.04754::section::0",
+          "text": "The early studies are mainly focused on parallel singing voice conversion, which means there are parallel training data between the source singer and the target singer. These traditional methods [1][2][3] use statistical models to build the mapping between the parallel samples. However, it's quite expensive to collect parallel samples of different singers in real application scenarios. So recently, the studies of non-parallel voice conversion have been the mainstream. The key idea of non-parallel singing voice conversion is to extract the singer-independent content representation first, and then generate the converted singing voices using the target singer embedding. According to whether the singer-independent content representation is extracted in an unsupervised manner, non-parallel singing voice conversion can be categorized into auto-encoder based and PPGs based methods.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04754::section::0::para::2",
+          "section_id": "2110.04754::section::0",
+          "text": "Auto-encoder based methods disentangle the content feature from speech in an unsupervised manner by imposing constraints on encoder output. Domain confusion [4] module is used in [5][6] to remove speaker-dependent information like timbre from speech. In [7][8], feature disentanglement is realized using variational auto-encoder (VAE). [9] utilizes vector quantized variational auto-encoder (VQ-VAE) as an information bottleneck to get the content information. Although auto-encoder based methods can achieve acceptable results in non-parallel singing voice conversion, its ability of feature disentanglement is not robust enough for various singing input.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2110.04754::section::0::para::3",
+          "section_id": "2110.04754::section::0",
+          "text": "In PPGs based methods [10][11] [12][13][14], they use the last layer output of the pretrained ASR model, namely PPGs, to represent content information. Since the ASR model is pretrained with huge amount of training data and the training targets are phoneme labels, its ability of eliminating acoustic information is quite robust. However, compared with speech, singing voice contains much more characteristics like prosody and rhythm, which are difficult to model explicitly only using PPGs. Several works have tried to supplement acoustic features in singing voice conversion. In [13], they use pitch to represent melody. However, pitch itself is still not enough to model singing characteristics. In [14], apart from pitch, they feed mel spectrograms into reference encoder to model singing characteristics implicitly. However, as mentioned in auto-encoder based methods, there exists too much singer-dependent information in mel spectrograms, which is difficult to remove and will finally degrade the performance.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2110.04754::section::0::para::4",
+          "section_id": "2110.04754::section::0",
+          "text": "In this work, our contribution is two-fold: (1) We try to find an appropriate auxiliary feature that contains enough singerindependent acoustic and musical information to serve as the reference encoder input. Apart from mel spectrograms, We select HuBERT [15], which is a kind of feature originally proposed in self-supervised speech representation learning, and middle hidden feature of ASR model, denoted as PPG-Mid. Both HuBERT feature and PPG-Mid feature contain linguistic and acoustic information. Meanwhile, they contain less singer information than mel spectrograms. In the experiments, we compare these three features when they serve as the reference encoder inputs. To further eliminate the remaining singer-dependent information like timbre in the reference encoder output, both singer confusion and pitch confusion module are also used. (2) To alleviate local errors and enhance the smoothness of voices, inspired by recent studies proposed in speech self-supervised representation learning [16][17][18], we utilize contrastive predictive coding (CPC) module which predicts future representations in the encoder output feature space. In [19], they use the CPC module to eliminate the local errors in the vector quantization output. In our paper, we are the first one to utilize the CPC module in the PPGs based singing voice conversion system.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2110.04754::section::0::para::5",
+          "section_id": "2110.04754::section::0",
+          "text": "The rest of the paper is organized as follows: Section 2 will present the proposed method. In Section 3, Experiments results are presented. Section 4 concludes this paper.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2110.04754::section::1",
+      "paper_id": "2110.04754",
+      "heading": "METHODS",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::1::para::0",
+          "section_id": "2110.04754::section::1",
+          "text": "The overall architecture of our proposed method is shown in Fig. 1. It is mainly composed of pretrained ASR model, PPG encoder, acoustic reference encoder, CPC module, and HiFi-GAN [20] decoder.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04754::section::1::para::1",
+          "section_id": "2110.04754::section::1",
+          "text": "The PPG encoder is to acquire singing content from PPGs feature. Meanwhile, the auxiliary acoustic feature of source voices is fed into the reference encoder. The outputs of PPG encoder and reference encoder are concatenated to form the final encoder output. Then encoder output, singer embedding, and pitch are fed into the HiFi-GAN decoder to reconstruct the speech waveform, where pitch is fused into the decoder in the same way as [12]. Meanwhile, the singer and pitch confusion module are used to remove the singer information in the reference encoder output. The ASR model is based on Deep-FSMN [21], which is a heirarchical network with 38 layers. The model architectures of the PPG encoder and acoustic reference encoder are CBHG network proposed in [22]. We use the HiFi-GAN vocoder proposed in [20] as the decoder to reconstruct waveform directly. The reconstruction loss used for training the network follows [20].",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04754::section::1::para::2",
+          "section_id": "2110.04754::section::1",
+          "text": "In the following part, we will introduce the acoustic reference features, and the CPC module in detail.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2110.04754::section::2",
+      "paper_id": "2110.04754",
+      "heading": "CPC module",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::2::para::0",
+          "section_id": "2110.04754::section::2",
+          "text": "The quality of the converted singing voices depends on the accuracy of the pretrained ASR model. The local recognition errors in the PPGs feature will bring noise in the converted singing voices and degrade the quality of singing voice conversion. In addition, although the singer and pitch confusion module can get rid of the remaining singer information like timbre in the reference encoder output, it inevitably harms the phonetic and vocal information at the same time, which will cause local instability in the converted singing voices.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04754::section::2::para::1",
+          "section_id": "2110.04754::section::2",
+          "text": "To overcome these problems, we employ contrastive predictive coding (CPC) module as the regularization loss to predict future representations in the encoder output feature space. The CPC module is originally proposed in the self-supervised learning [16][17] [18] to learn meaningful speech represention, which can be used in various downstream tasks. In this paper, we utilize CPC module to discard local noise and errors in the encoder output and enhance the voice smoothness.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2110.04754::section::2::para::2",
+          "section_id": "2110.04754::section::2",
+          "text": "As shown in Fig. 2, the encoder output E = {e 1 , ...e T } of length T is fed to the context network, which in our paper is composed of long short-term memory network (LSTM) and 1-D convolution layer, to get the context output C = {c 1 , ...c T }. Given current timestep context feature c t , the CPC module needs to distinguish the postive future k-step feature e t+k from the remaining negetive feature samples. If e t contains vocal errors, then c t also contains errors. Given e t+k contains precise vocal information, the network learns to discard the local errors and noise in e t and c t so that e t+k can be predicted correctly. The CPC loss term is as follow:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2110.04754::section::2::para::3",
+          "section_id": "2110.04754::section::2",
+          "text": "where T is the length of the encoder output, K is the largest timestep we predict, and β is the CPC loss weight. W k (k = 1, 2, ..., K) is a trainable projection matrix and Ω is the set containing the negative samples. In our paper, the negetive samples set is formed by randomly selected from the same utterance as the positive sample. The K is set to 12. Let the HiFi-GAN [20] reconstruction loss be the L hif i , which consists of Mel spectrograms loss, deep feature mathcing loss, and adversial loss. The overall generation loss of our proposed model is shown as below:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2110.04754::section::2::para::4",
+          "section_id": "2110.04754::section::2",
+          "text": "3. EXPERIMENTS",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2110.04754::section::3",
+      "paper_id": "2110.04754",
+      "heading": "Experiment setup",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::3::para::0",
+          "section_id": "2110.04754::section::3",
+          "text": "We evaluate our proposed model on a mixed training dataset which contains VCTK speech corpus [23] and NUS-48E singing corpus [24]. 90% of the audios in datasets are selected for training, 5% for validation. The test set consists of 20 segments from 10 singers. For evaluation, we select a female singer and a male singer as the target timbres. Except for section 3.2.4, the test source audios and target singers for evaluation are selected from NUS-48E corpus, namely in-domain singing voice conversion. All songs are sampled at 24kHz. 80-dimensional mel spectrograms are extracted with a Hanning window of 40 ms and 10 ms frame shift. We use 20k singing data to pretrain the ASR model. The Hu-BERT features are extracted using the pretrained model provided in [15]. We train our proposed model using Adam [25] optimizer for 400K steps. The learning rate is 0.0004 and the batch size is 16. Weighting factors λ, ω, and β are all set to 0.1. We use pyreaper 1 to extract the pitch from the audios. Samples can be found onlinefoot_1 .",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2110.04754::section::4",
+      "paper_id": "2110.04754",
+      "heading": "Evaluation",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::4::para::0",
+          "section_id": "2110.04754::section::4",
+          "text": "We invite 15 music professionals to evaluate the results. For subjective evaluation, we select 1-5 mean opinion score (MOS) (1bad, 2-poor, 3-fair, 4-good, 5-excellent) for both singing naturalness and timbre-style similarity with the target singer. For objective evaluation, we select normalized cross-correlation (NCC) to measure the pitch matching degree between the source and converted singing audios. The higher the NCC score is, the more accurate the pitch is.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2110.04754::section::5",
+      "paper_id": "2110.04754",
+      "heading": "Ablation study for the CPC module",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::5::para::0",
+          "section_id": "2110.04754::section::5",
+          "text": "To show the effectiveness of the CPC module, we compare the Prop hub model with the Prop hub cpc model, which incorporates the CPC module. As shown by the results in Table .2, incorporating the CPC module in Prop hub improves both singing naturalness and similarity. It reveals that CPC module, which serves as the regularization loss applied to the encoder output, can discard local noise and errors and enhance the voice smoothness.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2110.04754::section::6",
+      "paper_id": "2110.04754",
+      "heading": "Comparison with the baseline model",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::6::para::0",
+          "section_id": "2110.04754::section::6",
+          "text": "In this part, we compare our best configuration Prop hub cpc with the following two state-of-the-art baseline models. Baseline1 is proposed in [13]. It consists of a PPG encoder, pitch encoder, speaker encoder, and decoder. Similar to our proposed model, baseline1 is also an end-to-end model, which maps PPGs to waveform directly. Baseline2 is proposed in [14]. Apart from modules in Baseline1, Baseline2 incorporates a mel reference encoder. Different from our proposed model, Baseline2 is not an end-toend model. It maps PPGs to mel spectrograms and then we use a pretrained HiFi-GAN vocoder to generate the waveform.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2110.04754::section::6::para::1",
+          "section_id": "2110.04754::section::6",
+          "text": "From the evaluation results shown in Table. 3, we can see our proposed model significantly improves the naturalness and similarity compared with the two baselines, which reveals the the su-",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2110.04754::section::7",
+      "paper_id": "2110.04754",
+      "heading": "Cross-domain singing voice conversion",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::7::para::0",
+          "section_id": "2110.04754::section::7",
+          "text": "Our work focuses on in-domain singing voice conversion. However, with the VCTK speech dataset involved in training, our model can also make the speaker in the VCTK dataset sing, which is called cross-domain singing voice conversion. We compare our proposed model with the Baseline1 and Baseline2 model. We just evaluate the performance via objective metrics normalized cross-correlation (NCC) and Cosine similarity (COS-SIM) between the d-vectors of the converted and the real target audio. The d-vectors are extracted from the pretrained speaker verification modelfoot_2 . Higher the COS-SIM score is, more similar the timbres are. The evaluation results are presented in Tab.4. Our proposed method still achieves significantly better results than the two baseline models, which is consistent with in-domain singing voice conversion. Meanwhile, the results of cross domain singing voice conversion are inferior to these of in domain singing voice conversion since in domain task is easier.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2110.04754::section::8",
+      "paper_id": "2110.04754",
+      "heading": "CONCLUSION AND FUTURE WORK",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2110.04754::section::8::para::0",
+          "section_id": "2110.04754::section::8",
+          "text": "In this paper, we proposed an end-to-end high-quality singing voice conversion system. It employs a reference encoder to implicitly model the prosody and rhythm of the singing voices. We compare three different features: mel spectrograms, PPG-Mid, and HuBERT feature as the acoustic reference. Experiments show that the HuBERT feature is the best choice. Meanwhile, we incorporate a CPC module to further enhance the smoothness of singing voices. Comprehensive experiments have been performed to verify the superiority of our proposed model. As for future work, we will further improve the performance of cross-domain singing voice conversion.",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2110.04754::citation::0",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "References"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::1",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Statistical singing voice conversion based on direct waveform modification with global variance",
+      "cited_authors": [
+        "Kazuhiro Kobayashi",
+        "Tomoki Toda",
+        "Graham Neubig",
+        "Sakriani Sakti",
+        "Satoshi Nakamura"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::2",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Statistical Singing Voice Conversion with direct Waveform modification based on the Spectrum Differential",
+      "cited_authors": [
+        "Kazuhiro Kobayashi",
+        "Tomoki Toda",
+        "Graham Neubig",
+        "Sakriani Sakti",
+        "Satoshi Nakamura"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::3",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "One-to-Many and Many-to-One Voice Conversion Based on Eigenvoices",
+      "cited_authors": [
+        "T Toda",
+        "Y Ohtani",
+        "K Shikano"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::4",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Domain-Adversarial Training of Neural Networks",
+      "cited_authors": [
+        "Yaroslav Ganin"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::5",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Unsupervised singing voice conversion",
+      "cited_authors": [
+        "E Nachmani",
+        "L Wolf"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::6",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Pitchnet: Unsupervised singing voice conversion with pitch adversarial network",
+      "cited_authors": [
+        "C Deng",
+        "C Yu",
+        "H Lu",
+        "C Weng",
+        "D Yu"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::7",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Singing voice conversion with disentangled representations of singer and vocal technique using variational autoencoders",
+      "cited_authors": [
+        "Y Luo",
+        "C Hsu",
+        "K Agres",
+        "D Herremans"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::8",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Vaw-gan for singing voice conversion with non-parallel training data",
+      "cited_authors": [
+        "J Lu",
+        "K Zhou",
+        "B Sisman",
+        "H Li"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::9",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Hierarchical disentangled representation learning for singing voice conversion",
+      "cited_authors": [
+        "Naoya Takahashi",
+        "Mayank Kumar Singh",
+        "Yuki Mitsufuji"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2101.06842",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::10",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Singing voice conversion with non-parallel data",
+      "cited_authors": [
+        "X Chen",
+        "W Chu",
+        "J Guo",
+        "N Xu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::11",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Unsupervised cross-domain singing voice conversion",
+      "cited_authors": [
+        "Adam Polyak",
+        "Lior Wolf",
+        "Yossi Adi",
+        "Yaniv Taigman"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::12",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Fastsvc: Fast cross-domain singing voice conversion with feature-wise linear modulation",
+      "cited_authors": [
+        "Songxiang Liu",
+        "Yuewen Cao",
+        "Na Hu",
+        "Dan Su",
+        "Helen Meng"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::13",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Phonetic Posteriorgrams based Manyto-Many Singing Voice Conversion via Adversarial Training",
+      "cited_authors": [
+        "Haohan Guo"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2012.01837",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::14",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Ppg-based singing voice conversion with adversarial representation learning",
+      "cited_authors": [
+        "Zhonghao Li",
+        "Benlai Tang",
+        "Xiang Yin",
+        "Yuan Wan",
+        "Ling Xu",
+        "Chen Shen",
+        "Zejun Ma"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::15",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Hu-BERT: Self-Supervised Speech Representation Learning by Masked Prediction of Hidden Units",
+      "cited_authors": [
+        "W N Hsu",
+        "B Bolte",
+        "Y H H Tsai"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2106.07447",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::16",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "wav2vec: Unsupervised pre-training for speech recognition",
+      "cited_authors": [
+        "S Schneider",
+        "A Baevski",
+        "R Collobert",
+        "M Auli"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1904.05862",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::17",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "wav2vec 2.0: A framework for self-supervised learning of speech representations",
+      "cited_authors": [
+        "A Baevski",
+        "H Zhou",
+        "A Mohamed",
+        "M Auli"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2006.11477",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::18",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "vq-wav2vec: Self-supervised learning of discrete speech representations",
+      "cited_authors": [
+        "A Baevski",
+        "S Schneider",
+        "M Auli"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1910.05453",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::19",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "VQMIVC: Vector Quantization and Mutual Information-Based Unsupervised Speech Representation Disentanglement for One-shot Voice Conversion",
+      "cited_authors": [
+        "Disong Wang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::20",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Hifi-gan: Generative adversarial networks for efficient and high fidelity speech synthesis",
+      "cited_authors": [
+        "Jungil Kong",
+        "Jaehyeon Kim",
+        "Jaekyoung Bae"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::21",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Deep-fsmn for large vocabulary continuous speech recognition",
+      "cited_authors": [
+        "S Zhang",
+        "M Lei",
+        "Z Yan",
+        "L Dai"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::22",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Tacotron: Towards end-to-end speech synthesis",
+      "cited_authors": [
+        "Yuxuan Wang"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::23",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Cstr vctk corpus: English multi-speaker corpus for cstr voice cloning toolkit",
+      "cited_authors": [
+        "J Yamagishi"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::24",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "The nus sung and spoken lyrics corpus: A quantitative comparison of singing and speech",
+      "cited_authors": [
+        "Z Duan",
+        "H Fang",
+        "B Li",
+        "K C Sim",
+        "Y Wang"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2110.04754::citation::25",
+      "paper_id": "2110.04754",
+      "raw_text": null,
+      "cited_title": "Adam: A method for stochastic optimization",
+      "cited_authors": [
+        "D P Kingma",
+        "J Ba"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

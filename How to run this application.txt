@@ -1,0 +1,7 @@
+How to run this application?
+
+After conda activate temporal_rag:
+uvicorn api.main:app --reload
+
+After conda activate temporal_rag:
+streamlit run frontend/app.py

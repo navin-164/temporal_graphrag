@@ -1,0 +1,1779 @@
+{
+  "arxiv_id": "2205.07043",
+  "title": "Naturalistic Causal Probing for Morpho-Syntax",
+  "authors": [
+    {
+      "name": "Afra Amini",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Tiago Pimentel",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Clara Meister",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Ryan Cotterell",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Probing has become a go-to methodology for interpreting and analyzing deep neural models in natural language processing. However, there is still a lack of understanding of the limitations and weaknesses of various types of probes. In this work, we suggest a strategy for input-level intervention on naturalistic sentences. Using our approach, we intervene on the morpho-syntactic features of a sentence, while keeping the rest of the sentence unchanged. Such an intervention allows us to causally probe pre-trained models. We apply our naturalistic causal probing framework to analyze the effects of grammatical gender and number on contextualized representations extracted from three pre-trained models in Spanish: the multilingual versions of BERT, RoBERTa, and GPT-2. Our experiments suggest that naturalistic interventions lead to stable estimates of the causal effects of various linguistic properties. Moreover, our experiments demonstrate the importance of naturalistic causal probing when analyzing pre-trained models.",
+  "categories": [
+    "cs.CL"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2022-05-14T11:47:58"
+    },
+    {
+      "version": "v2",
+      "created": "2022-11-14T11:41:52"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "Transactions of the Association for Computational Linguistics",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2022-05-14",
+  "citation_count": 27,
+  "reference_count": 55,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2205.07043::section::0",
+      "paper_id": "2205.07043",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::0::para::0",
+          "section_id": "2205.07043::section::0",
+          "text": "Contextualized word representations are a byproduct of pre-trained neural language models and have led to improvements in performance on a myriad of downstream natural language processing (NLP) tasks (Joshi et al., 2019;Kondratyuk, 2019;Zellers et al., 2019;Brown et al., 2020). Despite this performance improvement, though, it is still not obvious to researchers how these representations encode linguistic information. One prominent line of work attempts to shed light on this topic through probing (Alain and Bengio, 2017), also referred to as auxiliary prediction (Adi et al., 2017) or diagnostic classification (Hupkes et al., 2018). In machine learning parlance, a probe is a supervised classifier that is trained to predict a property of interest from the target model's representations. If the probe manages to predict the property with high accuracy, one may conclude that these representations encode information about the probed property. While widely used, probing is not without its limitations. 1 For instance, probing a pre-trained model for grammatical gender can only tell us whether information about gender is present in the representations,foot_1 it cannot, however, tell us how or if the model actually uses information about gender in its predictions (Ravichander et al., 2021;Elazar et al., 2021;Ravfogel et al., 2021;Lasri et al., 2022). Furthermore, supervised probing cannot tell us whether the property under consideration is directly encoded in the representations, or if it can be recovered from the representations alone due to spurious correlations among various linguistic properties. In other words, while through supervised probing techniques we might find correlations between a probed property and representations, we cannot uncover causal relationships between them.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::0::para::1",
+          "section_id": "2205.07043::section::0",
+          "text": "In this work, we propose a new strategy for input-level intervention on naturalistic data to obtain what we call naturalistic counterfactuals, which we then use to perform causal probing. Through such input-level interventions, we can ascertain whether a particular linguistic property has a causal effect on a model's representations. A number of prior papers have attempted to tease apart causal dependencies using either input-level or representation-level interventions. For instance, work on representational counterfactuals has investigated causal dependencies via interventions on neural representations. While quite versatile, representation-level interventions make it hard-if not impossibleto determine whether we are only intervening on our property of interest. Another proposed method, templated counterfactuals, does perform an input-level intervention strategy, ensuring that only the probed property will be affected. Under such an approach, the researcher first creates a number of templated sentences (either manually or automatically), which they then fill with a set of minimal-pair words to generate counterfactual examples. However, template-based interventions are limited by design: They do not reflect the diversity of sentences present in natural language, and, thus, lead to biased estimates of the measured causal effects. Naturalistic counterfactuals improve upon template-based interventions in that they lead to unbiased estimates of the causal effect.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::0::para::2",
+          "section_id": "2205.07043::section::0",
+          "text": "In our first set of experiments, we employ naturalistic causal probing to estimate the average treatment effect (ATE) of two morphosyntactic features-namely, number and grammatical gender-on a noun's contextualized representation. We show the estimated ATE's stability across corpora. In our second set of experiments, we find that a noun's grammatical gender and its number are encoded by a small number of directions in three pre-trained models' representations: BERT, RoBERTa, and GPT-2. 3 We further use naturalistic counterfactuals to causally investigate gender bias in RoBERTa. We find that RoBERTa is much more likely to predict the adjective hermoso(a) (beautiful) for feminine nouns and racional (rational) for masculine. This suggests RoBERTa is indeed gender biased in its adjective predictions.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::0::para::3",
+          "section_id": "2205.07043::section::0",
+          "text": "Finally, through our naturalistic counterfactuals, we show that correlational probes overestimate the presence of certain linguistic properties. We com-pare the performance of correlational probes on two versions of our dataset: one unaltered and one augmented with naturalistic counterfactuals. While correlational probes achieve very high (above 90%) performance when predicting gender from sentence-level representations, they only perform close to chance (around 60%) on the augmented data. Together, our results demonstrate the importance of a naturalistic causal approach to probing.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::1",
+      "paper_id": "2205.07043",
+      "heading": "Probing",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::1::para::0",
+          "section_id": "2205.07043::section::1",
+          "text": "There are several types of probing methods that have been proposed for the analysis of NLP models, and there are many possible taxonomies of those methods. For the purposes of this paper, we divide previously proposed probing models into two groups: correlational and causal probes. On one hand, correlational probes attempt to uncover whether a probed property is present in a model's representations. On the other hand, causal probes, roughly speaking, attempt to uncover how a model encodes and makes use of a specific probed property. We compare and contrast correlational and causal probing techniques in this section.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::2",
+      "paper_id": "2205.07043",
+      "heading": "Correlational Probing",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::2::para::0",
+          "section_id": "2205.07043::section::2",
+          "text": "Correlational probing is any attempt to correlate the input representations with the probed property of interest. Under correlational probing, the performance of a probe is viewed as the degree to which a model encodes information in its representations about some probed property (Alain and Bengio, 2017). At various times, correlational results have been used to claim that language models have knowledge of various morphological, syntactic, and semantic phenomena (Adi et al., 2017;Ettinger et al., 2016;Belinkov et al., 2017;Conneau et al., 2018, inter alia). Yet the validity of these claims has been a subject of debate (Saphra and Lopez, 2019;Hewitt and Liang, 2019;Pimentel et al., 2020a,b;Voita and Titov, 2020).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::3",
+      "paper_id": "2205.07043",
+      "heading": "Causal Probing",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::3::para::0",
+          "section_id": "2205.07043::section::3",
+          "text": "A more recent line of work aims to answer the question: What is the causal relationship between the property of interest and the probed model's representations? In natural language, however, answering this question is not straightforward: sentences typically contain confounding factors that render analyses tedious. To circumvent this problem, most work in causal probing relies on interventions, i.e., the act of setting a variable of interest to a fixed value (Pearl, 2009). Importantly, this must be done without altering any of this variable's causal parents, thereby keeping their probability distributions fixed. 4 As a byproduct, these interventions generate counterfactuals, i.e., examples where a specific property of interest is changed while everything else is held constant. Counterfactuals can then be used to perform a causal analysis. Prior probing papers have proposed methods using both representational and templated counterfactuals, as we discuss next.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::3::para::1",
+          "section_id": "2205.07043::section::3",
+          "text": "Representational Counterfactuals. A few recent causal probing papers perform interventions directly on a model's representations (Giulianelli et al., 2018;Feder et al., 2021;Vig et al., 2020;Tucker et al., 2021;Ravfogel et al., 2021;Lasri et al., 2022;Ravfogel et al., 2022a). For example, Elazar et al. (2021) use iterative null space projection (INLP; Ravfogel et al., 2020) to remove an analyzed property's information, e.g., part of speech, from the representations. Although representational interventions can be applied to situations where other forms of intervention are not feasible, it is often impossible to make sure only the information about the probed property is removed or changed. 5 In the absence of this guarantee, any causal conclusion should be viewed with caution.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::3::para::2",
+          "section_id": "2205.07043::section::3",
+          "text": "Templated Counterfactuals. Other works (Vig et al., 2020;Finlayson et al., 2021), like us, have leveraged input-level interventions. However, in these cases, the interventions are carried out using templated minimal-pair sentences, which differ only with respect to a single analyzed property. Using these minimal pairs, they estimate the effect of an input-level intervention on individual attention heads and neurons. One benefit of template-based approaches is that they create a highly controlled environment, which guarantees that the interven-4 Consider a set of three random variables with a causal structure X → Y → Z (where X causes Y , which causes Z). If we simply conditioned on Y = 1, we would be left with the conditional distribution p(x, z | Y = 1) = p(x | Y = 1)p(z | Y = 1). If we perform an intervention on Y = 1, on the other hand, we are left with a distribution of p(x, z | do(Y ) = 1) = p(x)p(z | Y = 1); thus X's distribution is not altered by Y .",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::3::para::3",
+          "section_id": "2205.07043::section::3",
+          "text": "5 There are, however, methods to mitigate this issue, e.g., Ravfogel et al. (2022b) recently proposed an improved (adversarial) method to remove information from a set of representations which greatly reduces the number of removed dimensions.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2205.07043::section::3::para::4",
+          "section_id": "2205.07043::section::3",
+          "text": "tion is done correctly, and which may lead to insights that would be impossible to gain from natural data. However, since the templates are typically designed to analyze a specific property, they cover a narrow set linguistic phenomena, which may not reflect the complexity of language in naturalistic data.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2205.07043::section::3::para::5",
+          "section_id": "2205.07043::section::3",
+          "text": "Naturalistic Counterfactuals. In this paper, following Zmigrod et al. (2019), we propose a new and less complex strategy to perform input-level interventions by creating naturalistic counterfactuals that are not derived from templates. Instead, we derive the counterfactuals from the dependency structure of the sentence. By creating counterfactuals on the fly using a dependency parse, we avoid the biases of manually creating templates. Furthermore, our approach guarantees that we only intervene on the specific linguistic property of interest, e.g., changing the grammatical gender or number of a noun.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::4",
+      "paper_id": "2205.07043",
+      "heading": "The Causal Framework",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::4::para::0",
+          "section_id": "2205.07043::section::4",
+          "text": "The question of interest in this paper is how contextualized representations are causally affected by a morpho-syntactic feature such as gender or number. To see how our method works, it is easiest to start with an example. Let's consider the following pair of Spanish sentences:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::4::para::1",
+          "section_id": "2205.07043::section::4",
+          "text": "(1)",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::4::para::2",
+          "section_id": "2205.07043::section::4",
+          "text": "El programador talentoso escribió el código. the.M.SG programmer.M.SG talented.M.SG wrote the code. The talented programmer wrote the code.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::4::para::3",
+          "section_id": "2205.07043::section::4",
+          "text": "(2) La programadora talentosa escribió el código. the.F.SG programmer.F.SG talented.F.SG wrote the code. The talented programmer wrote the code.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2205.07043::section::4::para::4",
+          "section_id": "2205.07043::section::4",
+          "text": "The meaning of these sentences is equivalent up to the gender of the noun programador, whose feminine form is programadora. However, more than just this one word changes from (1) to ( 2): The definite article el changes to la and the adjective talentoso changes to talentosa. In the terminology of this paper, we will refer to programador as the focus noun, as it is the noun whose grammatical properties we are going to change. We will refer to the changing of (1) to (2) as a syntactic intervention on the focus noun. Informally, a syntactic intervention may be thought of as taking part in two steps. First, we swap the focus noun (programador) with another noun that is equivalent up to a single grammatical property. In this case, we swap pro-gramador with programadora which differs only in its gender marking. Second, we reinflect the sentence so that all necessary words grammatically agree with the new focus noun. The result of a syntactic intervention is a pair of sentences that differ minimally, i.e., only with respect to this one grammatical property. Another way of framing the syntactic intervention is as a counterfactual: What would (1) have looked like if programador had been feminine? The rest of this section focuses on formalizing the notion of a syntactic intervention and discussing how to use them in a causal inference framework for probing.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2205.07043::section::4::para::5",
+          "section_id": "2205.07043::section::4",
+          "text": "A Note on Inanimate Nouns. When estimating the effect of grammatical gender here, we restrict our investigation to animate nouns, e.g., programadora/programador (feminine/masculine programmer). Grammatical gender of inanimate nouns is lexicalized, meaning that each noun is assigned a single gender, e.g., puente (bridge) is masculine. In other words, there is not a non-zero probability of assigning each lemmata to each gender, which violates a condition called positivity in causal inference literature. Thus, we cannot perform an intervention on the grammatical gender of those words, but rather would need to perform an intervention on the lemma itself. We refer to Gonen et al. (2019) for an analysis of the effect of gender on inanimate nouns' representations. Note that a similar lexicalization can also be observed in a few animate nouns, e.g. madre/padre (mother/father). In such cases, to separate the lemma from gender, we assume that these words share a hypothetical lemma, which in our example represents parenthood, and combining that with gender would give us the specific forms, e.g. madre/padre.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::5",
+      "paper_id": "2205.07043",
+      "heading": "The Causal Model",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::5::para::0",
+          "section_id": "2205.07043::section::5",
+          "text": "We now describe a causal model that will allow us to more formally discuss syntactic interventions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::5::para::1",
+          "section_id": "2205.07043::section::5",
+          "text": "Notation and Variables. We denote random variables in upper-case letters and instances with lower-case letters. We bold sequences: bold lower-case letters represent a sequence of words and bold upper-case letters represent a sequence of random variables. Let f = f 1 , . . . , f T be a sentence (of length T ) where each f t is a word form. In addition, let r be the list of contextual representations r = r 1 , . . . , r T where each r t ∈ R h , and is in one-to-one correspondence with the sentence f , i.e., r t is f t 's contextual representation. Furthermore, let ℓ = ℓ 1 , . . . , ℓ T be a list of lemmata and m = m 1 , . . . , m T a list of morpho-syntactic features co-indexed with f ; ℓ t is the lemma of f t and m t is its morpho-syntactic features. We call m = m t 1 , . . . , m t K the minimal list of morpho-syntactic features, where each t k is an index between 1 to T . In essence, we drop features of the tokens that are dependent on other tokens' morphology. In our example (1) this means we only include the morpho-syntactic features of programador and código, thus m = m 2 , m 6 . 6We denote the morpho-syntactic feature of interest as m * , which, in this work, represents either the gender g * or number n * of the focus noun. We further denote the lemma of the focus noun as ℓ * .",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::6",
+      "paper_id": "2205.07043",
+      "heading": "Causal Assumptions.",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::6::para::0",
+          "section_id": "2205.07043::section::6",
+          "text": "Our causal model is introduced in Fig. 2. It encodes the causal relationships between U, L, M , F and R. Explicitly, we assume the following causal relationships:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::6::para::1",
+          "section_id": "2205.07043::section::6",
+          "text": "• M and L are causally dependent on U . The underlying meaning that the writer of a sentence wants to convey determines the used lemmas and morpho-syntactic features;",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::6::para::2",
+          "section_id": "2205.07043::section::6",
+          "text": "• In general, L t can causally affect M t . Take the gender of inanimate nouns as an example, where the lemma determines the gender;",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::6::para::3",
+          "section_id": "2205.07043::section::6",
+          "text": "• F is causally dependent on L and M . Word forms are a combination of lemmata and morphosyntactic features;",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2205.07043::section::6::para::4",
+          "section_id": "2205.07043::section::6",
+          "text": "• R is causally dependent on F . Contextualized representations are obtained by processing the sentences through the probed model.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::7",
+      "paper_id": "2205.07043",
+      "heading": "Dependency Trees.",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::7::para::0",
+          "section_id": "2205.07043::section::7",
+          "text": "In order to measure the causal effect of the gender of the focus noun (g * ) on the contextualized representation (r), all of its causal dependencies must be considered. As our causal graph shows (in Fig. 2), g * not only has a causal effect on the focus noun's form, but also on the definite article el and the adjective talentoso. Yet, not all word forms in a sentence are affected; for instance, the definite article el in the noun phrase el código. Luckily, within a given sentence, such relationships are naturally",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::7::para::1",
+          "section_id": "2205.07043::section::7",
+          "text": "El talentoso programador * escribió el código. L * M * F 1 F * F 3 F 4 F 5 F 6 L 1 U L 3 L 4 L 5 L 6 M 6 Encoded by D Pre-trained Model R 1 R 2 R 3 R 4 R 5 R 6 L * M * G * =FEM. F 1 F * F 3 F 4 F 5 F 6 L 1 U L 3 L 4 L 5 L 6 M 6 escribió el código. talentosa programadora * Pre-trained Model La R 1 R 2 R 3 R 4 R 5 R 6 encoded by that sentence's dependency tree. The dependency graph d of a sentence f is a directed graph created by connecting each word form f t for 1 ≤ t ≤ T to its syntactic parent. We use the information encoded in d by leveraging the fact that a word form f t is causally dependent on its syntactic parent. In essence, a dependency tree d implicitly encodes a function d t [m] which returns the subset of morphological properties that causally affect the form f t . Thus, we are able to express the complete joint probability distribution of our causal model as follows:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::7::para::2",
+          "section_id": "2205.07043::section::7",
+          "text": "Abstract Causal Model. We can now simplify the causal model from Fig. 2 into Fig. 3. For simplicity, we isolate the lemma and morpho-syntactic feature of interest L * and M * and aggregate the other lemmata and morpho-syntactic features into an abstract variable, which we call Z and refer to as the context. Furthermore, we only show the aggregation of word forms and representations as F and R in the abstract model. We will assume for now, and in most of our experiments, that the output of the causal model (R in Fig. 3) represents the contextualized representation of the focus noun. However, as we generalize later, the output of the causal model can be any function of word forms F , such as: the representation of other words in the sentence, the probability distribution assigned by the model to a masked word, or even the output of a downstream task. We note that Fig. 3 can be easily re-expanded into Fig. 2 for any specific utterance by using its dependency tree.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::8",
+      "paper_id": "2205.07043",
+      "heading": "Naturalistic Counterfactuals",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::8::para::0",
+          "section_id": "2205.07043::section::8",
+          "text": "In causal inference literature, the do(•) operator represents an intervention on a causal diagram. For instance, we might want to intervene on the gender of the focus noun (thus using gender G * as the morpho-syntactic feature of interest M * ). Concretely, in our example (Fig. 2), do(G * = FEM) means intervening on the causal graph by removing all the causal edges going into G * from U and L * and setting G * 's value to a specific realization FEM. The result of this intervention on a sampled sentence f is a new counterfactual sentence f . As our causal graph suggests, the relationship between words in a sentence is complex, occurring at multiple levels of abstraction; swapping the gender of a single word-while leaving all other words unchanged-may not result in grammatical text. Consequently, one must approach the creation of counterfactuals in natural language with caution. Specifically, we rely on syntactic interventions to generate our naturalistic counterfactuals.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::9",
+      "paper_id": "2205.07043",
+      "heading": "Syntactic Intervention.",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::9::para::0",
+          "section_id": "2205.07043::section::9",
+          "text": "We develop a heuristic algorithm to perform our interventions, shown in App. B. Given a sentence and its dependency tree, the algorithm generates a counterfactual version of the sentence, i.e., approximating the do(•) operation. This algorithm processes the dependency tree of each sentence in a depth-first search recursive manner. In each iteration, if the node in process is a noun, it is marked as the focus noun 7 and a new copy of the sentence is created, which will be the base of the counterfactual sentence. Then, the intervention is performed, altering the focus noun and all dependent tokens in the copied sentence. 8 Notedly, when we syntactically intervene on the grammatical gender or number of a noun, we do not alter potentially incompatible semantic contexts. Take sentence (3) as an example, where the focus noun is mujer and we intervene on gender.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::9::para::1",
+          "section_id": "2205.07043::section::9",
+          "text": "Its counterfactual sentence (4) is semantically odd and unlikely, but still meaningful. We can thus estimate the causal effect of grammatical gender in the contextual representations-breaking the correlation between morpho-syntax and semantics.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::9::para::2",
+          "section_id": "2205.07043::section::9",
+          "text": "(3) La mujer dio a luz a 6 bebés. the.F.SG woman.F.SG gave birth to 6 babies. The woman gave birth to 6 babies.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::9::para::3",
+          "section_id": "2205.07043::section::9",
+          "text": "(4) El hombre dio a luz a 6 bebés. the.M.SG man.M.SG gave birth to 6 babies. The man gave birth to 6 babies.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::10",
+      "paper_id": "2205.07043",
+      "heading": "Measuring Causal Effects",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::10::para::0",
+          "section_id": "2205.07043::section::10",
+          "text": "In this section, we define the causal effect of a morpho-syntactic feature. We then present estimators for these values in the following section. While we focus on grammatical gender here, our derivations are similarly applicable to number and other morpho-syntactic features.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::10::para::1",
+          "section_id": "2205.07043::section::10",
+          "text": "Given a specific focus-context pair (ℓ * , z), the causal effect of gender G * on the representations is called the individual treatment effect (ITE; 7 Specifically, for gender intervention we only mark the noun as the focus if it is an animate noun.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::10::para::2",
+          "section_id": "2205.07043::section::10",
+          "text": "8 This is a simplified version of the algorithm where we omit the rule-based re-inflection functions for nouns, adjectives and determiners. We also handle contractions, such as a + el → al, which is not mentioned in this pseudo-code. Rosenbaum and Rubin, 1983) and is defined as:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::10::para::3",
+          "section_id": "2205.07043::section::10",
+          "text": "where tgt(•) is a deterministic function that implements the model being probed, e.g., a pretrained model like BERT, taking a form F as input and outputting R. Since F is itself a deterministic function of a G * , L * , Z triple, we can rewrite this equation as: 9",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2205.07043::section::10::para::4",
+          "section_id": "2205.07043::section::10",
+          "text": "As can be seen from Eq. ( 3), the ITE is the difference in the representation given that the focus noun of the sentence is masculine vs. feminine.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2205.07043::section::10::para::5",
+          "section_id": "2205.07043::section::10",
+          "text": "To get a more general understanding of how gender affects these representations, however, it is not enough to just look at individual treatment effects. It is necessary to consider a holistic metric across the entire language. The average treatment effect (ATE) is one such metric, and is defined as the difference between the following expectations:",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2205.07043::section::10::para::6",
+          "section_id": "2205.07043::section::10",
+          "text": "In words, the ATE is the expected causal effect of one random variable on another (in this case gender on the model's representations). Computing this expectation, however, is not as simple as conditioning it on gender. As there are backdoor paths 10 from the treatment (gender) to the effect (the representations), we rely on the backdoor criterion (Pearl, 2009) to compute this expectation. Simply put, we first need to find a set of variables that block every such backdoor path. We then condition our expectation on them. As shown in Proposition 1 (in the appendix), the set of variables satisfying the backdoor criterion in our case is {L * , Z}. Therefore, we can rewrite Eq. ( 4) by conditioning our 9 We overload tgt(•) to receive either F or G * , L * , Z . 10 A backdoor path is a causal path from an analyzed variable to its effect which contains an arrow to the treatment (i.e., an arrow going backwards). For instance, consider random variables with a causal structure Y → X → Z and Y → Z (where Y causes X, and both X and Y cause Z). X ← Y → Z forms a backdoor path (Definition 3, Pearl, 2009).",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2205.07043::section::10::para::7",
+          "section_id": "2205.07043::section::10",
+          "text": "expectation over{L * , Z}:",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2205.07043::section::10::para::8",
+          "section_id": "2205.07043::section::10",
+          "text": "which we can again rewrite as:",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2205.07043::section::10::para::9",
+          "section_id": "2205.07043::section::10",
+          "text": "Furthermore, plugging Eq. ( 3) into Eq. ( 6):",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2205.07043::section::10::para::10",
+          "section_id": "2205.07043::section::10",
+          "text": "reveals that Eq. ( 5) is just the ITE in expectation. Thus, the ATE is an appropriate language-wide measure of the effect of gender on contextual representations.",
+          "paragraph_index": 10
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::11",
+      "paper_id": "2205.07043",
+      "heading": "Approximating the ATE",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::11::para::0",
+          "section_id": "2205.07043::section::11",
+          "text": "In this section, we show how to estimate Eq. ( 6) from a finite corpus of sentences S.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::12",
+      "paper_id": "2205.07043",
+      "heading": "Naïve Estimator",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::12::para::0",
+          "section_id": "2205.07043::section::12",
+          "text": "Each sentence in our corpus can be written as a triple g * , ℓ * , z . We now discuss how to use such a corpus to estimate Eq. ( 6). Specifically, we first compute the sample mean using two subsets of sentences: one with only masculine focus nouns S MSC and the other with feminine ones S FEM . We then compute their difference:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::12::para::1",
+          "section_id": "2205.07043::section::12",
+          "text": "We note, however, that this is a very naïve estimator. 11 Since S MSC (and respectively S FEM ) includes only the fraction of sentences with masculine focus nouns, restricting the sample mean to this set of instances is equivalent to using samples z, ℓ * ∼ p(z, ℓ * | MSC), rather than z, ℓ * ∼ p(z, ℓ * ) (as should be done for ATE). Notably, this is equivalent to ignoring the do operator in Eq. ( 4). Consequently, Eq. ( 8) introduces a purely correlational baseline. In the following section, we present our (better) causal estimator.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::13",
+      "paper_id": "2205.07043",
+      "heading": "Paired Estimator",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::13::para::0",
+          "section_id": "2205.07043::section::13",
+          "text": "We now use our naturalistic counterfactual sentences to approximate the ATE. Specifically, by relying on our syntactic interventions, we can get both a feminine and masculine form of each sentence (ℓ * , z) sampled from the corpus. Concretely, we use the following paired estimator:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::13::para::1",
+          "section_id": "2205.07043::section::13",
+          "text": "where, depending on g * , the model's output tgt(•) in ( 1) and (2) will be extracted from a pre-trained model using either the original or counterfactual sentences.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::14",
+      "paper_id": "2205.07043",
+      "heading": "A Closer Look at our Estimators",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::14::para::0",
+          "section_id": "2205.07043::section::14",
+          "text": "A closer look at our paired estimator in Eq. ( 9) shows that it is an unbiased Monte Carlo estimator of the ATE presented in Eq. ( 6). In short, if we assume our corpus S was sampled from the target distribution, we can use this corpus as samples ℓ * , z ∼ p(ℓ * , z). For each ℓ * , z pair, we can then generate sentences with both MSC and FEM grammatical genders to estimate the ATE.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::14::para::1",
+          "section_id": "2205.07043::section::14",
+          "text": "The naïve estimator, on the other hand, will not produce an unbiased estimate of the ATE. As mentioned above, by considering sentences in S MSC or S FEM separately, we implicitly condition on the gender when approximating each expectation. This estimator instead approximates a value we term the average correlational effect (ACE):",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::14::para::2",
+          "section_id": "2205.07043::section::14",
+          "text": "On a separate note, template-based approaches allow the researcher to investigate causal effects by using minimal pairs of sentences, each of which can be used to estimate an ITE (as in Eq. ( 3)). And, by averaging them, they provide an estimate of ATE (as in Eq. ( 7)). However, these minimal pairs are either manually written or automatically collected using template structures. Therefore, they cover a narrow (and potentially biased) set of structures, arguably not following a naturalistic distribution. In other words, their corpus S cannot be assumed to be sampled according to the distribution p(ℓ * , z). 12 In practice, templated counterfactuals approximate the treatment effect using an approach identical to the paired estimators-up to a change of distribution. This change of distribution, however, may lead to biased estimates of the ATE.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::15",
+      "paper_id": "2205.07043",
+      "heading": "Dataset",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::15::para::0",
+          "section_id": "2205.07043::section::15",
+          "text": "We use two Spanish UD treebanks (Nivre et al., 2020) in our experiments: Spanish-GSD (McDonald et al., 2013) and Spanish-AnCora (Taulé et al., 2008). We only analyze gender on animate nouns and use Open Multilingual WordNet (Gonzalez-Agirre et al., 2012) to mark the animacy. Corpus statistics for the datasets can be found in Table 1.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::16",
+      "paper_id": "2205.07043",
+      "heading": "Evaluating Counterfactual Sentences",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::16::para::0",
+          "section_id": "2205.07043::section::16",
+          "text": "To evaluate our syntactic intervention algorithm (introduced in §3.2), we randomly sample a subset of 100 sentences from our datasets. These samples are evenly distributed across the two datasets (An-Cora and GSD), morpho-syntactic features (gender and number), and categories within each feature (masculine, feminine, singular, and plural). A native Spanish speaker assessed the grammaticality of sampled sentences. Our syntactic intervention algorithm was able to accurately generate counterfactuals for 73% of the sentences. 13 The accuracy for the gender and number interventions are 76% and 70%, respectively. Due to the subtleties discussed in disentangling syntax from semantics and the complex sentence structures found in naturalistic data, we believe this error is within an acceptable range and leave improvements to future work. 12 This becomes clear when we take a look at the sentences in one of such template-based datasets. For instance, all sentences in the Winogender dataset (Rudinger et al., 2018)-used by Vig et al. (2020)-have very similar sentential structures. Such biases, however, are not necessarily problematic and might be imposed by design to analyze specific phenomena.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::16::para::1",
+          "section_id": "2205.07043::section::16",
+          "text": "13 Approximating our estimate of this accuracy with a normal distribution, we obtain a 95% confidence interval (Wald interval) which ranges from 64% to 82% (Brown et al., 2001).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::17",
+      "paper_id": "2205.07043",
+      "heading": "Template-Based Dataset",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::17::para::0",
+          "section_id": "2205.07043::section::17",
+          "text": "To compare our approach to templated counterfactuals, we translate two datasets for measuring gender bias: Winogender (Rudinger et al., 2018) and WinoBias (Zhao et al., 2018). As shown by Stanovsky et al. (2019), simply translating these templates to Spanish leads to biased translations, where professions are translated stereotypically and the context is ignored. Following Stanovsky et al., we thus put either handsome and pretty before nouns to enforce the gender constraint after translation. Consider, for instance, the sentence: \"The developer was unable to communicate with the writer because he only understands the code.\" We rewrite it as \"The handsome developer. . .\". Similarly, if the pronoun was she, we would write \"The pretty developer. . .\". As an extra constraint, we want to ensure the gender of the writer stays the same before and after the intervention. Therefore, we make two copies of the sentence: One where writer is translated as escritora (feminine writer), enforced by replacing writer with pretty writer, and one where writer is translated as escritor (masculine writer), enforced by replacing writer with handsome writer. We translate the resulting pairs of sentences using the Google Translate API and drop the sentences with wrong gender translations. In the end, we obtain 2740 minimal pairs.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::18",
+      "paper_id": "2205.07043",
+      "heading": "Insights From ATE Estimators",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::18::para::0",
+          "section_id": "2205.07043::section::18",
+          "text": "In the following experiments, we first use the estimators introduced in §4 to approximate the ATE of number and grammatical gender on contextualized representations. We look at how stable these ATE estimates are across datasets, and whether they change across words with different parts of speech. We then analyze whether the ATE (as an expected value) was an accurate description of how representations actually change in individual sentences. Finally, we compute the ATE of gender on the probability of predicting specific adjectives in a sentence, thereby measuring the causal effect of gender in adjective prediction.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::19",
+      "paper_id": "2205.07043",
+      "heading": "Variations across ATEs",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::19::para::0",
+          "section_id": "2205.07043::section::19",
+          "text": "Variation Across Datasets. Using our ATE estimators, we compute the average treatment effect of both gender and number on BERT's contextualized representations (Devlin et al., 2019) of focus P.Focus P.Adj P.Det N.Focus N.Adj N.Det N.Det N.Adj N.Focus P.Det P.Adj P.Focus N.Det N.Adj N.Focus P.Det P.Adj P.Focus nouns. 14 We compute the ψ paired and ψ naïve estimators. Fig. 4 presents their cosine similarities. We observe high cosine similarities between paired estimators across datasets, 15 but lower cosine similarities with the naïve estimator. This suggests that, while the causal effect is stable across treebanks, the correlational effect is more susceptible to variations in the datasets, e.g., semantic variations due to the domain from which treebanks were sampled.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::20",
+      "paper_id": "2205.07043",
+      "heading": "Templated vs. Naturalistic Counterfactuals.",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::20::para::0",
+          "section_id": "2205.07043::section::20",
+          "text": "As an extra baseline, we estimate the ATE using a paired estimator with the template-based dataset introduced in §5.2 We observe a low cosine similarity between our naturalistic ATE estimates and the template-based ones. This shows that sentences from template-based datasets are substantially different from naturalistic datasets, thus failing to provide unbiased estimates in naturalistic settings. 14 More specifically BERT-BASE-MULTILINGUAL-CASED in the Transformers library (Wolf et al., 2020). 15 To make sure that the imbalance in the dataset before intervention doesn't have a significant effect on results, we create a balanced version of the dataset, where we observe similar results.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::20::para::1",
+          "section_id": "2205.07043::section::20",
+          "text": "MProbs(h) MProbs( h ψnaïve ) MProbs( h ψpaired ) GENDER    DET: MProbs(h ) 4.85 ± 2.39 1.09 ± 1.4 0.67 ± 1.14 ADJ: MProbs(h ) 2.29 ± 2 1.04 ± 1.05 0.9 ± 1.12 FOCUS: MProbs(h ) 3.75 ± 2.67 1.74 ± 1.11 1.53 ± 0.93 NUMBER    DET: MProbs(h ) 6.93 ± 2.52 1.92 ± 2.87 2.05 ± 2.64 ADJ: MProbs(h ) 5.63 ± 2.75 2.25 ± 2.2 2.5 ± 2.17 FOCUS: MProbs(h ) 5.50 ± 3.02 2.25 ± 2.14 2.41 ± 1.9",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::20::para::2",
+          "section_id": "2205.07043::section::20",
+          "text": "Table 2: Mean and standard deviation of Jensen-Shannon divergence between the masked probability distributions of focus nouns, determiners and adjectives over the corpus.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::20::para::3",
+          "section_id": "2205.07043::section::20",
+          "text": "Variation Across Part-of-Speech Tags. Using the same approach, we additionally compute the ATEs on adjectives and determiners. Fig. 5 presents our naïve and paired ATE estimates, computed on words with different parts of speech. These results suggest that gender and number do not affect the focus noun or its dependent words in the same way. While the ATE on focus nouns and adjectives are strongly aligned, the cosine similarity between ATEs on focus nouns and determiners is smaller.foot_5",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::21",
+      "paper_id": "2205.07043",
+      "heading": "Masked Language Modeling Predictions",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::21::para::0",
+          "section_id": "2205.07043::section::21",
+          "text": "We now analyze the effect of our morpho-syntactic features on masked language modeling predictions. Specifically, we analyze RoBERTa (Conneau et al., 2020) 17 in these experiments, as it has better performance than BERT in masked prediction. We thus look at how grammatical gender and number affect the probability RoBERTa assigns to each word in its output vocabulary. We start by masking a word in our sentence: either the focus noun, a dependent determiner, or an adjective. We then obtain this word's contextual representation h. Second, we apply a syntactic intervention to this sentence, and, following similar steps, obtain another representation h . Third, we use these representations to obtain the probabilities RoBERTa assigns to the words in its vocabulary MProbs(h) and MProbs(h ). Finally, we get these same probability assignments, but using ATE to estimate the counterfactual representations:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::21::para::1",
+          "section_id": "2205.07043::section::21",
+          "text": "We now look at how probability assignments change as a function of our interventions. Specifically, Table 2 shows Jensen--Shannon divergences hermosa hermoso bonita bonito delicada delicado racional rica rico tranquila tranquilo molesta molesto sexy -2.5 -2 -1.5 -1 -0.5 0 0.5 1 Figure 6: ψ (a)",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::21::para::2",
+          "section_id": "2205.07043::section::21",
+          "text": "paired values computed using Eq. ( 14) to measure causal gender bias in masked adjective prediction.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::21::para::3",
+          "section_id": "2205.07043::section::21",
+          "text": "between MProbs(•) computed on top of different representations. We can make a number of observations based on this table. First, for gender, these distributions change more when predicting determiners and focus nouns than adjectives. We speculate that this may be because many Spanish adjectives are syncretic, i.e., they have the same inflected form for masculine and feminine, e.g., inteligente (intelligent), or profesional (professional). Second, the distributions change more after an intervention on number than on gender. Third, when we use either of our estimators to approximate the counterfactual representation, the divergences are greatly reduced; These results show that the ATE values do describe (at least to some extent) the change of representations in individual sentences.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::22",
+      "paper_id": "2205.07043",
+      "heading": "Gender Bias in Adjectives",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::22::para::0",
+          "section_id": "2205.07043::section::22",
+          "text": "As shown by Bartl et al. (2020) and Gonen et al. (2022), the results of studies on gender bias in English are not completely transferable to gendermarking languages. We analyze the causal effect of gender on specific masked adjective probabilities, predicted by the RoBERTa model. To this end, we manually create a list of 30 adjectives (the complete list is in App. A) in both masculine and feminine forms. We sample a sentence f from a subset of the dataset in which the focus noun has one dependent adjective a, and mask this adjective. We then define a new function tgt(•) to measure the ATE on adjective probabilities. Specifically, we write:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::22::para::1",
+          "section_id": "2205.07043::section::22",
+          "text": "where a represents an adjective in our list (that also exists in RoBERTa's vocabulary V) and p θ (a | f ) is the probability RoBERTa assigns to that adjective. 18 We plug this new function into our paired ATE estimator in Eq. ( 9). As this prediction is somewhat susceptible to noise, we replace the 18 When an adjective in the list has two forms depending on the gender (e.g., hermosa/hermoso), we sum the probabilities for masculine and feminine forms. mean in Eq. ( 9) with the median, i.e., we compute:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::22::para::2",
+          "section_id": "2205.07043::section::22",
+          "text": "In this equation, if ψ (a)",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::22::para::3",
+          "section_id": "2205.07043::section::22",
+          "text": "paired > 0, the predicted probability that the adjective appears in a sentence where it is dependent on a masculine focus noun will be typically higher than in a sentence with a feminine focus noun. Whereas if ψ (a) paired < 0 the reverse will hold. Therefore, we say a is biased towards masculine gender if ψ (a) paired > 0 and it is biased towards feminine gender if ψ (a) paired < 0 As shown in Fig. 6, rich (rica/rico) and rational (racional) are more biased towards masculine gender, while beautiful (hermosa/hermoso) is biased towards feminine gender.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::23",
+      "paper_id": "2205.07043",
+      "heading": "Insights From Naturalistic Counterfactuals",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::23::para::0",
+          "section_id": "2205.07043::section::23",
+          "text": "In the following experiments, we rely on a dataset augmented with naturalistic counterfactuals. We first explore the geometry of the encoded morphosyntactic features. We then run a more classic correlational probing experiment, highlighting the importance of a causal framework when analyzing representations.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::24",
+      "paper_id": "2205.07043",
+      "heading": "Geometry of Morpho-Syntactic Features",
+      "section_type": null,
+      "order": 24,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::24::para::0",
+          "section_id": "2205.07043::section::24",
+          "text": "In this experiment, we follow Bolukbasi et al.'s (2016) methodology to isolate the subspace capturing our morpho-syntactic features' information. First, we create a matrix with the representations of all focus nouns in our counterfactually augmented dataset. Second, we pair each noun's representation with its counterfactual representation (after the intervention). Third, we center the matrix of representations by subtracting each pair's mean. Finally, we perform principal component analysis on this new matrix.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::24::para::1",
+          "section_id": "2205.07043::section::24",
+          "text": "As Fig. 7 shows, in BERT and RoBERTa, the first principal component explains close to 20% of the variance caused by gender and number. In GPT-2 (Radford et al., 2019), 19 more than half Principal Axis Explained Variance Gender Number First Principal Axis of the variance is captured by the first or the first two principal components. 20 This result is in line with prior work (e.g., Biasion et al., 2020, on Italian word embeddings), and suggests that these morpho-syntactic features are linearly encoded in the representations.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::24::para::2",
+          "section_id": "2205.07043::section::24",
+          "text": "To further explore the gender and number subspaces, we project a random sample of 20 sentences (along with their counterfactuals) onto the first principal component. Fig. 7 (bottom) shows that the three models we probe can (at least to a large extent) differentiate both morpho-syntactic features using a single dimension. Notably, this first principal component is strongly aligned with the estimate ψ paired ; they have a cosine similarity of roughly 0.99 in all these settings.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::25",
+      "paper_id": "2205.07043",
+      "heading": "Analysis of Correlational Probing",
+      "section_type": null,
+      "order": 25,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::25::para::0",
+          "section_id": "2205.07043::section::25",
+          "text": "We now use a dataset augmented with naturalistic counterfactuals to empirically evaluate the entanglement of correlation and causation discussed in §2, which arises when using diagnostic probes to probe the representations. Again, we probe three contextual representations: BERT, RoBERTa, and GPT-2. We train logistic regressors (LogRegProbe) and support vector machines (SVMProbe) to predict either gender or number of the focus noun from its contextual representation. Further, we probe the representations in two positions: the focus noun and the [CLS] token (or a sentence's 20 These results are not obtained due to the randomness of a finite sample of high dimensional vectors. Neither are they due to the structure of the model. To show this, we present two random baselines: random vectors of the same size |S| (as green traces) and representations extracted from models with randomized weights (as gray traces) in Fig. 7. last token, for GPT-2). 21Accuracy of correlational probes on the original dataset is shown in Fig. 8 as green points. Both gender and number probes reach a near-perfect accuracy on focus nouns' representations. Furthermore, all correlational gender probes reach a high accuracy in [CLS] representations, suggesting that gender can be reliably recovered from them.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::25::para::1",
+          "section_id": "2205.07043::section::25",
+          "text": "Next, we evaluate trained probes on counterfactually augmented test sets (shown as yellow points in Fig. 8). We see that there is a drop in performance in all settings, and more specifically, the accuracy of probes on [CLS] representations drops significantly when evaluated on the counterfactual test set. This suggest that the previous results using correlational probes overestimate the extent to which gender and number can be predicted from the representations.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::25::para::2",
+          "section_id": "2205.07043::section::25",
+          "text": "Finally, we also train supervised probes on a counterfactually augmented dataset in order to study whether we can achieve the levels of performance attested in the literature (shown as gray points in Fig. 8). Since these probes are trained on a dataset augmented with counterfactuals, they are not as susceptible to spurious correlations; we thus call them the causal probes. Although there is a considerable improvement in accuracy, there is still a large gap between correlational and causal probes' accuracies. Together, these results imply that correlational probes are sensitive to spurious correlations in the data (such as the semantic",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::25::para::3",
+          "section_id": "2205.07043::section::25",
+          "text": "Gender Number Accuracy SVMProbe: [CLS] LogRegProbe: [CLS] SVMProbe: Focus LogRegProbe: Focus SVMProbe: [CLS] LogRegProbe: [CLS] SVMProbe: Focus LogRegProbe: Focus SVMProbe: [CLS] LogRegProbe: [CLS] SVMProbe: Focus LogRegProbe: Focus mBERT RoBERTa GPT-2 Accuracy [train: original data] test: original data [train:original data] test: augmented data [train: augmented data] test: augmented data context in which nouns appear), and do not learn to predict grammatical gender robustly.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::26",
+      "paper_id": "2205.07043",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 26,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::26::para::0",
+          "section_id": "2205.07043::section::26",
+          "text": "We propose a heuristic algorithm for syntactic intervention which, when applied to naturalistic data, allows us to create naturalistic counterfactuals. Although similar analyses have been run by prior work, using either templated or representational counterfactuals (Elazar et al., 2021;Vig et al., 2020;Bolukbasi et al., 2016, inter alia), our syntactic intervention approach allows us to run these analyses on naturalistic data. We further discuss how to use these counterfactuals in a causal setting to probe for morpho-syntax. Experimentally, we first showed that ATE estimates are more robust to dataset differences than either our naïve (correlational) estimator, or template-based approaches. Second, we showed that ATE can (at least partially) predict how representations will be affected after intervention on gender or number. Third, we employ our ATE framework to study gender bias, finding a list of adjectives that are biased towards one or other gender. Fourth, we find that the variation of gender and number can be captured by a few principal axes in the nouns' representations. And, finally, we highlight the importance of causal analyses when probing: When evaluated on counterfactually augmented data, correlational probe results drop significantly.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::27",
+      "paper_id": "2205.07043",
+      "heading": "Ethical Concerns",
+      "section_type": null,
+      "order": 27,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::27::para::0",
+          "section_id": "2205.07043::section::27",
+          "text": "Pretrained models often encode gender bias. The adjective bias experiments in this work can provide further insights into the extent to which these bi-ases are encoded in multilingual pretrained models. As our paper focuses on (grammatical) gender as a morpho-syntactic feature, it focuses on a binary notion of gender, which is not representative of the full spectrum of human gender expression. Most of the analysis in this paper focuses on measuring grammatical gender, not gender bias. We thus advise caution when interpreting the findings from this work. Nonetheless, we hope the causal structure formalized here, together with our analyses, can be of use to bias mitigation techniques in future (e.g., Liang et al., 2020).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::27::para::1",
+          "section_id": "2205.07043::section::27",
+          "text": "(new), serio/seria (serious), sensible (sensitive), profesional (professional), emocional (emotional), independiente (independent), fantástico/fantástica (fantastic), brutal (brutal), malo/mala (bad), bueno/buena (good), horrible (horrible), triste (sad), amable (nice), tranquilo/tranquila (quiet), rico/rica (rich), racional (rational).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2205.07043::section::28",
+      "paper_id": "2205.07043",
+      "heading": "C Theory Proposition 1.",
+      "section_type": null,
+      "order": 28,
+      "paragraphs": [
+        {
+          "id": "2205.07043::section::28::para::0",
+          "section_id": "2205.07043::section::28",
+          "text": "In this proposition we show that the average treatment effect is equivalent to the difference of two expectations with no do-operator:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2205.07043::section::28::para::1",
+          "section_id": "2205.07043::section::28",
+          "text": "Proof. First, we note the existence of two backdoor paths in our model Fig. 3: M * ← U → Z → F → R and M * ← U → L * → F → R. We can easily check that Z blocks the first and L * blocks the second path, and neither Z nor L * are descendants of M * . Therefore {L * , Z} satisfies the back-door criterion.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2205.07043::section::28::para::2",
+          "section_id": "2205.07043::section::28",
+          "text": "To make the proof simpler, we show that the first term of the left-hand side of Eq. ( 15) equals the first term in the right-hand side of Eq. ( 15) and then we get the full result by symmetry. We proceed as follows:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2205.07043::section::28::para::3",
+          "section_id": "2205.07043::section::28",
+          "text": "rewrite as an expectation)",
+          "paragraph_index": 3
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2205.07043::citation::0",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Change the noun and set the morpho-syntactic feature to the desired value 5: isFocusNoun ← true 6: if node is subject : 7: REINFLECTVERB(parent) Change verb 8: if state== DIR : Current node is a direct dependent of a focus noun 9: if node is a determiner : 10: REINFLECTDET(node) Change determiner 11: if node is an adjective modifier : 12: REINFLECTADJ(node) Change adjective 13: if node is a nominal subject : 14: REINFLECTNOUN(node) Change noun 15: nsubj ← true 16: if node is a copula : 17: REINFLECTCOP(node) Change copula 18: if state== INDIR and node is an adjective modifier and parent is an adjective modifier : Current node is a descendant of a focus noun",
+      "cited_authors": [],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::1",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Fine-grained analysis of sentence embeddings using auxiliary prediction tasks",
+      "cited_authors": [
+        "References Yossi",
+        "Adi",
+        "Einat Kermany",
+        "Yonatan Belinkov",
+        "Ofer Lavi",
+        "Yoav Goldberg"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::2",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Understanding intermediate layers using linear classifier probes",
+      "cited_authors": [
+        "Guillaume Alain",
+        "Yoshua Bengio"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::3",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Unmasking contextual stereotypes: Measuring and mitigating BERT's gender bias",
+      "cited_authors": [
+        "Marion Bartl",
+        "Malvina Nissim",
+        "Albert Gatt"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::4",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Probing classifiers: Promises, shortcomings, and alternatives",
+      "cited_authors": [
+        "Yonatan Belinkov"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2102.12452",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::5",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Evaluating layers of representation in neural machine translation on part-of-speech and semantic tagging tasks",
+      "cited_authors": [
+        "Yonatan Belinkov",
+        "Lluís Màrquez",
+        "Hassan Sajjad",
+        "Nadir Durrani",
+        "Fahim Dalvi",
+        "James Glass"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::6",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Gianmaria Silvello, and Gian Antonio Susto",
+      "cited_authors": [
+        "Davide Biasion",
+        "Alessandro Fabris"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::7",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Man is to computer programmer as woman is to homemaker? Debiasing word embeddings",
+      "cited_authors": [
+        "Tolga Bolukbasi",
+        "Kai-Wei Chang",
+        "James Y Zou",
+        "Venkatesh Saligrama",
+        "Adam T Kalai"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::8",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Interval Estimation for a Binomial Proportion",
+      "cited_authors": [
+        "Lawrence D Brown",
+        "T Tony Cai",
+        "Anirban Das-Gupta"
+      ],
+      "cited_year": 2001,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1214/ss/1009213286",
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::9",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Alec Radford, Ilya Sutskever, and Dario Amodei",
+      "cited_authors": [
+        "Tom Brown",
+        "Benjamin Mann",
+        "Nick Ryder",
+        "Melanie Subbiah",
+        "Jared D Kaplan",
+        "Prafulla Dhariwal",
+        "Arvind Neelakantan",
+        "Pranav Shyam",
+        "Girish Sastry",
+        "Amanda Askell",
+        "Sandhini Agarwal",
+        "Ariel Herbert-Voss",
+        "Gretchen Krueger",
+        "Tom Henighan",
+        "Rewon Child",
+        "Aditya Ramesh",
+        "Daniel Ziegler",
+        "Jeffrey Wu",
+        "Clemens Winter",
+        "Chris Hesse",
+        "Mark Chen",
+        "Eric Sigler",
+        "Mateusz Litwin",
+        "Scott Gray",
+        "Benjamin Chess",
+        "Jack Clark",
+        "Christopher Berner",
+        "Sam Mccandlish"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::10",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Unsupervised cross-lingual representation learning at scale",
+      "cited_authors": [
+        "Alexis Conneau",
+        "Kartikay Khandelwal",
+        "Naman Goyal",
+        "Vishrav Chaudhary",
+        "Guillaume Wenzek",
+        "Francisco Guzmán",
+        "Edouard Grave",
+        "Myle Ott",
+        "Luke Zettlemoyer",
+        "Veselin Stoyanov"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.acl-main.747",
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::11",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "What you can cram into a single $&!#* vector: Probing sentence embeddings for linguistic properties",
+      "cited_authors": [
+        "Alexis Conneau",
+        "German Kruszewski",
+        "Guillaume Lample",
+        "Loïc Barrault",
+        "Marco Baroni"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P18-1198",
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::12",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "BERT: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/N19-1423",
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::13",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Amnesic probing: Behavioral explanation with amnesic counterfactuals",
+      "cited_authors": [
+        "Yanai Elazar",
+        "Shauli Ravfogel",
+        "Alon Jacovi",
+        "Yoav Goldberg"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::14",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Probing for semantic evidence of composition by means of simple classification tasks",
+      "cited_authors": [
+        "Allyson Ettinger",
+        "Ahmed Elgohary",
+        "Philip Resnik"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/W16-2524",
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::15",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "CausaLM: Causal Model Explanation Through Counterfactual Language Models",
+      "cited_authors": [
+        "Amir Feder",
+        "Nadav Oved"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1162/coli_a_00404",
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::16",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Causal analysis of syntactic agreement mechanisms in neural language models",
+      "cited_authors": [
+        "Matthew Finlayson",
+        "Aaron Mueller",
+        "Sebastian Gehrmann",
+        "Stuart Shieber",
+        "Tal Linzen",
+        "Yonatan Belinkov"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.acl-long.144",
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::17",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Under the hood: Using diagnostic classifiers to investigate and improve how language models track agreement information",
+      "cited_authors": [
+        "Mario Giulianelli",
+        "Jack Harding",
+        "Florian Mohnert",
+        "Dieuwke Hupkes",
+        "Willem Zuidema"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/W18-5426",
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::18",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "How does grammatical gender affect noun representations in gender-marking languages?",
+      "cited_authors": [
+        "Yova Hila Gonen",
+        "Yoav Kementchedjhieva",
+        "Goldberg"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/K19-1043",
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::19",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Analyzing gender representation in multilingual models",
+      "cited_authors": [
+        "Shauli Hila Gonen",
+        "Yoav Ravfogel",
+        "Goldberg"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2022.repl4nlp-1.8",
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::20",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "European Language Resources Association (ELRA). MA Hernán and JM Robins",
+      "cited_authors": [
+        "Aitor Gonzalez-Agirre",
+        "Egoitz Laparra",
+        "German Rigau"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::21",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Conditional probing: Measuring usable information beyond a baseline",
+      "cited_authors": [
+        "John Hewitt",
+        "Kawin Ethayarajh",
+        "Percy Liang",
+        "Christopher Manning"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.emnlp-main.122",
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::22",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Designing and interpreting probes with control tasks",
+      "cited_authors": [
+        "John Hewitt",
+        "Percy Liang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D19-1275",
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::23",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Visualisation and 'diagnostic classifiers' reveal how recurrent and recursive neural networks process hierarchical structure",
+      "cited_authors": [
+        "Dieuwke Hupkes",
+        "Sara Veldhoen",
+        "Willem Zuidema"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::24",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "BERT for coreference resolution: Baselines and analysis",
+      "cited_authors": [
+        "Mandar Joshi",
+        "Omer Levy",
+        "Luke Zettlemoyer",
+        "Daniel Weld"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D19-1588",
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::25",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Cross-lingual lemmatization and morphology tagging with two-stage multilingual BERT fine-tuning",
+      "cited_authors": [
+        "Dan Kondratyuk"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/W19-4203",
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::26",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Probing for the usage of grammatical number",
+      "cited_authors": [
+        "Karim Lasri",
+        "Tiago Pimentel",
+        "Alessandro Lenci",
+        "Thierry Poibeau",
+        "Ryan Cotterell",
+        "; Paul",
+        "Pu Liang",
+        "Irene Mengze Li",
+        "Emily Zheng",
+        "Chong Yao",
+        "Ruslan Lim",
+        "Louis-Philippe Salakhutdinov",
+        "Morency"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.acl-main.488",
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::27",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Universal Dependency annotation for multilingual parsing",
+      "cited_authors": [
+        "Ryan Mcdonald",
+        "Joakim Nivre",
+        "Yvonne Quirmbach-Brundage",
+        "Yoav Goldberg",
+        "Dipanjan Das",
+        "Kuzman Ganchev",
+        "Keith Hall",
+        "Slav Petrov",
+        "Hao Zhang",
+        "Oscar Täckström",
+        "Claudia Bedini",
+        "Núria Bertomeu Castelló",
+        "Jungmee Lee"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::28",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Universal Dependencies v2: An evergrowing multilingual treebank collection",
+      "cited_authors": [
+        "Joakim Nivre",
+        "Marie-Catherine De Marneffe",
+        "Filip Ginter",
+        "Jan Hajič",
+        "Christopher D Manning",
+        "Sampo Pyysalo",
+        "Sebastian Schuster",
+        "Francis Tyers",
+        "Daniel Zeman"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::29",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Causal inference in statistics: An overview",
+      "cited_authors": [
+        "Judea Pearl"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::30",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "A Bayesian framework for information-theoretic probing",
+      "cited_authors": [
+        "Tiago Pimentel",
+        "Ryan Cotterell"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.emnlp-main.229",
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::31",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Pareto probing: Trading off accuracy for complexity",
+      "cited_authors": [
+        "Tiago Pimentel",
+        "Naomi Saphra",
+        "Adina Williams",
+        "Ryan Cotterell"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.emnlp-main.254",
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::32",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "2020b. Information-theoretic probing for linguistic structure",
+      "cited_authors": [
+        "Tiago Pimentel",
+        "Josef Valvoda",
+        "Rowan Hall Maudslay",
+        "Ran Zmigrod",
+        "Adina Williams",
+        "Ryan Cotterell"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.acl-main.420",
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::33",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Language models are unsupervised multitask learners",
+      "cited_authors": [
+        "Alec Radford",
+        "Jeffrey Wu",
+        "Rewon Child",
+        "David Luan",
+        "Dario Amodei",
+        "Ilya Sutskever"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::34",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Null it out: Guarding protected attributes by iterative nullspace projection",
+      "cited_authors": [
+        "Shauli Ravfogel",
+        "Yanai Elazar",
+        "Hila Gonen",
+        "Michael Twiton",
+        "Yoav Goldberg"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.acl-main.647",
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::35",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Counterfactual interventions reveal the causal effect of relative clause representations on agreement prediction",
+      "cited_authors": [
+        "Shauli Ravfogel",
+        "Grusha Prasad",
+        "Tal Linzen",
+        "Yoav Goldberg"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.conll-1.15",
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::36",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Shauli Ravfogel",
+        "Michael Twiton",
+        "Yoav Goldberg"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::37",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Yoav Goldberg, and Ryan Cotterell. 2022b. Adversarial concept erasure in kernel space",
+      "cited_authors": [
+        "Shauli Ravfogel",
+        "Francisco Vargas"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::38",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Probing the probing paradigm: Does probing accuracy entail task relevance?",
+      "cited_authors": [
+        "Abhilasha Ravichander",
+        "Yonatan Belinkov",
+        "Eduard Hovy"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::39",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "The central role of the propensity score in observational studies for causal effects",
+      "cited_authors": [
+        "Paul R Rosenbaum",
+        "Donald B Rubin"
+      ],
+      "cited_year": 1983,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::40",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Association for Computational Linguistics. Naomi Saphra and Adam Lopez",
+      "cited_authors": [
+        "Rachel Rudinger",
+        "Jason Naradowsky",
+        "Brian Leonard",
+        "Benjamin Van Durme"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/N19-1329",
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::41",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Evaluating gender bias in machine translation",
+      "cited_authors": [
+        "Gabriel Stanovsky",
+        "Noah A Smith",
+        "Luke Zettlemoyer"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P19-1164",
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::42",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "AnCora: Multilevel annotated corpora for Catalan and Spanish",
+      "cited_authors": [
+        "M Antònia Mariona Taulé",
+        "Marta Martí",
+        "Recasens"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::43",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "What if this modified that? syntactic interventions with counterfactual embeddings",
+      "cited_authors": [
+        "Mycal Tucker",
+        "Peng Qian",
+        "Roger Levy"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.findings-acl.76",
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::44",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Investigating gender bias in language models using causal mediation analysis",
+      "cited_authors": [
+        "Jesse Vig",
+        "Sebastian Gehrmann",
+        "Yonatan Belinkov",
+        "Sharon Qian",
+        "Daniel Nevo",
+        "Yaron Singer",
+        "Stuart Shieber"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::45",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Informationtheoretic probing with minimum description length",
+      "cited_authors": [
+        "Elena Voita",
+        "Ivan Titov"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.emnlp-main.14",
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::46",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Transformers: State-of-theart natural language processing",
+      "cited_authors": [
+        "Thomas Wolf",
+        "Lysandre Debut",
+        "Victor Sanh",
+        "Julien Chaumond",
+        "Clement Delangue",
+        "Anthony Moi",
+        "Pierric Cistac",
+        "Tim Rault",
+        "Rémi Louf",
+        "Morgan Funtowicz",
+        "Joe Davison",
+        "Sam Shleifer",
+        "Clara Patrick Von Platen",
+        "Yacine Ma",
+        "Julien Jernite",
+        "Canwen Plu",
+        "Teven Xu",
+        "Sylvain Le Scao",
+        "Mariama Gugger",
+        "Quentin Drame",
+        "Alexander M Lhoest",
+        "Rush"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::47",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "HellaSwag: Can a machine really finish your sentence?",
+      "cited_authors": [
+        "Rowan Zellers",
+        "Ari Holtzman",
+        "Yonatan Bisk",
+        "Ali Farhadi",
+        "Yejin Choi"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P19-1472",
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::48",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Gender bias in coreference resolution: Evaluation and debiasing methods",
+      "cited_authors": [
+        "Jieyu Zhao",
+        "Tianlu Wang",
+        "Mark Yatskar",
+        "Vicente Ordonez",
+        "Kai-Wei Chang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/N18-2003",
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2205.07043::citation::49",
+      "paper_id": "2205.07043",
+      "raw_text": null,
+      "cited_title": "Counterfactual data augmentation for mitigating gender stereotypes in languages with rich morphology",
+      "cited_authors": [
+        "Ran Zmigrod",
+        "Sabrina J Mielke",
+        "Hanna Wallach",
+        "Ryan Cotterell"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P19-1161",
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

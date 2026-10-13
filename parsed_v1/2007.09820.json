@@ -1,0 +1,1060 @@
+{
+  "arxiv_id": "2007.09820",
+  "title": "Reinforcement Communication Learning in Different Social Network   Structures",
+  "authors": [
+    {
+      "name": "Marina Dubova",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Arseny Moskvichev",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Robert Goldstone",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Social network structure is one of the key determinants of human language evolution. Previous work has shown that the network of social interactions shapes decentralized learning in human groups, leading to the emergence of different kinds of communicative conventions. We examined the effects of social network organization on the properties of communication systems emerging in decentralized, multi-agent reinforcement learning communities. We found that the global connectivity of a social network drives the convergence of populations on shared and symmetric communication systems, preventing the agents from forming many local \"dialects\". Moreover, the agent's degree is inversely related to the consistency of its use of communicative conventions. These results show the importance of the basic properties of social network structure on reinforcement communication learning and suggest a new interpretation of findings on human convergence on word conventions.",
+  "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG",
+    "cs.MA"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2020-07-19T23:57:30"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2020-07-19",
+  "citation_count": 10,
+  "reference_count": 28,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2007.09820::section::0",
+      "paper_id": "2007.09820",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::0::para::0",
+          "section_id": "2007.09820::section::0",
+          "text": "Human languages evolve as complex adaptive systems, driven by micro-level processes and constraints (such as individual learning mechanisms and perceptual biases), macrolevel factors (such as a topology of social interactions), and the history of their development (Steels, 2000;Christiansen & Chater, 2008;Five Graces Group et al., 2009).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::0::para::1",
+          "section_id": "2007.09820::section::0",
+          "text": "Linguistic communication depends on the shared knowledge of word-to-meaning mapping conventions (Lewis, 1975), upon which the population converges through the local interactions between agents, often with no central controller Accepted to the 1 st Workshop on Language in Reinforcement Learning, ICML 2020, Copyright 2020 by the author(s).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.09820::section::0::para::2",
+          "section_id": "2007.09820::section::0",
+          "text": "available (Baronchelli, 2018). Empirical studies of human learning demonstrate that groups quickly converge on new communicative conventions in \"decentralized\" settings (Garrod & Doherty, 1994;Selten & Warglien, 2007).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.09820::section::0::para::3",
+          "section_id": "2007.09820::section::0",
+          "text": "Multi-agent reinforcement learning to communicate (MARLC), however, faces instability challenges if no central optimization is introduced (Bernstein et al., 2002;Laurent et al., 2011;Matignon et al., 2012). This influences the ability of groups consisting of reinforcement learners to converge on efficient and stable communication systems which are shared by all their members. Therefore, different methods of centralized control and optimization have been proposed to stabilize MARLC (Sukhbaatar et al., 2016;Foerster et al., 2016;Lowe et al., 2017;Pesce & Montana, 2020;Foerster et al., 2018). Central optimization makes the simulations more brittle and less flexibly adaptive, and, potentially, less promising in developing communication systems as freely expressive and well-optimized for their users (Gibson et al., 2019) as natural languages.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.09820::section::0::para::4",
+          "section_id": "2007.09820::section::0",
+          "text": "We argue that empirical evidence on individual-and population-level factors that drive decentralized learning in human groups can guide simulations of language evolution in MARLC settings. In this work, we explore whether the social network organization shapes the properties of communication systems that arise through decentralized MARLC in simplified settings.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::1",
+      "paper_id": "2007.09820",
+      "heading": "Human Learning in Different Social Network Structures",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::1::para::0",
+          "section_id": "2007.09820::section::1",
+          "text": "Convergence of human groups on word conventions is dramatically affected by the social topology that determines the possible interactions between participants, as demonstrated by the naming game experiment (Centola & Baronchelli, 2015). In particular, when arranged in a social network with many local connections (e.g. \"ring\" topology (Fig. 1d)) or a randomly-connected network (Fig. 1a), large groups converge on many local word conventions, reaching no global consensus. However, if each person is equally likely to interact with any other person in the group (\"clique\" (Fig. 1b)), global consensus is easily achieved with no centralization. Other studies on decentralized problem solving in human groups demonstrated that social network organization shapes the multi-agent optimization process, with different network types being beneficial for different types of optimization landscapes. High local connectivity supports independent local exploration, whereas high global connectivity helps groups to converge on a shared solution, choosing among the local ones (Fang et al., 2010;Mason et al., 2008;Mason & Watts, 2012;Lazer & Friedman, 2007;Wisdom & Goldstone, 2011).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::1::para::1",
+          "section_id": "2007.09820::section::1",
+          "text": "In this study, we looked at how the type of social network organization, its average degree, and local connectivity affect the results of communication learning in groups of deep reinforcement learning agents.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::2",
+      "paper_id": "2007.09820",
+      "heading": "Coordination Game",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::2::para::0",
+          "section_id": "2007.09820::section::2",
+          "text": "Every game episode involves two agents, randomly assigned to speaker and listener roles. The speaker produces a message, which is transmitted to the listener. Then, both agents independently choose an actionfoot_3 . If the actions match, the agents receive a reward. We add an additional penalty for overusing any specific action to avoid degenerate solutions that ignore the communication channel. This setting encapsulates the most basic form of a coordination game that benefits from the formation of communicative conventions. Please, see supplementary materials for more detail.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::3",
+      "paper_id": "2007.09820",
+      "heading": "Types of Social Network Organization",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::3::para::0",
+          "section_id": "2007.09820::section::3",
+          "text": "Social network determines how the agents are sampled to play games with one another. For each game round, one agent is selected randomly, and then its partner is selected from its neighbors. Thus, an agent can only play a game with one of its immediate neighbors in the social network. In all the simulations, the social network size was set to 10. The networks were undirected, and the self-connections were not allowed. We tested 4 types of social networks in our experiments (Fig. 1):",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::3::para::1",
+          "section_id": "2007.09820::section::3",
+          "text": "1. Random (ER). Random graph is generated by connecting the nodes with equal probability p (Erdos, 1959).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::4",
+      "paper_id": "2007.09820",
+      "heading": "Fully-connected (clique).",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::4::para::0",
+          "section_id": "2007.09820::section::4",
+          "text": "In clique, all the nodes are connected to each other.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::5",
+      "paper_id": "2007.09820",
+      "heading": "Ring.",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::5::para::0",
+          "section_id": "2007.09820::section::5",
+          "text": "In the ring network, all the nodes have exactly two neighbors, and connections form a single continuous path. 4. Small-world. The small-world network is generated by adding new, \"global\", connections to the ring network with constant probability p (Newman & Watts, 1999).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::6",
+      "paper_id": "2007.09820",
+      "heading": "Agents",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::6::para::0",
+          "section_id": "2007.09820::section::6",
+          "text": "We used simple feed-forward neural networks to represent the agents. The networks were trained using a vanilla deep Q-learning algorithm (Mnih et al., 2015) with an added proportion of bottom-up driven \"supervising\" feedback (see supplementary materials). We tried to avoid any centralized optimization, popular in MARLC settings, to study the ability of different networks to self-organize conventions.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::7",
+      "paper_id": "2007.09820",
+      "heading": "Metrics",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::7::para::0",
+          "section_id": "2007.09820::section::7",
+          "text": "We used a number of information-theoretic metrics, developed in Dubova & Moskvichev (2020) and Lowe et al. (2019) to comprehensively evaluate the communication protocols: speaker & listener consistency, between-and withinagent signal-action mapping divergence, signaling divergence, and behavioral predictability (see supp. materials).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::8",
+      "paper_id": "2007.09820",
+      "heading": "Experiment 1: types of social network organization",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::8::para::0",
+          "section_id": "2007.09820::section::8",
+          "text": "We simulated multi-agent learning in 4 types of social networks: ring (avg degree=2, var=0), random (avg degree=2, var=1.6, p(connection)=0.2), small-world (avg degree=2.2, p(add global connection)=0.2), and clique (avg degree=9, var=0). We also varied the supervision rate (from 0.0 to 0.9 with a step of 0.1). MARLC in each combination of these two conditions was simulated 10 times to get statistical estimates of the communication metrics. In all the experiments, each simulation consisted of 120000 game rounds.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::8::para::1",
+          "section_id": "2007.09820::section::8",
+          "text": "The average speaker and listener consistencies were highest in the ring and small-world networks, and the lowest in the clique structure. Consistency scores did not vary with the supervision rate (Fig. 2d). These patterns indicated the potential dependency of the consistency scores on a single factor: agent's degree (the clique had the highest possible average degree). This hypothesis is tested in Experiment 2.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.09820::section::8::para::2",
+          "section_id": "2007.09820::section::8",
+          "text": "The agents in random and fully-connected social networks developed almost perfectly symmetric and homogeneous communication systems according to all three communication asymmetry metrics (Fig. 2b and 2c). Small-world and ring social networks lead the populations to develop asymmetrical and local communication patterns. Moreover, supervised feedback helped the agents in all topology conditions to develop more shared and symmetric communication systems. We hypothesized that the effect of network type on asymmetry scores is driven by local connectivity of the populations: fully-connected and random networks do not form local communities, whereas the ring-shaped and smallworld networks in our simulations mainly consisted of local connections. We tested this hypothesis in Experiment 3.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.09820::section::8::para::3",
+          "section_id": "2007.09820::section::8",
+          "text": "Lastly, agents in fully-connected and random networks produced less diversified actions, but their action and signaling distributions were much more coordinated than in the ringshaped and small-world network structures (see Fig. 2). It suggests that agents in the last two conditions overfitted to the \"action diversity\" part of the reward function, while failing to coordinate using the communication channel.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::9",
+      "paper_id": "2007.09820",
+      "heading": "Experiment 2: average degree",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::9::para::0",
+          "section_id": "2007.09820::section::9",
+          "text": "To test the effect of network's average degree on speaker and listener consistencies, we focused on the random (ER) network, which produces desired variation in the average degrees of the nodes, while keeping most of the other network properties constant. We varied the probability of connecting nodes in the network from 0.2 to 0.9, and supervision rate from 0 to 0.9 with a step of 0.1. This resulted in 80 conditions total, each of which was simulated 5 times to obtain consistency estimates with confidence intervals.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::9::para::1",
+          "section_id": "2007.09820::section::9",
+          "text": "We found that the average degree negatively affected listener (p < 0.001) and speaker (p < 0.001) consistencies (Fig. 3). Consistency scores for the average degrees higher than 5.0 stayed similar to the estimate we obtained for the fullyconnected topology in Experiment 1.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::10",
+      "paper_id": "2007.09820",
+      "heading": "Experiment 3: global and local connections",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::10::para::0",
+          "section_id": "2007.09820::section::10",
+          "text": "We examined the effect of locally-connected groups in a social network on homogeneity and symmetry of the developed communication systems. For this, we tested MARLC in the small-world network with different probabilities of adding a \"global\" connection to the initial ring-shaped struc-ture. We classify a link as \"global\" if it connects agents further than one link apart in the ring network. We varied both the probability of global connection and the supervision rate from 0 to 0.9 with a step of 0.1. Each combination of these two factors was simulated 5 times.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::10::para::1",
+          "section_id": "2007.09820::section::10",
+          "text": "Global connection probability was inversely related to the signaling divergence (p < 0.001), between-(p < 0.001) and within-agent signal-action mapping divergence (p < 0.001) of the developed communication systems (Fig. 3). Higher proportion of global connections led the groups to converge on communication systems that are shared by all their agents. Supervised feedback also helped the agents to develop homogeneous and symmetric communication patterns. The cumulative effect of both high supervision rate and probability of global connections lead to communication systems that are shared by all the agents in a group.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::11",
+      "paper_id": "2007.09820",
+      "heading": "Discussion and Conclusion",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::11::para::0",
+          "section_id": "2007.09820::section::11",
+          "text": "We conducted three experiments to explore and isolate the factors of social network organization that drive the effectiveness, homogeneity, and symmetry of communication systems developed in MARLC settings. Following the suggestions of Lowe et al. (2019), we used a set of informationtheoretic metrics to evaluate our results. This allowed us to determine which particular properties of communication systems are affected by our interventions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::11::para::1",
+          "section_id": "2007.09820::section::11",
+          "text": "The results of our first experiment partially replicated the effects of social network type on learning word conventions by human groups (Centola & Baronchelli, 2015). This suggests that the simple domain-general reinforcement learning model can capture core regularities found in human convergence on linguistic conventions. Our further experiments provide a more detailed account of particular social network properties that are responsible for these patterns in communication learning.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.09820::section::11::para::2",
+          "section_id": "2007.09820::section::11",
+          "text": "The second experiment demonstrated that the average degree of a social network is a central factor affecting how deterministically agents use the communication channel.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.09820::section::11::para::3",
+          "section_id": "2007.09820::section::11",
+          "text": "The more communication partners an agent needs to adapt to, the more variable are its signaling and listening patterns. Key finding of the third experiment is that the proportion of global connections is the primary determining factor for three variables: homogeneity, within-and between-agent symmetry of the developed communication system. In particular, high proportion of local social connections led to the emergence of local communication patterns (\"dialects\") within the population, whereas adding more global connections forced the agents to find global consensus. Similarly, high local connectivity resulted in asymmetric communicative patterns, where even the same agent in two different roles uses completely different vocabularies.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.09820::section::11::para::4",
+          "section_id": "2007.09820::section::11",
+          "text": "At present, social network effects on MARLC have been largely under-investigated. To the best of our knowledge, there is only one work in this direction; L. Graesser and her colleagues (2019) looked at how communication systems developed within communities change if one community is introduced to another, depending on their inter-and intraconnectivity. Unfortunately, the insights from that work are only applicable for the specific scenario of community merging. In our study, we focused on the social network factors that are applicable to almost any MARLC setting.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2007.09820::section::11::para::5",
+          "section_id": "2007.09820::section::11",
+          "text": "The results of our analysis corroborate Lowe et al.'s (2019) suggestion that overall scores do not reflect whether the agents use the communication channel to solve the task, and how efficiently they do so (see Fig. 2). For example, the performance scores of the agents learning to coordinate in a ring-shaped social network were the highest among all the network types. However, more detailed analysis revealed that agents in this condition developed many local communication patterns, which varied across agents and their roles. This, again, illustrates the importance of thorough analysis of communication protocols learned in MARLC settings.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2007.09820::section::11::para::6",
+          "section_id": "2007.09820::section::11",
+          "text": "Our approach has a number of limitations that are important to mention. Firstly, while we aimed to test a broad spectrum of social network factors, our experiments are by no means comprehensive. There are other important aspects of social network structure that may play a key role in determining the properties of emerging communication protocols. We believe that studying the effects of variance of network's degree distribution and its modularity on MARLC is especially promising. Secondly, we used a very simplified setting of vanilla Q-learning in an \"amodal\" coordination game to minimize the number of assumptions that might make our results less representative to the MARLC problem in general. We suggest testing these results on more advanced reinforcement learning models and realistically perceptually grounded game settings.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::12",
+      "paper_id": "2007.09820",
+      "heading": "A. Coordination game environment",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::12::para::0",
+          "section_id": "2007.09820::section::12",
+          "text": "Each game consists of two-step episodes. Every episode of the game involves two agents: a speaker and a listener who need to coordinate their actions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::12::para::1",
+          "section_id": "2007.09820::section::12",
+          "text": "On the first step, the speaker produces an action and a message. On the second step, the listener receives the message and outputs an action. If the actions match, agents receive a fixed \"coordination\" reward R c . There are four unique actions and messages that the agents choose from.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.09820::section::12::para::2",
+          "section_id": "2007.09820::section::12",
+          "text": "In order to avoid trivial solutions when agents converge on a single action and ignore the communication channel, we introduced a penalty for repeating an action too often. Specifically, an additional reward of min(0, 1/4 -pA ) is added when an agent chooses action A. Here pA denotes an empirical proportion of selecting action A during the last H steps. We used a fixed length history H = 100. Current pA are added to the agent's input state spaces to aid convergence.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.09820::section::12::para::3",
+          "section_id": "2007.09820::section::12",
+          "text": "On every episode, each agent can be assigned to play either the speaker or the listener role. The current role type is provided as a binary input.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.09820::section::12::para::4",
+          "section_id": "2007.09820::section::12",
+          "text": "Overall, the agents receive, as inputs:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2007.09820::section::12::para::5",
+          "section_id": "2007.09820::section::12",
+          "text": "1. A binary role indicator 2. Random input (for speakers, in order to allow for nondeterministic policies) or speaker's message (for listeners)",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::13",
+      "paper_id": "2007.09820",
+      "heading": "Proportions of different actions in agent's recent history",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::13::para::0",
+          "section_id": "2007.09820::section::13",
+          "text": "The agents have two output layers both stemming from the last hidden layer:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::13::para::1",
+          "section_id": "2007.09820::section::13",
+          "text": "1. Action output layer (for neurons, and the action is determined as argmax) 2. Message output layer which has the same structure as the action output layer. Message outputs are ignored if the agents plays the listener role",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::14",
+      "paper_id": "2007.09820",
+      "heading": "B. Agents",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::14::para::0",
+          "section_id": "2007.09820::section::14",
+          "text": "Agents are implemented using simple feed-forward neural networks with two hidden layers (hidden sizes of 25 and 15) and ReLU activation function.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::14::para::1",
+          "section_id": "2007.09820::section::14",
+          "text": "We used vanilla deep Q-learning algorithm with additional supervised updates to train the agents. Supervised feedback corresponds to \"peeking\" the other agent's action and storing it in memory (with the signaling experience from that game) as a \"correct\" response. In this case, the action-signal mapping is not superimposed, and the \"correct\" answers in the supervising trials are bottom-up driven and reflect the dynamics of the agents themselves. Supervised feedback was implemented by changing a certain proportion of negative (\"miscoordinated\") experiences to the \"supervising\" ones. We decided to control for supervision in our experiments because partial supervising feedback in different forms is often available in naturalistic language learning situations. By amplifying the reinforcement signal, supervising feedback may help to overcome the \"sparcity of rewards\" problem in multi-agent reinforcement learning.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::15",
+      "paper_id": "2007.09820",
+      "heading": "C. Metrics",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::15::para::0",
+          "section_id": "2007.09820::section::15",
+          "text": "We follow the same set of metrics as used in (Dubova & Moskvichev, 2020).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::16",
+      "paper_id": "2007.09820",
+      "heading": "Speaking Consistency and Listening Consistency.",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::16::para::0",
+          "section_id": "2007.09820::section::16",
+          "text": "This metric provides a quantitative measure of whether the actions that the agents perform are related to the signals that they send or receive. We follow Lowe et al. (2019) who proposed to use the normalized mutual information between the distributions over messages and actions induced by an agent. The metric can be formally described as follows:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::16::para::1",
+          "section_id": "2007.09820::section::16",
+          "text": "Here, Z is the average entropy of the two marginal distributions: Z = (H(pa)+H(pm)) 2 . A l and A c denote the set of available actions and the set of available messages respectively. This metric is computed twice for every agent, conditioned on the role played by the agent (speaker or listener). We average these metrics across agents in every simulation to obtain the speaking and listening consistency metrics that we report.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::17",
+      "paper_id": "2007.09820",
+      "heading": "Communication Asymmetry metrics:",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::17::para::0",
+          "section_id": "2007.09820::section::17",
+          "text": "a. Between-agent signal-action mapping divergence. While the previous metric aimed to measure whether an agent is using communication channel (i.e. whether its actions correspond to the signals in any way), the second metric aims to measure whether the communication patterns differ between agents.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::17::para::1",
+          "section_id": "2007.09820::section::17",
+          "text": "We compute the average Jensen-Shannon pairwise divergence between distributions of agents' actions following a specific signal (averaged over all signals and pairs of agents).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.09820::section::17::para::2",
+          "section_id": "2007.09820::section::17",
+          "text": "For a pair of agents, the metric is defined as follows",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.09820::section::17::para::3",
+          "section_id": "2007.09820::section::17",
+          "text": "Here, p (a1|m) are action distributions of agent 1 conditional on the message (received or sent) being equal to m.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::18",
+      "paper_id": "2007.09820",
+      "heading": "b. Within-agent signal-action mapping divergence.",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::18::para::0",
+          "section_id": "2007.09820::section::18",
+          "text": "This metric aims to capture internal inconsistencies in agent's behaviors when it switches between roles: whether the agent's behaviors differ depending on whether it receive or send a specific message.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::18::para::1",
+          "section_id": "2007.09820::section::18",
+          "text": "For that, we use the average Jensen-Shannon divergence between the distributions over agent's actions (conditioned on receiving or sending a specific message) when the agent plays the speaker and the listener role. Formally, we use the same definition as in Equation 2, but now p a1|m and p a2|m correspond to the same agent's distributions when this agent plays different roles (as opposed to distributions of a pair of different agents playing the same role). We average the metric scores across all agents to obtain the final measure that we report.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::19",
+      "paper_id": "2007.09820",
+      "heading": "c. Signaling divergence.",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::19::para::0",
+          "section_id": "2007.09820::section::19",
+          "text": "This metric aims to measure the difference in individual agents' messaging preferences. We define signaling divergence as an average pairwise Jensen-Shannon divergence of marginal signaling distributions of different agents.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.09820::section::19::para::1",
+          "section_id": "2007.09820::section::19",
+          "text": "3. Behavioral Predictability. This last metric is created to assess the general diversity in agent's actions. When the agents' actions are less diverse (and hence, more predictable), it is easier to achieve successful multiagent coordination without using the communication channel. To look at whether the diversity of actions corresponds to the diversity of signals, we also compute the predictability of agents' signaling patterns. We define behavioural action/message predictability as Jensen-Shannon divergence between marginal distributions of agent's actions/messages and the uniform distribution.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.09820::section::19::para::2",
+          "section_id": "2007.09820::section::19",
+          "text": "Many of these metrics require knowing probability distributions. We estimate all such distributions empirically.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.09820::section::19::para::3",
+          "section_id": "2007.09820::section::19",
+          "text": "As a short summary, if we see the learned language as a simple probabilistic dictionary that maps messages to actions, the metrics can be summarized as follows (note that every agent defines two such dictionaries: one for the speaker and one for the listener role):",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.09820::section::19::para::4",
+          "section_id": "2007.09820::section::19",
+          "text": "1. Speaking Consistency and Listening Consistency.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2007.09820::section::19::para::5",
+          "section_id": "2007.09820::section::19",
+          "text": "Are the dictionaries reliable? I.e. if we look up a specific message, do we consistently get the same action, or is there a lot of randomness? 2. Communication Asymmetry: a. Between-agent signal-action mapping divergence. Are the dictionaries similar for different agents? b. Within-agent signal-action mapping divergence.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2007.09820::section::19::para::6",
+          "section_id": "2007.09820::section::19",
+          "text": "How different are the \"speaker\" and \"listener\" dictionaries that each agent defines?",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2007.09820::section::19::para::7",
+          "section_id": "2007.09820::section::19",
+          "text": "c. Talking divergence. Do different agents show different patterns in their dictionary lookups?",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2007.09820::section::19::para::8",
+          "section_id": "2007.09820::section::19",
+          "text": "3. Behavioral Predictability. How uniformly do agents look up different words in the dictionary (speaking predictability)? How uniform are the results of their queries (behavioral predictability)?",
+          "paragraph_index": 8
+        }
+      ]
+    },
+    {
+      "id": "2007.09820::section::20",
+      "paper_id": "2007.09820",
+      "heading": "D. Statistical analysis",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2007.09820::section::20::para::0",
+          "section_id": "2007.09820::section::20",
+          "text": "All hypotheses were tested using a linear regression model with robust covariance estimation, controlling for supervi-",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2007.09820::citation::0",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "The emergence of consensus: a primer",
+      "cited_authors": [
+        "A Baronchelli"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::1",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "The complexity of decentralized control of markov decision processes",
+      "cited_authors": [
+        "D S Bernstein",
+        "R Givan",
+        "N Immerman",
+        "S Zilberstein"
+      ],
+      "cited_year": 2002,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::2",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "The spontaneous emergence of conventions: An experimental study of cultural evolution",
+      "cited_authors": [
+        "D Centola",
+        "A Baronchelli"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::3",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Language as shaped by the brain",
+      "cited_authors": [
+        "M H Christiansen",
+        "N Chater"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::4",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Effects of supervision, population size, and self-play on multi-agent reinforcement learning to communicate",
+      "cited_authors": [
+        "M Dubova",
+        "A Moskvichev"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::5",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "On random graphs",
+      "cited_authors": [
+        "P Erdos"
+      ],
+      "cited_year": 1959,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::6",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Balancing exploration and exploitation through structural design: The isolation of subgroups and organizational learning",
+      "cited_authors": [
+        "C Fang",
+        "J Lee",
+        "M A Schilling"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::7",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Learning with opponentlearning awareness",
+      "cited_authors": [
+        "J Foerster",
+        "R Y Chen",
+        "M Al-Shedivat",
+        "S Whiteson",
+        "P Abbeel",
+        "I Mordatch"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::8",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Learning to communicate to solve riddles with deep distributed recurrent q-networks",
+      "cited_authors": [
+        "J N Foerster",
+        "Y M Assael",
+        "N De Freitas",
+        "S Whiteson"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": "arXiv:1602.02672",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::9",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Conversation, co-ordination and convention: An empirical investigation of how groups establish linguistic conventions",
+      "cited_authors": [
+        "S Garrod",
+        "G Doherty"
+      ],
+      "cited_year": 1994,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::10",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "How efficiency shapes human language",
+      "cited_authors": [
+        "E Gibson",
+        "R Futrell",
+        "S T Piandadosi",
+        "I Dautriche",
+        "K Mahowald",
+        "L Bergen",
+        "R Levy"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::11",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "The world of independent learners is not markovian",
+      "cited_authors": [
+        "G J Laurent",
+        "L Matignon",
+        "L Fort-Piat"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::12",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "The network structure of exploration and exploitation",
+      "cited_authors": [
+        "D Lazer",
+        "A Friedman"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::13",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Languages and language",
+      "cited_authors": [
+        "D Lewis"
+      ],
+      "cited_year": 1975,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::14",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Multi-agent actor-critic for mixed cooperative-competitive environments",
+      "cited_authors": [
+        "R Lowe",
+        "Y Wu",
+        "A Tamar",
+        "J Harb",
+        "O P Abbeel",
+        "I Mordatch"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::15",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "On the pitfalls of measuring emergent communication",
+      "cited_authors": [
+        "R Lowe",
+        "J Foerster",
+        "Y.-L Boureau",
+        "J Pineau",
+        "Y Dauphin"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::16",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Collaborative learning in networks",
+      "cited_authors": [
+        "W Mason",
+        "D J Watts"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::17",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Propagation of innovations in networked groups",
+      "cited_authors": [
+        "W A Mason",
+        "A Jones",
+        "R L Goldstone"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::18",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Independent reinforcement learners in cooperative markov games: a survey regarding coordination problems",
+      "cited_authors": [
+        "L Matignon",
+        "G J Laurent",
+        "Le Fort-Piat",
+        "N"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::19",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Human-level control through deep reinforcement learning",
+      "cited_authors": [
+        "V Mnih",
+        "K Kavukcuoglu",
+        "D Silver",
+        "A A Rusu",
+        "J Veness",
+        "M G Bellemare",
+        "A Graves",
+        "M Riedmiller",
+        "A K Fidjeland",
+        "G Ostrovski"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::20",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Renormalization group analysis of the small-world network model",
+      "cited_authors": [
+        "M E Newman",
+        "D J Watts"
+      ],
+      "cited_year": 1999,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::21",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Improving coordination in small-scale multi-agent deep reinforcement learning through memory-driven communication",
+      "cited_authors": [
+        "E Pesce",
+        "G Montana"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/s10994-019-05864-5",
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::22",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "The emergence of simple languages in an experimental coordination game",
+      "cited_authors": [
+        "R Selten",
+        "M Warglien"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::23",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Language as a complex adaptive system",
+      "cited_authors": [
+        "L Steels"
+      ],
+      "cited_year": 2000,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::24",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Learning multiagent communication with backpropagation",
+      "cited_authors": [
+        "S Sukhbaatar",
+        "R Fergus"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::25",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Innovation, imitation, and problem solving in a networked group",
+      "cited_authors": [
+        "T N Wisdom",
+        "R L Goldstone"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.09820::citation::26",
+      "paper_id": "2007.09820",
+      "raw_text": null,
+      "cited_title": "Language is a complex adaptive system: Position paper",
+      "cited_authors": [
+        "Five Graces Group",
+        "C Beckner",
+        "R Blythe",
+        "J Bybee",
+        "M H Christiansen",
+        "W Croft",
+        "N C Ellis",
+        "J Holland",
+        "J Ke",
+        "D Larsen-Freeman"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

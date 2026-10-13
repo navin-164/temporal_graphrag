@@ -1,0 +1,3410 @@
+{
+  "arxiv_id": "2510.07940",
+  "title": "TTOM: Test-Time Optimization and Memorization for Compositional Video Generation",
+  "authors": [
+    {
+      "name": "Leigang Qu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Ziyang Wang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Na Zheng",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Wenjie Wang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Liqiang Nie",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Tat-Seng Chua",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Video Foundation Models (VFMs) exhibit remarkable visual generation performance, but struggle in compositional scenarios (e.g., motion, numeracy, and spatial relation). In this work, we introduce Test-Time Optimization and Memorization (TTOM), a training-free framework that aligns VFM outputs with spatiotemporal layouts during inference for better text-image alignment. Rather than direct intervention to latents or attention per-sample in existing work, we integrate and optimize new parameters guided by a general layout-attention objective. Furthermore, we formulate video generation within a streaming setting, and maintain historical optimization contexts with a parametric memory mechanism that supports flexible operations, such as insert, read, update, and delete. Notably, we found that TTOM disentangles compositional world knowledge, showing powerful transferability and generalization. Experimental results on the T2V-CompBench and Vbench benchmarks establish TTOM as an effective, practical, scalable, and efficient framework to achieve cross-modal alignment for compositional video generation on the fly.",
+  "categories": [
+    "cs.CV",
+    "cs.AI",
+    "cs.CL",
+    "cs.LG",
+    "cs.MM"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2025-10-09T08:37:00"
+    },
+    {
+      "version": "v2",
+      "created": "2026-02-28T14:29:10"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2025-10-09",
+  "citation_count": 6,
+  "reference_count": 79,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2510.07940::section::0",
+      "paper_id": "2510.07940",
+      "heading": "Wan2.1-14B (Baseline) Ours Prompt",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::0::para::0",
+          "section_id": "2510.07940::section::0",
+          "text": "A robot and a sorcerer are stealthily approaching each other.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::0::para::1",
+          "section_id": "2510.07940::section::0",
+          "text": "An elderly man walking to the right in a sunny park.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::0::para::2",
+          "section_id": "2510.07940::section::0",
+          "text": "A blue bird flies upwards in a sunny garden.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::0::para::3",
+          "section_id": "2510.07940::section::0",
+          "text": "Four pandas munch bamboo in the garden.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::0::para::4",
+          "section_id": "2510.07940::section::0",
+          "text": "Figure 1: Current video generative models (Wan et al., 2025) still suffer from text-video misalignment problems in compositional scenarios. We introduce a test-time optimization and memorization method that substantially enhances alignment while maintaining high visual fidelity.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::1",
+      "paper_id": "2510.07940",
+      "heading": "INTRODUCTION",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::1::para::0",
+          "section_id": "2510.07940::section::1",
+          "text": "Recent years have witnessed a rapid stride in video generation (Ho et al., 2022;Polyak et al., 2024) and world simulation (Brooks et al., 2024). Benefiting from the significant advance in flow matching (Lipman et al., 2022;Esser et al., 2024) and diffusion transformers (DiTs) (Peebles & Xie, Published as a conference paper at ICLR 2026 2023), current text-to-video generation (T2V) models (Yang et al., 2024b;Kong et al., 2024) are able to synthesize realistic and vivid videos. However, even state-of-the-art models still suffer from text-video misalignment in compositional scenarios, i.e., composing multiple objects, attributes, and relations into a complex scene (Sun et al., 2025;Huang et al., 2024).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::1::para::1",
+          "section_id": "2510.07940::section::1",
+          "text": "Remarkable efforts have been made to improve text-video alignment by introducing explicit spatiotemporal layout guidance (Lian et al., 2023b;He et al., 2025) as a bridge between text prompts and videos. In this paradigm, a layout represented by bounding box (bbox) sequences-each corresponding to an object-is first generated by a large language model (LLM), and subsequently used to optimize intermediate representations (e.g., latents and attention maps) by enforcing alignment with the layout constraints. Despite notable progress, this line of work faces several limitations: 1) direct intervention on intermediate representations may disrupt feature distributions, leading to degraded video quality (e.g., inconsistency, flickering artifacts, or even collapse); 2) the per-sample control paradigm treats each case independently, thereby neglecting the historical context of previously generated videos; and 3) these methods do not enhance the intrinsic capability of generative models, since interventions on one sample fail to generalize to others.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::1::para::2",
+          "section_id": "2510.07940::section::1",
+          "text": "In real-world scenarios, models are not presented with a set of independent test cases but with a continuous stream of user prompts, as illustrated in Fig. 2. Previous successful generations can serve as valuable references for future cases. In light of this, our core idea is to formulate compositional video generation in a streaming setting, leveraging history test-time optimization as context for future inference. However, modeling history contexts is non-trivial, as it requires addressing the fundamental challenge of how to represent, store, reuse, and update past information.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::1::para::3",
+          "section_id": "2510.07940::section::1",
+          "text": "In this work, we introduce Test-Time Optimization and Memorization (TTOM) for compositional T2V. For the first test case (cold start), a large language model (LLM) first derives a spatiotemporal layout from the text prompt, serving as a controllable condition. Conditioned on this layout, we perform Test-Time Optimization (TTO) by instantiating and updating sample-specific parameters, thereby steering video generation toward adherence to the prescribed layout. Through this process, the compositional patterns embedded in the layout, such as motion, numeracy, and multi-object interactions, are attained and saved into the new parameters. After optimization, the parameters are unloaded and stored in memory, using the extracted layout-related keywords from the prompt as keys. For subsequent test cases, when matched parameters are retrieved, they can be integrated into the foundation model and further optimized for improved adaptation, or directly applied for efficient inference. If no match is found, new parameters are initialized, optimized, and subsequently recorded in memory to expand the memory. In practice, the memory is assigned a fixed capacity; when full, items are removed according to predefined policies (e.g., least frequently used). This mechanism enables the flexible reuse of informative optimization results by preserving historical context, thereby enhancing both efficiency and scalability. In summary, our main contributions are as follows.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::1::para::4",
+          "section_id": "2510.07940::section::1",
+          "text": "• We propose a test-time optimization framework without any supervision for compositional T2V.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.07940::section::1::para::5",
+          "section_id": "2510.07940::section::1",
+          "text": "With spatiotemporal layout as guidance, we incorporate and optimize lightweight parameters for each data sample.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2510.07940::section::1::para::6",
+          "section_id": "2510.07940::section::1",
+          "text": "• We present a parametric memory mechanism to maintain historical optimization context, which naturally supports lifelong learning. A series of operations (e.g., insert, read, update, and delete) for memory ensures flexibility, scalability, and efficiency.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2510.07940::section::1::para::7",
+          "section_id": "2510.07940::section::1",
+          "text": "• Extensive experimental on two T2V benchmarks (Sun et al., 2025;Huang et al., 2024) demonstrate the effectiveness and superiority of the proposed method. Notably, it achieves relative improvements of 34% and 14% over CogVideoX-5B (Yang et al., 2024b) and Wan2.1-14B (Wan et al., 2025) on T2V-CompBench (Sun et al., 2025), respectively.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::2",
+      "paper_id": "2510.07940",
+      "heading": "Compositional Visual Generation.",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::2::para::0",
+          "section_id": "2510.07940::section::2",
+          "text": "Despite the thrilling progress in foundation models (Yang et al., 2024b;Kong et al., 2024;Polyak et al., 2024;Seawead et al., 2025), compositional generation (Chefer et al., 2023;Feng et al., 2022;Qu et al., 2024b;2025b) remains an open challenge and has attracted substantial research interest. To enhance text-image alignment in compositional scenes, a rich line of studies (Qu et al., 2023;Feng et al., 2023) explores incentivizing the layout planning ability of LLMs (Brown et al., 2020;Ouyang et al., 2022) to enable layout-guided controllable generation (Tian",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::2::para::1",
+          "section_id": "2510.07940::section::2",
+          "text": "query Spatiotemporal Layout Cross-Attention Maps Attention-to-Layout Alignment ... VAE VAE Text Encoder <obj A> drifts right to left above <obj B>. Two <objects> runs towards each other. Abstraction of C ... ... ( ) C g * ( ) : | } C H C C   = g  { * C  LLM Layout Planning You are an intelligent spatiotemporal layout planner for videos. Generate bounding boxes (Bbox) for visual objects. • Bbox rules: prompt following, consistency • Output format: Frame i: {'id': <int>, 'name': <object name>, 'box': [x, y, width, height]} ... (In-context examples) 0 { , ..., } N Y Y 1 B 2 A 1 A 2 B ( || ) i i JSD A B Parametric Memory ( , , , ) i i t A f C c z t  = Attention-Layout Relevancy Probe Attention-Layout Relevancy Probe Video 1 Video 2 Video 3 a girl a boy a girl a boy ... DiT Test-Time Optimization a boy a boy a girl a boy a girl Prompt Stream ... A boy and a girl are running towards each other. A boy and a girl are running towards each other. A boy and a girl are running towards each other. A boy and a girl are running towards each other. A boy and a girl are running towards each other. Prompt Stream ... A boy and a girl are running towards each other. A boy and a girl are running towards each other. A boy and a girl are running towards each other. Prompt Stream ... A boy and a girl are running towards each other. A boy and a girl are running towards each other. A boy and a girl are running towards each other. Gradient ... read & load unload & insert denoising denoising ... Consistency Check Layout Generation + Consistency Check Layout Generation + ... ... ... ... Object-level Att. ... ... ... Layer j a boy a girl Cross-Att.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::2::para::2",
+          "section_id": "2510.07940::section::2",
+          "text": "Layer i Object-level Att. ... ... ... Layer j a boy a girl Cross-Att.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::2::para::3",
+          "section_id": "2510.07940::section::2",
+          "text": "Layer i et al., 2024; Lin et al., 2023; Feng et al., 2025) through attention control (Chen et al., 2024; Xie et al., 2023; He et al., 2023; Wang et al., 2024; He et al., 2025) or latent modification (Qi et al., 2024; Wu et al., 2024; Lian et al., 2023a; Yang et al., 2024a; Wang et al., 2025c; Lian et al., 2023b), typically in a training-free manner. However, direct intervention on attention maps or latents may compromise visual quality. Moreover, the per-sample paradigm treats test samples in isolation, disregarding informative historical context.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::2::para::4",
+          "section_id": "2510.07940::section::2",
+          "text": "Test-Time Optimization. TTO adapts a trained model to test instance(s) by performing optimization during inference, which has been widely applied in domain adaptation (Li et al., 2016;Sun et al., 2020;Shu et al., 2022) and alignment (Kim et al., 2025;Li et al., 2025). Existing approaches can be categorized into three groups: 1) optimizing intermediate representations (Kim et al., 2025;Li et al., 2025), 2) prompt tuning (Shu et al., 2022), and 3) optimizing model parameters (Schneider et al., 2020;Liang et al., 2020;Shu et al., 2021;Zhang et al., 2022;Gandelsman et al., 2022). In visual generation, recent work (Lian et al., 2023b;Wu et al., 2024) optimizes latents guided by layouts, yielding significant gains. However, these methods perform optimization on a per-sample basis and subsequently discard the results, thereby neglecting historical context.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::3",
+      "paper_id": "2510.07940",
+      "heading": "Memory Mechanism.",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::3::para::0",
+          "section_id": "2510.07940::section::3",
+          "text": "To track and model historical contexts, existing Test-Time Training (TTT) (Sun et al., 2024) work designs memory mechanisms instantiated with inserted layers, i.e., TTT layers. The memory can be updated linearly (Sun et al., 2020) or in a local temporal window (Wang et al., 2025b), by optimizing TTT layers via a self-supervised learning loss (He et al., 2022). Despite the remarkable advance, they often consider intra-sample context (e.g., frames in video) (Wang et al., 2025b;Dalal et al., 2025) and assume the independence among samples. Besides, the memory has a fixed size and does not support flexible operations.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::4",
+      "paper_id": "2510.07940",
+      "heading": "METHODOLOGY",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::4::para::0",
+          "section_id": "2510.07940::section::4",
+          "text": "In this section, we introduce the proposed TTOM framework for compositional T2V, as shown in Fig. 2. Given a text prompt describing a compositional scene (e.g., including multiple objects, attributes, numeracy, and relationships), we first conduct spatial-temporal layout (STL) planning driven by LLMs, and obtain the bbox sequence for each object (Sec. 3.1). Subsequently, we perform test-time optimization to achieve attention-to-layout alignment, making the generated video follow the explicit layout guidance (Sec. 3.2). To take advantage of history context, we record previous optimization results with a parametric memory structure, and keep updating and reusing it as the sequential inference goes, i.e., a ceaseless stream of user prompts is fed into the model (Sec. 3.3).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::5",
+      "paper_id": "2510.07940",
+      "heading": "LLM-DRIVEN SPATIAL-TEMPORAL LAYOUT PLANNING",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::5::para::0",
+          "section_id": "2510.07940::section::5",
+          "text": "Layout Representation. We represent a video-level STL with a collection of object-level layouts {Y 0 , ..., Y N } where N denotes the number of objects. Each layout Y i is a tuple (c i , B i ), consisting of an object phrase c i and its associated bounding box sequence B i = [b si , . . . , b ei ]. The object phrase c i is extracted from the user prompt C (e.g., the underlined text in \"A vibrant red balloon drifts right to left above a grand statue.\"). Each b is a 4-dimensional coordinate vector, while s i and e i denote the start and end frame indices of the object's temporal occurrence, respectively.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::5::para::1",
+          "section_id": "2510.07940::section::5",
+          "text": "Text-to-Layout Generation. Prior work has shown that LLMs possess strong spatial-temporal dynamics understanding abilities (Qu et al., 2021;2023;Feng et al., 2023;Qu et al., 2024a), and capture physical properties (Lian et al., 2023b), such as gravity, elasticity, and perspective projection, which align closely with real-world physics. Inspired by it, we prompt LLMs to generate SPLs given user prompts via in-context learning (Dong et al., 2022;Qu et al., 2025a). To enhance scene comprehension, the LLM is first instructed to produce descriptions of object motions and camera behaviors, followed by the corresponding layout generation. Finally, a verification step ensures spatial and temporal consistency of object phrases and bounding box sequences, with corrections applied when discrepancies are detected.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::6",
+      "paper_id": "2510.07940",
+      "heading": "TEST-TIME OPTIMIZATION FOR LAYOUT-TO-VIDEO GENERATION",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::6::para::0",
+          "section_id": "2510.07940::section::6",
+          "text": "In this section, we first discuss the relation between intermediate attention maps of diffusion models and generated videos, and conduct a probe experiment to verify the relevance. On the basis of the relevance, we propose a model-agnostic controllable generation strategy by optimizing attention-tolayout alignment during inference, i.e., Test-Time Optimization (TTO). (Everingham et al., 2010) over 200 prompts) between cross-modal attention maps extracted from each layer of foundation models and segmentation maps detected from generated videos by GroundingDINO (Liu et al., 2024) + SAM 2 (Ravi et al., 2024).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::7",
+      "paper_id": "2510.07940",
+      "heading": "Attention-Layout Relevance Probe in Diffusion Transformers.",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::7::para::0",
+          "section_id": "2510.07940::section::7",
+          "text": "Prior work (Hertz et al., 2022) has demonstrated the relevance between cross-attention maps and spatial layouts, which is exploited for video editing (Qi et al., 2023) and controllable generation (Xie et al., 2023). However, with the architecture shift from UNets (Ronneberger et al., 2015) to Diffusion Transformers (DiTs) (Peebles & Xie, 2023) due to its stronger scalability, the recent study (Wang et al., 2025c) pointed out their difference, i.e., the cross-attention maps in DiTs distribute more evenly than those in UNets, which may cause the ineffectiveness of previous methods due to the weak attention-layout relevance.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::7::para::1",
+          "section_id": "2510.07940::section::7",
+          "text": "Motivated by it, we propose a probe strategy to assess attention-layout relevance across different layers: 1) preparing a set of prompts describing a common scene in which an object performs a motion. 2) generating videos given the prompts, and meanwhile, extracting text-video cross-attention maps. Specifically, we first extract the cross-attention mapfoot_0 A i ∈ R τ ×h×w×|ci| from each layer for the object phrase c i from a text prompt C, where |c i | denotes the token number of c i . τ , h, and w refer to the frame number, height, and width of the video latent, respectively. Afterwards, we perform average pooling along the text dimension and obtain Āi ∈ R τ ×h×w . This process is formulated as:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::7::para::2",
+          "section_id": "2510.07940::section::7",
+          "text": "where z t and t represent the latent and timestep, respectively. Θ denotes the parameters of all layers before the attention map in a DiT. 3) applying GroundingDINO (Liu et al., 2024) to detect the related bboxes and SAM 2 (Ravi et al., 2024) for segmentation. And 4) computing the overlap between segmentation maps and attention maps Āi in different layers to quantify relevance. The result shown in Fig. 3 indicates a remarkable variance of attention-layout relevance among different layers.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::7::para::3",
+          "section_id": "2510.07940::section::7",
+          "text": "Attention-to-Layout Alignment for Controllable Generation. As discussed above, attention maps in certain layers of DiTs reflect a strong relevance to the layout of the final generated videos. Motivated by this observation, we propose a test-time optimization approach to align the highrelevance attention maps with the layout generated by LLMs for controllable generation. Specifically, we first smooth each spatial layout b i in B i with a Gaussian kernel and transform it into a soft mask bi , and then calculate the Jensen-Shannon divergence (JSD) between attention maps and soft masks of N objects as the loss function:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::7::para::4",
+          "section_id": "2510.07940::section::7",
+          "text": "We insert new parameters ϕ into VFMs and get Θ = θ ∪ ϕ, calculate the gradient of the loss function w.r.t.the newly introduced parameters, i.e., ∂L align ∂ϕ , and update them with an optimizer and get ϕ * finally. Compared with prior work (Lian et al., 2023b) that optimizes the latent z t at denoising timestep t by ∂L align ∂zt , we have the following strengths: 1) optimizing ϕ for alignment avoids possible distribution collapse caused by direct intervention to the latents. And 2) the updated ϕ * memorizes layout patterns for specific compositional scenes, holding a potential for future re-usage. For example, if a similar text prompt comes in the future, a simple and efficient strategy is to directly load ϕ * to the VFM, and perform generation without any optimization, which motivates us to propose a memory mechanism as follows.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::8",
+      "paper_id": "2510.07940",
+      "heading": "PARAMETRIC MEMORY",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::8::para::0",
+          "section_id": "2510.07940::section::8",
+          "text": "To maintain historical contexts of test-time optimization and support future reuse, we present the parametric memory mechanism.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::8::para::1",
+          "section_id": "2510.07940::section::8",
+          "text": "Memory Structure. We define a memory structure as a collection of key-value pairs:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::8::para::2",
+          "section_id": "2510.07940::section::8",
+          "text": "where C H is a set of history prompts. The function g(•) consists of scene abstraction, text embedding, and indexing precedes. Specifically, for a prompt \"A vibrant red balloon drifts right to left above a grand statue.\", we first abstract it into \"<object A> drifts right to left above <object B>.\", and then extract its text feature (Radford et al., 2021) and index it.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::9",
+      "paper_id": "2510.07940",
+      "heading": "Memory Operations.",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::9::para::0",
+          "section_id": "2510.07940::section::9",
+          "text": "Based on the memory structure, we define the following basic operations to perform interaction between the video foundation model and the memory.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::9::para::1",
+          "section_id": "2510.07940::section::9",
+          "text": "• Insert. For a new text prompt C j , we first retrieve from the memory. If no matched item, we perform test-time optimization and insert a new item (g(C j ), ϕ * Cj ) to M.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::9::para::2",
+          "section_id": "2510.07940::section::9",
+          "text": "• Read. If the matched item(s) exist, we read and load the corresponding parameters into the foundation model. Next, we have two options: 1) directly generate a video without optimization, and 2) continue optimization with the loaded parameters as initialization.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::9::para::3",
+          "section_id": "2510.07940::section::9",
+          "text": "• Update. After the loaded parameters are further optimized, we unload them and update the corresponding matched items in the memory.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::9::para::4",
+          "section_id": "2510.07940::section::9",
+          "text": "• Delete. If the total number of items in M exceeds its maximum capacity, we delete those items that are least frequently used.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.07940::section::9::para::5",
+          "section_id": "2510.07940::section::9",
+          "text": "Discussion. Compared with prior methods (Lian et al., 2023b;He et al., 2025) treating each sample independently, the advantages of the proposed memory mechanism lie in: 1) Superiority. The history optimization maintained in the memory provides abundant scene knowledge, serving as good initialization for TTO. 2) Personalization. In practice, we can maintain a user-specific memory for each user, track their historical requests, and model the intention for better personalized generation (Wang et al., 2025a;Zhao et al., 2025;2026). 3) Efficiency. For those prompts similar to historical ones, we can skip optimization and directly read and load items into the foundation model for inference. 4) Scalability. We can scale the memory up in two dimensions: increasing the item-level capacity (i.e., enlarging the history context window) could memorize more historical optimization information; and increasing the number of per-item parameters ϕ * may capture more scene patterns in each TTO.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::10",
+      "paper_id": "2510.07940",
+      "heading": "EXPERIMENTAL SETUP",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::10::para::0",
+          "section_id": "2510.07940::section::10",
+          "text": "Foundation Models. We integrate our method into two representative T2V models: CogVideoX-5B (Yang et al., 2024b) and Wan2.1-14B (Wan et al., 2025). For CogVideoX-5B, each clip contains 49 frames at 8 FPS, whereas for Wan2.1-14B, each clip contains 81 frames at 16 FPS. In the Spatial-Temporal Layout Planning stage, we leverage the OpenAI GPT-4o model.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::10::para::1",
+          "section_id": "2510.07940::section::10",
+          "text": "Streaming Video Generation Setting. To align with practical video creation scenarios where user prompts arrive sequentially, we propose modeling historical streaming contexts. For a fair comparison with prior methods that treat test samples independently, we introduce a test-time independence setting. Specifically, we generate 200 prompts covering common compositional scenes as pseudo-training data, via GPT-4o, and subsequently generate videos from these prompts while applying TTOM to construct a memory. During inference, entries can be retrieved and loaded from the memory; however, inserting or updating the memory with optimization results from test samples is prohibited.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::10::para::2",
+          "section_id": "2510.07940::section::10",
+          "text": "Implementation Details. We employ the lightweight LoRA (Low-Rank Adaptation) (Hu et al., 2022) method to introduce new parameters to enable test-time optimization for controllable generation. The optimized LoRA parameters are inserted into or used to update the parametric memory. Specifically, LoRA weights are injected into the Query, Key, Value, and Output projection layers of each crossattention block in DiT architectures, with the LoRA rank set to 32. This optimization is applied only to the first five denoising steps of the diffusion process, using the AdamW optimizer with a learning rate of 1e-4. Unless otherwise noted, all other hyperparameters follow the default settings of the respective backbone models. For fair comparison, we also re-implement the LVD method (Lian et al., 2023b) on the same DiT-based architecture. The layouts and selected layers used for LVD exactly Benchmarks and Evaluation Metrics. We evaluate our approach on two large-scale public benchmarks, T2V-CompBench (Sun et al., 2025) and VBench (Huang et al., 2024). T2V-CompBench targets compositional T2V with about 1,400 prompts across seven categories, including consistent and dynamic attribute binding, spatial and motion relations, action binding, object interactions, and generative numeracy. Its evaluation combines MLLM-based scoring, detection-based measures, and tracking-based indicators to provide fine-grained assessment of compositional abilities. VBench offers a broad evaluation suite, decomposing video generation quality into 16 dimensions, including subject and background consistency, temporal flickering, motion smoothness, dynamic degree, aesthetic and imaging quality, as well as object class, multiple objects, human action, color, spatial relationship, scene, appearance style, temporal style, and overall consistency. Each dimension contains roughly 100 text prompts with automatic evaluation scripts and human preference annotations. We follow the official toolkits of both benchmarks and report corresponding scores.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::10::para::3",
+          "section_id": "2510.07940::section::10",
+          "text": "Baselines. We conduct a comprehensive comparison of our approach on T2V-CompBench against a diverse set of baselines across three categories: commercial solutions (Pika-1.0 (Pika, 2024), Gen-3 (Runway, 2024), Dreamina-1.2 (CapCut, 2024), Kling-1.0 (Kuaishou, 2024)); diffusion U-Net-based methods (ModelScope (Wang et al., 2023), Show-1 (Zhang et al., 2024), VideoTetris (Tian et al., 2024), T2V-Turbo-V2 (Li et al., 2024), LVD (Lian et al., 2023a)); and DiT-based models (Open-Sora-1.2 (HPC-AI Tech, 2024), Open-Sora-Plan-v1.3.0 (Lin et al., 2024), CogVideoX-5B (Yang et al., 2024b) with DyST-XL (He et al., 2025) and LVD, Wan2.1-14B (Wan et al., 2025) with LVD). Except for CogVideoX-5B with LVD, Wan2.1-14B, and Wan2.1-14B with LVD, for which we reproduce the results in our experiments, the scores of all remaining baselines are taken directly from the official T2V-CompBench paper (Sun et al., 2025).",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::11",
+      "paper_id": "2510.07940",
+      "heading": "Evaluation on Compositionality.",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::11::para::0",
+          "section_id": "2510.07940::section::11",
+          "text": "Table 1 presents the compositional evaluation results of our method compared to a wide range of baselines on T2V-CompBench. Across all metrics, our approach consistently surpasses the baseline models, demonstrating effectiveness and superiority. Notably, our method improves CogVideoX-5B by 34.45% and Wan2.1-14B by 15.83% in terms of overall average performance. The most pronounced gains are observed in Motion and Numeracy, with relative improvements of up to 63.69% and 37.10% on CogVideoX-5B, and 82.57% and 15.02% on Wan2.1-14B, respectively. These categories are known to be particularly challenging due to the need for precise modeling of dynamic object trajectories, object counts, and spatial-temporal coordination.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::11::para::1",
+          "section_id": "2510.07940::section::11",
+          "text": "Evaluation on Semantic Consistency. Beyond compositionality, we further evaluate semantic consistency on VBench (Table 2). Here, our method also delivers clear improvements across multiple dimensions, including object classification accuracy, multi-object handling, and color/spatial relation fidelity. These aspects are crucial for ensuring that generated videos do not only satisfy individual attributes but also maintain coherent semantic integrity across frames. The gains in semantic consistency complement the compositionality improvements observed on T2V-CompBench, providing strong evidence that our method reinforces both the local correctness of attributes (e.g., colors, actions, object categories) and the global contextual structure (e.g., multi-object interactions and spatial layouts).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::12",
+      "paper_id": "2510.07940",
+      "heading": "IN-DEPTH ANALYSIS",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::12::para::0",
+          "section_id": "2510.07940::section::12",
+          "text": "To explore the efficacy of TTOM, we conduct extensive ablation studies and hyperparameter analyses. We first investigate the TTO and Memorization, followed by an in-depth study of key components, including continual TTO, loss function for attention-to-layout alignment, guidance timesteps, and optimization iteration.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::12::para::1",
+          "section_id": "2510.07940::section::12",
+          "text": "Table 3: Ablation study for TTO and Memory on the motion category of T2V-CompBench (Sun et al., 2025). TTO Memory Motion 0.2696 0.4321 0.4922",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::12::para::2",
+          "section_id": "2510.07940::section::12",
+          "text": "Test-Time Optimization and Memorization. We conduct comparative experiments to evaluate the effectiveness of TTO and the memory mechanism, as reported in Tab. 3. The results show that TTO substantially improves motion quality in generated videos by 60.27%, guided by LLMplanned spatiotemporal layouts. Moreover, incorporating historical context from memory yields an additional 13.91% improvement.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::12::para::3",
+          "section_id": "2510.07940::section::12",
+          "text": "Continual Test-Time Optimization. The parametric memory enables the model to exploit historical context for future inference. In practice, however, memory capacity is limited and cannot fully encompass world knowledge (e.g., object motion patterns). Consequently, imperfect matching may arise between the current prompt and the retrieved items, leading to suboptimal parameter initialization. Therefore, continual optimization can help balance historical context and the current sample. To examine its effect, we conduct experiments in Tab. 4.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::12::para::4",
+          "section_id": "2510.07940::section::12",
+          "text": "Table 4: Ablation study for continual test-time optimization on the motion category of T2V-CompBench (Sun et al., 2025). Motion score and latency are used to evaluate motion quality and efficiency, respectively. Init.: initialization from memory with the average fusion of Top-k matched entries. TTO: whether to perform test-time optimization. Init. TTO Top-k Motion↑ Latency (s)↓ -0.2696 425 5 0.4754 427 5 0.4846 627 10 0.4437 427 10 0.4705 627",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.07940::section::12::para::5",
+          "section_id": "2510.07940::section::12",
+          "text": "The results indicate that: 1) The memory mechanism is effective, as evidenced by substantial gains even without persample optimization. 2) With memory-based initialization, continual TTO further improves motion performance at the cost of additional test-time computation. And 3) increasing the number of memory entries as initialization provides richer context but may also introduce noise or irrelevant information, suggesting that more sophisticated fusion strategies are required for better leveraging context in the future. In summary, the proposed TTOM offers a flexible trade-off between video quality and efficiency, making it well-suited for complex practical scenarios.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::13",
+      "paper_id": "2510.07940",
+      "heading": "Loss Function for Attention-to-Layout Alignment.",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::13::para::0",
+          "section_id": "2510.07940::section::13",
+          "text": "To drive controllable generation guided by spatiotemporal layout, we propose a JSD loss to perform attention-tolayout alignment optimization during inference. To validate its effectiveness, we conduct experiments to compare it with two other variants: BCE loss (Sella et al., 2025) and Center-of-Mass (CoM) loss (Lian et al., 2023b). Results in Tab. 5 show that the proposed JSD loss achieves the best performance on motion and numeracy, demonstrating its effectiveness and universality.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::13::para::1",
+          "section_id": "2510.07940::section::13",
+          "text": "Table 5: Comparison among different loss functions for attention-to-layout alignment, evaluated on the motion and numeracy categories of T2V-CompBench. Loss Function Motion Numeracy CE Loss 0.2912 0.5218 CoM Loss 0.3626 0.4697 JSD Loss 0.4321 0.5881",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::14",
+      "paper_id": "2510.07940",
+      "heading": "Pseudo-training Data Scale.",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::14::para::0",
+          "section_id": "2510.07940::section::14",
+          "text": "To simulate the streaming generation scenario and make a strictly fair comparison with prior methods, we first generate user prompts via GPT-4o to initialize the memory. Results in Tab. 6 show the influence of different numbers of pseudo-training data on the performance. We can see that more data induces better performance, due to the more abundant compositional patterns captured and saved into the memory as context.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::15",
+      "paper_id": "2510.07940",
+      "heading": "Guidance Timesteps and Optimization Iteration.",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::15::para::0",
+          "section_id": "2510.07940::section::15",
+          "text": "Existing work (Choi et al., 2022;Pan et al., 2024) has shown that early denoising steps in diffusion models primarily define structure, while later steps progressively refine details. Motivated by this observation, we apply TTO only in the initial denoising steps and compare performance across different numbers of steps, as presented in Tab. 7. Within each step, we further examine the impact of varying the number of optimization iterations, reported in Tab. 8. The results reveal clear saturation points for both timesteps and optimization iterations, beyond which performance degrades. This degradation may arise because attention maps encode not only layout but also entangled information, and excessive alignment optimization may disrupt other essential signals.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::15::para::1",
+          "section_id": "2510.07940::section::15",
+          "text": "Qualitative Results. Fig. 1 shows the qualitative comparison between Wan2.1-14B and our method based on which. To further delve into the impact of the proposed memory mechanism, we show the qualitative results of motion pattern transfer from memory to foundation models in Fig. 4. More qualitative results can be found in the Appendix.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::16",
+      "paper_id": "2510.07940",
+      "heading": "CONCLUSION",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::16::para::0",
+          "section_id": "2510.07940::section::16",
+          "text": "In this work, we tackle the compositional limitations of Video Foundation Models and introduce TTOM, a training-free framework for aligning video generation with spatiotemporal layouts at inference. By integrating layout-guided optimization with a parametric memory mechanism, TTOM enables consistent streaming generation and supports flexible operations on memory, such as insertion, update, and retrieval of historical contexts. Our experimental analysis shows that TTOM not only improves alignment in compositional scenarios, but also disentangles compositional world knowledge, leading to strong transferability and generalization. Extensive experiments on T2V-CompBench and VBench confirm its effectiveness, scalability, and practicality, establishing TTOM as a versatile solution for enhancing compositional video generation on the fly.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::17",
+      "paper_id": "2510.07940",
+      "heading": "ETHICS STATEMENT",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::17::para::0",
+          "section_id": "2510.07940::section::17",
+          "text": "Our work on compositional video generation holds significant promise for democratizing creative tools, enhancing accessibility, streamlining media production, and advancing intuitive human-AI collaboration. At the same time, it raises critical concerns, including potential misuse for misinformation or manipulation, biases in generated content, job displacement in creative industries, and the environmental costs of intensive computation. Addressing these challenges requires careful dataset curation, robust privacy safeguards, systematic bias mitigation, responsible deployment strategies, and sustained engagement with diverse stakeholders.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::18",
+      "paper_id": "2510.07940",
+      "heading": "Wan2.1-14B",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::18::para::0",
+          "section_id": "2510.07940::section::18",
+          "text": "X √ √",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::19",
+      "paper_id": "2510.07940",
+      "heading": "Motion Binding Spatial Relationship",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::19::para::0",
+          "section_id": "2510.07940::section::19",
+          "text": "A petal floats left to right by the flowing stream.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::19::para::1",
+          "section_id": "2510.07940::section::19",
+          "text": "A gorilla sitting on the right side of a vending machine in a forest.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::20",
+      "paper_id": "2510.07940",
+      "heading": "Numeracy Consistent Attribute",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::20::para::0",
+          "section_id": "2510.07940::section::20",
+          "text": "Five elephants splash water from a river.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::20::para::1",
+          "section_id": "2510.07940::section::20",
+          "text": "A girl wearing a colorful scarf giggles with a boy in a cute hat as they play with a puppy in the park.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::21",
+      "paper_id": "2510.07940",
+      "heading": "Wan2",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::21::para::0",
+          "section_id": "2510.07940::section::21",
+          "text": "Figure 5: Qualitative comparison between the foundation, the baseline, and our method on T2V-CompBench.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::22",
+      "paper_id": "2510.07940",
+      "heading": "Wan2.1-14B",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::22::para::0",
+          "section_id": "2510.07940::section::22",
+          "text": "A robot vacuum is sweeping the floor from left to right.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::22::para::1",
+          "section_id": "2510.07940::section::22",
+          "text": "A balloon drifts right to left above a statue in a city square.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::22::para::2",
+          "section_id": "2510.07940::section::22",
+          "text": "A basketball is thrown from right to the left.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::22::para::3",
+          "section_id": "2510.07940::section::22",
+          "text": "A child climbs down the slide.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::22::para::4",
+          "section_id": "2510.07940::section::22",
+          "text": "A bright lantern floats left down the river, its warm glow reflecting off the gentle ripples.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.07940::section::22::para::5",
+          "section_id": "2510.07940::section::22",
+          "text": "A car is lifted upward on a platform, wheels spinning as bright showroom lights showcase glossy detail.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::23",
+      "paper_id": "2510.07940",
+      "heading": "LVD * Ours Wan2.1-14B LVD * Ours",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::23::para::0",
+          "section_id": "2510.07940::section::23",
+          "text": "Figure 6: More Qualitative comparison between the foundation, the baseline, and our method on T2V-CompBench.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::24",
+      "paper_id": "2510.07940",
+      "heading": "Wan2.1-14B",
+      "section_type": null,
+      "order": 24,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::24::para::0",
+          "section_id": "2510.07940::section::24",
+          "text": "A fish swims downward in the frame.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::24::para::1",
+          "section_id": "2510.07940::section::24",
+          "text": "A tractor drives across the frame from left to right. TTOM, Rank-1 A sailboat sails from right to left across the blue waters. TTOM, Rank-3 TTOM, Rank-5 Prompt Wan2.1-14B <object> <verb> from right to left <environment>. <object> <verb> from the right side <environment>. <object> <verb> on the left side. Wan2.1-14B In a sunset sky, an eagle flies toward the right side of the frame while a drone flies toward the left. Bird's-eye view. A cat moves upward from the left side of the frame, then heads toward the lower right. Ours Prompt Layout Figure 9: Qualitative results on complex cases involving multiple objects or non-linear motion. Wan2.1-14B (a). Eight oranges roll across the table. (b). A cyclist pedals from the left side to the right side on a street. TTOM Prompt C.1 PROMPT ENRICHMENT",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::25",
+      "paper_id": "2510.07940",
+      "heading": "Video Matched Pattern",
+      "section_type": null,
+      "order": 25,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::25::para::0",
+          "section_id": "2510.07940::section::25",
+          "text": "The following system prompt is used to expand short user inputs into detailed video descriptions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::25::para::1",
+          "section_id": "2510.07940::section::25",
+          "text": "You are part of a team of bots that creates videos. You work with an assistant bot that will draw anything you say in square brackets.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::25::para::2",
+          "section_id": "2510.07940::section::25",
+          "text": "For example, outputting \"a beautiful morning in the woods with the sun peaking through the trees\" will trigger your partner bot to output a video of a forest morning, as described. You will be prompted by people looking to create detailed, amazing videos. The way to accomplish this is to take their short prompts and make them extremely detailed and descriptive.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::25::para::3",
+          "section_id": "2510.07940::section::25",
+          "text": "There are a few rules to follow: -You will only ever output a single video description per user request.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::25::para::4",
+          "section_id": "2510.07940::section::25",
+          "text": "-When modifications are requested, you should not simply make the description longer. You should refactor the entire description to integrate the suggestions. -Other times the user will not want modifications, but instead want a new image. In this case, you should ignore your previous conversation with the user. -Video descriptions must have the same num of words as examples below.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.07940::section::25::para::5",
+          "section_id": "2510.07940::section::25",
+          "text": "Extra words will be ignored. -Always preserve the original prompt's core content. For example, if the original prompt describes a motion such as \"to the left side\", please explicitly include both the starting location and the destination. For instance, revise the description to say \"from the right side to the left side\". Integrate all given details faithfully into your expanded description.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::26",
+      "paper_id": "2510.07940",
+      "heading": "C.2 METADATA EXTRACTION",
+      "section_type": null,
+      "order": 26,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::26::para::0",
+          "section_id": "2510.07940::section::26",
+          "text": "This prompt extracts structured object information from the enriched description.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::26::para::1",
+          "section_id": "2510.07940::section::26",
+          "text": "You are an intelligent assistant that extracts ** object metadata ** from descriptive paragraphs.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::26::para::2",
+          "section_id": "2510.07940::section::26",
+          "text": "You will receive a descriptive paragraph. Your job is to:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::26::para::3",
+          "section_id": "2510.07940::section::26",
+          "text": "1. Identify all distinct ** objects ** in the paragraph. Objects must be ** concrete physical entities ** that play a ** visible or active role ** . 2. Do ** not ** extract parts or attributes (e.g. \"wings\", \"eyes\"). 3. Only extract objects that literally appear in the original_prompt. 4. For each object:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::26::para::4",
+          "section_id": "2510.07940::section::26",
+          "text": "-Assign a unique \"object_id\".",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.07940::section::26::para::5",
+          "section_id": "2510.07940::section::26",
+          "text": "-Provide the \"object\" canonical name.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2510.07940::section::26::para::6",
+          "section_id": "2510.07940::section::26",
+          "text": "-Under \"object_phrases\", list quoted phrases (min 3 words).",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2510.07940::section::26::para::7",
+          "section_id": "2510.07940::section::26",
+          "text": "-Under \"object_words\", list single words corresponding to phrases. 5. If multiple objects with the same name appear, keep the name the same, but assign different ids.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2510.07940::section::26::para::8",
+          "section_id": "2510.07940::section::26",
+          "text": "Respond in the specified JSON format.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2510.07940::section::26::para::9",
+          "section_id": "2510.07940::section::26",
+          "text": "Guidelines:",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2510.07940::section::26::para::10",
+          "section_id": "2510.07940::section::26",
+          "text": "-Exclude abstract ideas, emotions, locations, and background elements.",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2510.07940::section::26::para::11",
+          "section_id": "2510.07940::section::26",
+          "text": "-Do not include synonyms unless literally mentioned.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2510.07940::section::26::para::12",
+          "section_id": "2510.07940::section::26",
+          "text": "-Strictly preserve original case and formatting.",
+          "paragraph_index": 12
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::27",
+      "paper_id": "2510.07940",
+      "heading": "C.3 LAYOUT GENERATION",
+      "section_type": null,
+      "order": 27,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::27::para::0",
+          "section_id": "2510.07940::section::27",
+          "text": "This prompt generates bounding box sequences based on the prompt and metadata.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::27::para::1",
+          "section_id": "2510.07940::section::27",
+          "text": "You are an intelligent bounding box generator for videos.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::27::para::2",
+          "section_id": "2510.07940::section::27",
+          "text": "You will receive: 1. original_prompt (core motion intent) 2. converted_prompt (visual details) 3. object metadata (entities list) Your task: generate realistic bounding boxes (720x480) per frame (1-6) for main objects. Bounding box rules: -Follow motion path from original_prompt exactly. -Format: {'id': <int>, 'name': <object name>, 'box': [x, y, width, height]}. -** Numeracy ** : If multiple objects of the same type exist, assign unique IDs and generate separate boxes. -Match box size to camera framing (Close-ups: >=500x300). -Avoid overlap unless implied. Output format: -Reasoning paragraph. -Frames 1 to 6: list of bounding box dicts. -Background keyword.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::28",
+      "paper_id": "2510.07940",
+      "heading": "C.4 VERIFICATION",
+      "section_type": null,
+      "order": 28,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::28::para::0",
+          "section_id": "2510.07940::section::28",
+          "text": "To ensure the robustness of the generated plan, we employ two distinct verification steps: one for textual metadata and one for spatiotemporal layout.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::29",
+      "paper_id": "2510.07940",
+      "heading": "C.4.1 METADATA VERIFICATION PROMPT",
+      "section_type": null,
+      "order": 29,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::29::para::0",
+          "section_id": "2510.07940::section::29",
+          "text": "This step corrects format errors and ensures linguistic guidelines are followed.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::29::para::1",
+          "section_id": "2510.07940::section::29",
+          "text": "Please check if the extracted object metadata strictly follows the guidelines. If there are any issues (e.g., inclusion of background elements, abstract parts, possessive pronouns like \"its\", or mismatches between \"object_phrases\" and \"object_words\"), correct them.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::29::para::2",
+          "section_id": "2510.07940::section::29",
+          "text": "Return ONLY the corrected \"objects\" field. If no problems, return unchanged.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::29::para::3",
+          "section_id": "2510.07940::section::29",
+          "text": "Rules: -** Do not include possessive pronouns ** (e.g., \"its\", \"his\") in \"object_phrases\". -** \"object_words\" must only contain base object words ** (e.g., use \"car\" instead of \"car's\"). -Ensure \"object_words\" are strictly nouns representing whole entities, not attributes.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::30",
+      "paper_id": "2510.07940",
+      "heading": "C.4.2 LAYOUT VERIFICATION PROMPT",
+      "section_type": null,
+      "order": 30,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::30::para::0",
+          "section_id": "2510.07940::section::30",
+          "text": "This step critiques the generated bounding boxes, focusing on **numerical accuracy** and **spatiotemporal consistency**.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::30::para::1",
+          "section_id": "2510.07940::section::30",
+          "text": "You are a Quality Assurance expert for video layout generation. You will receive: 1. The Object Metadata (containing the list of objects to be detected).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::30::para::2",
+          "section_id": "2510.07940::section::30",
+          "text": "2. The Generated Layout (Frames 1-6).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::30::para::3",
+          "section_id": "2510.07940::section::30",
+          "text": "Your task is to verify and correct the layout based on the following strict criteria:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::30::para::4",
+          "section_id": "2510.07940::section::30",
+          "text": "1. ** Numeracy Check (Critical) ** :",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.07940::section::30::para::5",
+          "section_id": "2510.07940::section::30",
+          "text": "-Verify that the number of bounding boxes for each object category matches the count specified in the metadata.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2510.07940::section::30::para::6",
+          "section_id": "2510.07940::section::30",
+          "text": "-Example: If the metadata lists \"cat\" with ID 0 and \"cat\" with ID 1 (total 2 cats), every frame MUST contain exactly 2 boxes for \"cat\".",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2510.07940::section::30::para::7",
+          "section_id": "2510.07940::section::30",
+          "text": "-If a specific number is mentioned (e.g., \"5 birds\"), ensure there are 5 distinct IDs.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2510.07940::section::30::para::8",
+          "section_id": "2510.07940::section::30",
+          "text": "2. ** Temporal Consistency ** : -Motion must be smooth. Eliminate random jitter or sudden jumps in position unless the prompt describes erratic movement. -Ensure ID consistency: Object ID 0 in Frame 1 must correspond to the same entity in Frame 6. 3. ** Size & Bounds ** : -Objects should not randomly shrink/grow without perspective justification. -Ensure all boxes are within valid coordinates [0, 0, 720, 480].",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2510.07940::section::30::para::9",
+          "section_id": "2510.07940::section::30",
+          "text": "If errors are found, regenerate the \"frames\" section with corrected coordinates and counts. Return the output in the exact same JSON format as the input.",
+          "paragraph_index": 9
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::31",
+      "paper_id": "2510.07940",
+      "heading": "D THEORETICAL ANALYSIS OF THE MEMORY MECHANISM",
+      "section_type": null,
+      "order": 31,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::31::para::0",
+          "section_id": "2510.07940::section::31",
+          "text": "In this section, we provide a formal theoretical analysis of the proposed memory mechanism. We frame the mechanism not merely as a caching strategy, but as a Manifold-Aware Initialization scheme that accelerates convergence by leveraging the local smoothness of the task-parameter mapping. We further analyze the stability of the update rule to demonstrate its robustness against catastrophic forgetting.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::32",
+      "paper_id": "2510.07940",
+      "heading": "D.1 PROBLEM FORMULATION: TTO AS TRAJECTORY OPTIMIZATION",
+      "section_type": null,
+      "order": 32,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::32::para::0",
+          "section_id": "2510.07940::section::32",
+          "text": "Let T denote the manifold of compositional video generation tasks (user prompts), and let Φ ⊆ R d represent the parameter space of the trainable modules (e.g., LoRA weights). We define a mapping F : T → Φ such that for any task C ∈ T , there exists an optimal parameter set ϕ * C that minimizes the alignment objective L align :",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::32::para::1",
+          "section_id": "2510.07940::section::32",
+          "text": "The standard Test-Time Optimization (TTO) process seeks to find ϕ * C via Gradient Descent starting from a generic initialization ϕ 0 . The memory M is defined as a discrete set of tuples {(k i , v i )} N i=1 , where k i = g(C i ) is the semantic representation (key) of a historical task, and v i = ϕ * Ci is the converged parameter state (value).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::33",
+      "paper_id": "2510.07940",
+      "heading": "D.2 CONVERGENCE ANALYSIS: THE INITIALIZATION ADVANTAGE",
+      "section_type": null,
+      "order": 33,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::33::para::0",
+          "section_id": "2510.07940::section::33",
+          "text": "The efficiency of our method stems from the bounding of the optimization trajectory. We rely on the Task-Parameter Smoothness Assumption: we assume that if two tasks C i and C j are semantically close in the embedding space (i.e., ∥g(C i ) -g(C j )∥ < ϵ), their corresponding optimal parameters lie within a local neighborhood on the parameter manifold:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::33::para::1",
+          "section_id": "2510.07940::section::33",
+          "text": "Under the assumption that the loss landscape L align is locally µ-strongly convex and L-smooth around the optimum (a standard assumption in fine-tuning analysis), the convergence rate of Gradient Descent at step t is bounded by the initial distance to the solution:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::33::para::2",
+          "section_id": "2510.07940::section::33",
+          "text": "where η is the learning rate.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::33::para::3",
+          "section_id": "2510.07940::section::33",
+          "text": "In our proposed mechanism, the retrieval (Liu et al., 2018;Wen et al., 2024) function R(M, C) selects an initialization ϕ mem such that:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.07940::section::33::para::4",
+          "section_id": "2510.07940::section::33",
+          "text": "When a similar structural layout is retrieved, ∥ϕ mem -ϕ * C ∥ ≪ ∥ϕ random -ϕ * C ∥. Consequently, the number of steps T required to reach an error tolerance ϵ is significantly reduced. This theoretical bound formally explains the reduction in inference latency and the enhanced motion scores observed in our empirical results.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2510.07940::section::34",
+      "paper_id": "2510.07940",
+      "heading": "D.3 STABILITY AND ORTHOGONAL INFORMATION RETENTION",
+      "section_type": null,
+      "order": 34,
+      "paragraphs": [
+        {
+          "id": "2510.07940::section::34::para::0",
+          "section_id": "2510.07940::section::34",
+          "text": "A critical challenge in online learning is Catastrophic Forgetting, where updates for a new task degrade performance on previous tasks. We prove that our mechanism is immune to this phenomenon via its discrete storage topology.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.07940::section::34::para::1",
+          "section_id": "2510.07940::section::34",
+          "text": "Unlike continual learning approaches that update a shared parameter set θ ← θ -∇L new , our memory update mechanism is additive and orthogonal. The update rule is formally defined as:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.07940::section::34::para::2",
+          "section_id": "2510.07940::section::34",
+          "text": "Because each optimized parameter set ϕ * is stored as a discrete entry effectively isolated in the memory bank, the gradient updates for task C new do not alter the values v i associated with historical keys k i .",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.07940::section::34::para::3",
+          "section_id": "2510.07940::section::34",
+          "text": "Forgetting Dynamics. The only information loss in the system is governed by the cache replacement policy (e.g., Least Frequently Used) which occurs only when the memory capacity |M| exceeds the maximum limit K max . This ensures that the system prioritizes the retention of high-probability compositional structures, effectively approximating the optimal storage policy for the distribution of user prompts.",
+          "paragraph_index": 3
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2510.07940::figure::0",
+      "paper_id": "2510.07940",
+      "figure_number": "Figure 2 :",
+      "caption": "Figure2: Overview of the TTOM framework for compositional text-to-video generation. A stream of text prompts is first fed into LLMs for spatial-temporal layout planning. Meanwhile, a denoising sampling process of video foundation models is performed, in which cross-attention maps are extracted, followed by test-time optimization for alignment. Historical optimization context is maintained by the parametric memory.",
+      "page_number": 3,
+      "bounding_box": {
+        "page": 3,
+        "x": 115.71,
+        "y": 257.49,
+        "width": 382.67,
+        "height": 50.48
+      },
+      "grobid_ref_id": "fig_0",
+      "image_path": "extracted_images\\2510.07940_figure_0.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::figure::1",
+      "paper_id": "2510.07940",
+      "figure_number": null,
+      "caption": "Figure3: Attention-layout overlap (evaluated by mIoU(Everingham et al., 2010) over 200 prompts) between cross-modal attention maps extracted from each layer of foundation models and segmentation maps detected from generated videos by GroundingDINO(Liu et al., 2024) + SAM 2(Ravi et al., 2024).",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_1",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::figure::2",
+      "paper_id": "2510.07940",
+      "figure_number": "Figure 4 :",
+      "caption": "Figure 4: Qualitative results of motion pattern transfer with memory. Solid arrows indicate insert or update operations, while dotted arrows represent reading and loading parameters from memory into foundation models for inference.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_2",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::figure::3",
+      "paper_id": "2510.07940",
+      "figure_number": null,
+      "caption": "on the left and an owl flies from right to left.On the Moon, a robot walks to the right as a vehicle drives to the left.These two examples show that adding memory initialization to TTO leads to better dynamic performance. Stand-alone TTO is constrained by the layout-if the LLM generates a layout with small motion amplitudes, the movement direction may not be clearly visible. However, with memory initialization, the motion dynamics in the frames are significantly enhanced.(b) These two examples show that adding TTO on top of memory initialization yields better constraint behavior. Some prompts are relatively rare in the memory, and in extreme cases may not match a perfectly aligned motion pattern-for example, the two subjects performing different actions in these examples. Applying TTO in such cases leads to much stronger consistency.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_3",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::figure::4",
+      "paper_id": "2510.07940",
+      "figure_number": "Figure 7 :",
+      "caption": "Figure 7: Qualitative comparison to the impact of memory and TTO.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_4",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::figure::5",
+      "paper_id": "2510.07940",
+      "figure_number": "Figure 8 :LayoutFigure 9 :Figure 10 :",
+      "caption": "Figure 8: Qualitative comparison when loading items with different retrieval ranks in memory.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_5",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2510.07940::table::0",
+      "paper_id": "2510.07940",
+      "table_number": "Table 1 :",
+      "caption": "Evaluation results of compositional text-to-video generation on T2V-CompBench(Sun et al., 2025), reported over 7 categories and the overall average (Avg.).",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "Model",
+          "Avg.",
+          "Motion",
+          "Num",
+          "Spatial",
+          "Con-attr",
+          "Dyn-attr",
+          "Action",
+          "Interact"
+        ],
+        [
+          "Commercial",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Pika-1.0",
+          "0.3752",
+          "0.2234",
+          "0.3870",
+          "0.4650",
+          "0.5536",
+          "0.0128",
+          "0.4250",
+          "0.5198"
+        ],
+        [
+          "Gen-3",
+          "0.4094",
+          "0.2754",
+          "0.2306",
+          "0.5194",
+          "0.5980",
+          "0.0687",
+          "0.5233",
+          "0.5906"
+        ],
+        [
+          "Dreamina 1.2",
+          "0.4689",
+          "0.2361",
+          "0.4380",
+          "0.5773",
+          "0.6913",
+          "0.0051",
+          "0.5924",
+          "0.6824"
+        ],
+        [
+          "Kling-1.0",
+          "0.4630",
+          "0.2562",
+          "0.4413",
+          "0.5690",
+          "0.6931",
+          "0.0098",
+          "0.5787",
+          "0.7128"
+        ],
+        [
+          "Diffusion Unet based",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "ModelScope",
+          "0.3468",
+          "0.2408",
+          "0.1986",
+          "0.4118",
+          "0.5148",
+          "0.0161",
+          "0.3639",
+          "0.4613"
+        ],
+        [
+          "+ LVD",
+          "0.3912",
+          "0.2457",
+          "0.2008",
+          "0.5405",
+          "0.5439",
+          "0.0171",
+          "0.3802",
+          "0.4502"
+        ],
+        [
+          "Show-1",
+          "0.3676",
+          "0.2291",
+          "0.3086",
+          "0.4544",
+          "0.5670",
+          "0.0115",
+          "0.3881",
+          "0.6244"
+        ],
+        [
+          "VideoTetris",
+          "0.4097",
+          "0.2249",
+          "0.3467",
+          "0.4832",
+          "0.6211",
+          "0.0104",
+          "0.4839",
+          "0.6578"
+        ],
+        [
+          "T2V-Turbo-V2",
+          "0.4317",
+          "0.2556",
+          "0.3261",
+          "0.5025",
+          "0.6723",
+          "0.0127",
+          "0.6087",
+          "0.6439"
+        ],
+        [
+          "DiT based",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Open-Sora 1.2",
+          "0.3851",
+          "0.2468",
+          "0.3719",
+          "0.5063",
+          "0.5639",
+          "0.0189",
+          "0.4839",
+          "0.5039"
+        ],
+        [
+          "Open-Sora-Plan v1.3.0",
+          "0.3670",
+          "0.2377",
+          "0.2952",
+          "0.5162",
+          "0.6076",
+          "0.0119",
+          "0.4524",
+          "0.4483"
+        ],
+        [
+          "CogVideoX-5B",
+          "0.4189",
+          "0.2658",
+          "0.3706",
+          "0.5172",
+          "0.6164",
+          "0.0219",
+          "0.5333",
+          "0.6069"
+        ],
+        [
+          "+ DyST-XL",
+          "0.5081",
+          "0.2712",
+          "0.3969",
+          "0.6110",
+          "0.8696",
+          "0.0221",
+          "0.7321",
+          "0.6536"
+        ],
+        [
+          "+ LVD",
+          "0.4739",
+          "0.3291",
+          "0.3825",
+          "0.5274",
+          "0.7534",
+          "0.0219",
+          "0.6826",
+          "0.6204"
+        ],
+        [
+          "+ Ours",
+          "0.5632",
+          "0.4351",
+          "0.5081",
+          "0.6173",
+          "0.8782",
+          "0.0341",
+          "0.7191",
+          "0.7502"
+        ],
+        [
+          "%Improve.",
+          "+34.45",
+          "+63.69",
+          "+37.10",
+          "+19.35",
+          "+42.47",
+          "+55.71",
+          "+34.84",
+          "+23.61"
+        ],
+        [
+          "Wan2.1-14B",
+          "0.5314",
+          "0.2696",
+          "0.5113",
+          "0.5709",
+          "0.8369",
+          "0.0570",
+          "0.7504",
+          "0.7239"
+        ],
+        [
+          "+ LVD",
+          "0.5439",
+          "0.2864",
+          "0.4707",
+          "0.5753",
+          "0.8610",
+          "0.0829",
+          "0.8107",
+          "0.7201"
+        ],
+        [
+          "+ Ours",
+          "0.6155",
+          "0.4922",
+          "0.5881",
+          "0.6275",
+          "0.8982",
+          "0.1182",
+          "0.8152",
+          "0.7691"
+        ],
+        [
+          "%Improve.",
+          "+15.83",
+          "+82.57",
+          "+15.02",
+          "+9.91",
+          "+7.32",
+          "+107.37",
+          "+8.64",
+          "+6.24"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::table::1",
+      "paper_id": "2510.07940",
+      "table_number": "Table 2 :",
+      "caption": "Evaluation results on the semantic categories of VBench.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "Model",
+          "Obj.",
+          "Multi-",
+          "Human",
+          "Color",
+          "Spatial",
+          "Scene",
+          "Appear.",
+          "Temp.",
+          "Overall"
+        ],
+        [
+          "",
+          "Class",
+          "Obj.",
+          "Act.",
+          "",
+          "Rel.",
+          "",
+          "Style",
+          "Style",
+          "Cons."
+        ],
+        [
+          "CogVideoX-5B 0.8342",
+          "0.6728",
+          "0.9760",
+          "0.8840",
+          "0.7943",
+          "0.5328",
+          "0.2468",
+          "0.2542",
+          "0.2742"
+        ],
+        [
+          "+ LVD",
+          "0.8661",
+          "0.6782",
+          "0.9740",
+          "0.8802",
+          "0.8014",
+          "0.5406",
+          "0.2472",
+          "0.2509",
+          "0.2609"
+        ],
+        [
+          "+ Ours",
+          "0.9486",
+          "0.7952",
+          "0.9820",
+          "0.9246",
+          "0.8215",
+          "0.5682",
+          "0.2550",
+          "0.2576",
+          "0.2678"
+        ],
+        [
+          "Wan2.1-14B",
+          "0.8628",
+          "0.6958",
+          "0.9540",
+          "0.8859",
+          "0.7539",
+          "0.4575",
+          "0.2264",
+          "0.2319",
+          "0.2591"
+        ],
+        [
+          "+ LVD",
+          "0.9083",
+          "0.7286",
+          "0.9620",
+          "0.8832",
+          "0.7547",
+          "0.5135",
+          "0.2280",
+          "0.2407",
+          "0.2507"
+        ],
+        [
+          "+ Ours",
+          "0.9921",
+          "0.8216",
+          "0.9800",
+          "0.9289",
+          "0.8074",
+          "0.5286",
+          "0.2305",
+          "0.2444",
+          "0.2542"
+        ],
+        [
+          "match those used for our TTO version, while all other training hyperparameters follow the original"
+        ],
+        [
+          "LVD paper.",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::table::2",
+      "paper_id": "2510.07940",
+      "table_number": "Table 6 :",
+      "caption": "Impact of pseudotraining data scale, evaluated on the motion category of T2V-CompBench.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_2",
+      "raw_data": [
+        [
+          "#Pseudo-training Data Motion"
+        ],
+        [
+          "50",
+          "0.3519"
+        ],
+        [
+          "100",
+          "0.4344"
+        ],
+        [
+          "150",
+          "0.4751"
+        ],
+        [
+          "200",
+          "0.4922"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::table::3",
+      "paper_id": "2510.07940",
+      "table_number": "Table 7 :",
+      "caption": "Impact of number of timesteps for optimization during the early stage of denoising sampling.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_3",
+      "raw_data": [
+        [
+          "#Timestep",
+          "Motion"
+        ],
+        [
+          "1",
+          "0.2730"
+        ],
+        [
+          "3",
+          "0.3692"
+        ],
+        [
+          "5",
+          "0.4321"
+        ],
+        [
+          "7",
+          "0.4296"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2510.07940::table::4",
+      "paper_id": "2510.07940",
+      "table_number": "Table 8 :",
+      "caption": "Impact of the number of test-time optimization iterations per denoising sampling timestep.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_4",
+      "raw_data": [
+        [
+          "",
+          "",
+          "#Iteration",
+          "Motion"
+        ],
+        [
+          "",
+          "",
+          "4",
+          "0.3789"
+        ],
+        [
+          "",
+          "",
+          "8",
+          "0.4321"
+        ],
+        [
+          "",
+          "",
+          "12",
+          "0.4130"
+        ],
+        [
+          "",
+          "",
+          "16",
+          "0.3547"
+        ],
+        [
+          "Prompt",
+          "Wan2.1-14B (Baseline)",
+          "+ TTOM (Ours)",
+          "Memory"
+        ],
+        [
+          "A cat slinking to",
+          "",
+          "",
+          ""
+        ],
+        [
+          "the left side of",
+          "",
+          "",
+          ""
+        ],
+        [
+          "a cozy living room.",
+          "",
+          "",
+          ""
+        ],
+        [
+          "A fresh orange",
+          "",
+          "",
+          ""
+        ],
+        [
+          "rolls left across",
+          "",
+          "",
+          ""
+        ],
+        [
+          "the countertop.",
+          "",
+          "",
+          ""
+        ],
+        [
+          "A gentle swan",
+          "",
+          "",
+          ""
+        ],
+        [
+          "glides left over",
+          "",
+          "",
+          ""
+        ],
+        [
+          "the lake.",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2510.07940::equation::0",
+      "paper_id": "2510.07940",
+      "latex": "Āi = f \\Theta (C, c i , z t , t),",
+      "equation_number": "(1)",
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::1",
+      "paper_id": "2510.07940",
+      "latex": "L align = 1 N N i=1 JSD( Āi ∥ Bi ),",
+      "equation_number": "(2)",
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::2",
+      "paper_id": "2510.07940",
+      "latex": "M = {g(C) : ϕ * C |C \\in C H },",
+      "equation_number": "(3)",
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::3",
+      "paper_id": "2510.07940",
+      "latex": "\\sqrt \\sqrt \\sqrt X X \\sqrt \\sqrt X X",
+      "equation_number": null,
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::4",
+      "paper_id": "2510.07940",
+      "latex": ".1-14B LVD * Ours Prompt Interaction Action X X X X",
+      "equation_number": null,
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::5",
+      "paper_id": "2510.07940",
+      "latex": "ϕ * C = arg min ϕ \\in \\Phi L align (ϕ; C)",
+      "equation_number": "(4)",
+      "grobid_ref_id": "formula_5",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::6",
+      "paper_id": "2510.07940",
+      "latex": "∥ϕ * Ci -ϕ * Cj ∥ < \\delta .",
+      "equation_number": null,
+      "grobid_ref_id": "formula_6",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::7",
+      "paper_id": "2510.07940",
+      "latex": "∥ϕ t -ϕ * C ∥ 2 \\le (1 - \\eta µ) t ∥ϕ init -ϕ * C ∥ 2",
+      "equation_number": "(5)",
+      "grobid_ref_id": "formula_7",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::8",
+      "paper_id": "2510.07940",
+      "latex": "ϕ init = ϕ mem if \\exists (k, v) \\in M s.t. sim(g(C), k) > \\tau ϕ random otherwise (",
+      "equation_number": "6",
+      "grobid_ref_id": "formula_8",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::9",
+      "paper_id": "2510.07940",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_9",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2510.07940::equation::10",
+      "paper_id": "2510.07940",
+      "latex": "M t+1 ← M t \\cup {(g(C new ), ϕ * new )}",
+      "equation_number": "(7)",
+      "grobid_ref_id": "formula_10",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2510.07940::citation::0",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Video generation models as world simulators",
+      "cited_authors": [
+        "Tim Brooks",
+        "Bill Peebles",
+        "Connor Holmes",
+        "Will Depue",
+        "Yufei Guo",
+        "Li Jing",
+        "David Schnurr",
+        "Joe Taylor",
+        "Troy Luhman",
+        "Eric Luhman",
+        "Clarence Ng",
+        "Ricky Wang",
+        "Aditya Ramesh"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::1",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Language models are few-shot learners",
+      "cited_authors": [
+        "Tom Brown",
+        "Benjamin Mann",
+        "Nick Ryder",
+        "Melanie Subbiah",
+        "Jared D Kaplan",
+        "Prafulla Dhariwal",
+        "Arvind Neelakantan",
+        "Pranav Shyam",
+        "Girish Sastry",
+        "Amanda Askell"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::2",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Capcut",
+        "Dreamina"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::3",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Attend-and-excite: Attention-based semantic guidance for text-to-image diffusion models",
+      "cited_authors": [
+        "Hila Chefer",
+        "Yuval Alaluf",
+        "Yael Vinker",
+        "Lior Wolf",
+        "Daniel Cohen-Or"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::4",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Training-free layout control with cross-attention guidance",
+      "cited_authors": [
+        "Minghao Chen",
+        "Iro Laina",
+        "Andrea Vedaldi"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::5",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Perception prioritized training of diffusion models",
+      "cited_authors": [
+        "Jooyoung Choi",
+        "Jungbeom Lee",
+        "Chaehun Shin",
+        "Sungwon Kim",
+        "Hyunwoo Kim",
+        "Sungroh Yoon"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::6",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "One-minute video generation with test-time training",
+      "cited_authors": [
+        "Karan Dalal",
+        "Daniel Koceja",
+        "Jiarui Xu",
+        "Yue Zhao",
+        "Shihao Han",
+        "Ka Chun Cheung",
+        "Jan Kautz",
+        "Yejin Choi",
+        "Yu Sun",
+        "Xiaolong Wang"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::7",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "A survey on in-context learning",
+      "cited_authors": [
+        "Qingxiu Dong",
+        "Lei Li",
+        "Damai Dai",
+        "Ce Zheng",
+        "Jingyuan Ma",
+        "Rui Li",
+        "Heming Xia",
+        "Jingjing Xu",
+        "Zhiyong Wu",
+        "Tianyu Liu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2301.00234",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::8",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Scaling rectified flow transformers for high-resolution image synthesis",
+      "cited_authors": [
+        "Patrick Esser",
+        "Sumith Kulal",
+        "Andreas Blattmann",
+        "Rahim Entezari",
+        "Jonas Müller",
+        "Harry Saini",
+        "Yam Levi",
+        "Dominik Lorenz",
+        "Axel Sauer",
+        "Frederic Boesel"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::9",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "The pascal visual object classes (voc) challenge",
+      "cited_authors": [
+        "Mark Everingham",
+        "Luc Van Gool",
+        "K I Christopher",
+        "John Williams",
+        "Andrew Winn",
+        "Zisserman"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::10",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Training-free structured diffusion guidance for compositional text-to-image synthesis",
+      "cited_authors": [
+        "Weixi Feng",
+        "Xuehai He",
+        "Tsu-Jui Fu",
+        "Varun Jampani",
+        "Arjun Akula",
+        "Pradyumna Narayana",
+        "Sugato Basu",
+        "Xin",
+        "Eric Wang",
+        "William Yang",
+        "Wang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2212.05032",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::11",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Layoutgpt: Compositional visual planning and generation with large language models",
+      "cited_authors": [
+        "Weixi Feng",
+        "Wanrong Zhu",
+        "Tsu-Jui Fu",
+        "Varun Jampani",
+        "Arjun Akula",
+        "Xuehai He",
+        "Sugato Basu",
+        "Xin",
+        "Eric Wang",
+        "William Yang",
+        "Wang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::12",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Blobgen-vid: Compositional text-to-video generation with blob video representations",
+      "cited_authors": [
+        "Weixi Feng",
+        "Chao Liu",
+        "Sifei Liu",
+        "William Yang Wang",
+        "Arash Vahdat",
+        "Weili Nie"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::13",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Test-time training with masked autoencoders",
+      "cited_authors": [
+        "Yossi Gandelsman",
+        "Yu Sun",
+        "Xinlei Chen",
+        "Alexei Efros"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::14",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Masked autoencoders are scalable vision learners",
+      "cited_authors": [
+        "Kaiming He",
+        "Xinlei Chen",
+        "Saining Xie",
+        "Yanghao Li",
+        "Piotr Dollár",
+        "Ross Girshick"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::15",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Dyst-xl: Dynamic layout planning and content control for compositional text-to-video generation",
+      "cited_authors": [
+        "Weijie He",
+        "Mushui Liu",
+        "Yunlong Yu",
+        "Zhao Wang",
+        "Chao Wu"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2504.15032",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::16",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Localized text-to-image generation for free via cross attention control",
+      "cited_authors": [
+        "Yutong He",
+        "Ruslan Salakhutdinov",
+        "J Zico Kolter"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2306.14636",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::17",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Promptto-prompt image editing with cross attention control",
+      "cited_authors": [
+        "Amir Hertz",
+        "Ron Mokady",
+        "Jay Tenenbaum",
+        "Kfir Aberman",
+        "Yael Pritch",
+        "Daniel Cohen-Or"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2208.01626",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::18",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Video diffusion models",
+      "cited_authors": [
+        "Jonathan Ho",
+        "Tim Salimans",
+        "Alexey Gritsenko",
+        "William Chan",
+        "Mohammad Norouzi",
+        "David J Fleet"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::19",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Open-sora: Democratizing efficient video production for all",
+      "cited_authors": [
+        "Hpc-Ai Tech"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::20",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Lora: Low-rank adaptation of large language models",
+      "cited_authors": [
+        "J Edward",
+        "Yelong Hu",
+        "Phillip Shen",
+        "Zeyuan Wallis",
+        "Yuanzhi Allen-Zhu",
+        "Shean Li",
+        "Lu Wang",
+        "Weizhu Wang",
+        "Chen"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::21",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Vbench: Comprehensive benchmark suite for video generative models",
+      "cited_authors": [
+        "Ziqi Huang",
+        "Yinan He",
+        "Jiashuo Yu",
+        "Fan Zhang",
+        "Chenyang Si",
+        "Yuming Jiang",
+        "Yuanhan Zhang",
+        "Tianxing Wu",
+        "Qingyang Jin",
+        "Nattapol Chanpaisit"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::22",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Test-time alignment of diffusion models without reward over-optimization",
+      "cited_authors": [
+        "Sunwoo Kim",
+        "Minkyu Kim",
+        "Dongmin Park"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2501.05803",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::23",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "A systematic framework for large video generative models",
+      "cited_authors": [
+        "Weijie Kong",
+        "Qi Tian",
+        "Zijian Zhang",
+        "Rox Min",
+        "Zuozhuo Dai",
+        "Jin Zhou",
+        "Jiangfeng Xiong",
+        "Xin Li",
+        "Bo Wu",
+        "Jianwei Zhang"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2412.03603",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::24",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "T2v-turbo-v2: Enhancing video generation model post-training through data, reward, and conditional guidance design",
+      "cited_authors": [
+        "Jiachen Li",
+        "Qian Long",
+        "Jian Zheng",
+        "Xiaofeng Gao",
+        "Robinson Piramuthu",
+        "Wenhu Chen",
+        "William Yang",
+        "Wang"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::25",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Test-time preference optimization: On-the-fly alignment via iterative textual feedback",
+      "cited_authors": [
+        "Yafu Li",
+        "Xuyang Hu",
+        "Xiaoye Qu",
+        "Linjie Li",
+        "Yu Cheng"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2501.12895",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::26",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Revisiting batch normalization for practical domain adaptation",
+      "cited_authors": [
+        "Yanghao Li",
+        "Naiyan Wang",
+        "Jianping Shi",
+        "Jiaying Liu",
+        "Xiaodi Hou"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": "arXiv:1603.04779",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::27",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Llm-grounded diffusion: Enhancing prompt understanding of text-to-image diffusion models with large language models",
+      "cited_authors": [
+        "Long Lian",
+        "Boyi Li",
+        "Adam Yala",
+        "Trevor Darrell"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2305.13655",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::28",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Llm-grounded video diffusion models",
+      "cited_authors": [
+        "Long Lian",
+        "Baifeng Shi",
+        "Adam Yala",
+        "Trevor Darrell",
+        "Boyi Li"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2309.17444",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::29",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Do we really need to access the source data? source hypothesis transfer for unsupervised domain adaptation",
+      "cited_authors": [
+        "Jian Liang",
+        "Dapeng Hu",
+        "Jiashi Feng"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::30",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Open-sora plan: Open-source large video generation model",
+      "cited_authors": [
+        "Bin Lin",
+        "Yunyang Ge",
+        "Xinhua Cheng",
+        "Zongjian Li",
+        "Bin Zhu",
+        "Shaodong Wang",
+        "Xianyi He",
+        "Yang Ye",
+        "Shenghai Yuan",
+        "Liuhan Chen"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::31",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Videodirectorgpt: Consistent multi-scene video generation via llm-guided planning",
+      "cited_authors": [
+        "Han Lin",
+        "Abhay Zala",
+        "Jaemin Cho",
+        "Mohit Bansal"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2309.15091",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::32",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Maximilian Nickel, and Matt Le. Flow matching for generative modeling",
+      "cited_authors": [
+        "Yaron Lipman",
+        "Ricky Tq Chen",
+        "Heli Ben-Hamu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2210.02747",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::33",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Attentive moment retrieval in videos",
+      "cited_authors": [
+        "Meng Liu",
+        "Xiang Wang",
+        "Liqiang Nie",
+        "Xiangnan He",
+        "Baoquan Chen",
+        "Tat-Seng Chua"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::34",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Grounding dino: Marrying dino with grounded pre-training for open-set object detection",
+      "cited_authors": [
+        "Shilong Liu",
+        "Zhaoyang Zeng",
+        "Tianhe Ren",
+        "Feng Li",
+        "Hao Zhang",
+        "Jie Yang",
+        "Qing Jiang",
+        "Chunyuan Li",
+        "Jianwei Yang",
+        "Hang Su"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::35",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Training language models to follow instructions with human feedback",
+      "cited_authors": [
+        "Long Ouyang",
+        "Jeffrey Wu",
+        "Xu Jiang",
+        "Diogo Almeida",
+        "Carroll Wainwright",
+        "Pamela Mishkin",
+        "Chong Zhang",
+        "Sandhini Agarwal",
+        "Katarina Slama",
+        "Alex Ray"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::36",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "T-stitch: Accelerating sampling in pre-trained diffusion models with trajectory stitching",
+      "cited_authors": [
+        "Zizheng Pan",
+        "Bohan Zhuang",
+        "De-An",
+        "Weili Huang",
+        "Zhiding Nie",
+        "Chaowei Yu",
+        "Jianfei Xiao",
+        "Anima Cai",
+        "Anandkumar"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2402.14167",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::37",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Scalable diffusion models with transformers",
+      "cited_authors": [
+        "William Peebles",
+        "Saining Xie"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::38",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Movie gen: A cast of media foundation models",
+      "cited_authors": [
+        "Adam Polyak",
+        "Amit Zohar",
+        "Andrew Brown",
+        "Andros Tjandra",
+        "Animesh Sinha",
+        "Ann Lee",
+        "Apoorv Vyas",
+        "Bowen Shi",
+        "Chih-Yao Ma",
+        "Ching-Yao Chuang"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2410.13720",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::39",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Fatezero: Fusing attentions for zero-shot text-based video editing",
+      "cited_authors": [
+        "Chenyang Qi",
+        "Xiaodong Cun",
+        "Yong Zhang",
+        "Chenyang Lei",
+        "Xintao Wang",
+        "Ying Shan",
+        "Qifeng Chen"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::40",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Layered rendering diffusion model for controllable zero-shot image synthesis",
+      "cited_authors": [
+        "Zipeng Qi",
+        "Guoxi Huang",
+        "Chenyang Liu",
+        "Fei Ye"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::41",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Dynamic modality interaction modeling for image-text retrieval",
+      "cited_authors": [
+        "Leigang Qu",
+        "Meng Liu",
+        "Jianlong Wu",
+        "Zan Gao",
+        "Liqiang Nie"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::42",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Layoutllm-t2i: Eliciting layout guidance from llm for text-to-image generation",
+      "cited_authors": [
+        "Leigang Qu",
+        "Shengqiong Wu",
+        "Hao Fei",
+        "Liqiang Nie",
+        "Tat-Seng Chua"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::43",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Tiger: Unifying text-to-image generation and retrieval with large multimodal models",
+      "cited_authors": [
+        "Leigang Qu",
+        "Haochuan Li",
+        "Tan Wang",
+        "Wenjie Wang",
+        "Yongqi Li",
+        "Liqiang Nie",
+        "Tat-Seng Chua"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2406.05814",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::44",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Discriminative probing and tuning for text-to-image generation",
+      "cited_authors": [
+        "Leigang Qu",
+        "Wenjie Wang",
+        "Yongqi Li",
+        "Hanwang Zhang",
+        "Liqiang Nie",
+        "Tat-Seng Chua"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2403.04321",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::45",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Vincie: Unlocking in-context image editing from video",
+      "cited_authors": [
+        "Leigang Qu",
+        "Feng Cheng",
+        "Ziyan Yang",
+        "Qi Zhao",
+        "Shanchuan Lin",
+        "Yichun Shi",
+        "Yicong Li",
+        "Wenjie Wang",
+        "Tat-Seng Chua",
+        "Lu Jiang"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::46",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Silmm: Self-improving large multimodal models for compositional text-to-image generation",
+      "cited_authors": [
+        "Leigang Qu",
+        "Haochuan Li",
+        "Wenjie Wang",
+        "Xiang Liu",
+        "Juncheng Li",
+        "Liqiang Nie",
+        "Tat-Seng Chua"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::47",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Learning transferable visual models from natural language supervision",
+      "cited_authors": [
+        "Alec Radford",
+        "Jong Wook Kim",
+        "Chris Hallacy",
+        "Aditya Ramesh",
+        "Gabriel Goh",
+        "Sandhini Agarwal",
+        "Girish Sastry",
+        "Amanda Askell",
+        "Pamela Mishkin",
+        "Jack Clark"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::48",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Segment anything in images and videos",
+      "cited_authors": [
+        "Nikhila Ravi",
+        "Valentin Gabeur",
+        "Yuan-Ting Hu",
+        "Ronghang Hu",
+        "Chaitanya Ryali",
+        "Tengyu Ma",
+        "Haitham Khedr",
+        "Roman Rädle",
+        "Chloe Rolland",
+        "Laura Gustafson"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2408.00714",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::49",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "U-net: Convolutional networks for biomedical image segmentation",
+      "cited_authors": [
+        "Olaf Ronneberger",
+        "Philipp Fischer",
+        "Thomas Brox"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::50",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Introducing gen-3 alpha: A new frontier for video generation",
+      "cited_authors": [],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b50",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::51",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Improving robustness against common corruptions by covariate shift adaptation",
+      "cited_authors": [
+        "Steffen Schneider",
+        "Evgenia Rusak",
+        "Luisa Eck",
+        "Oliver Bringmann",
+        "Wieland Brendel",
+        "Matthias Bethge"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b51",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::52",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Seaweed-7b: Cost-effective training of video generation foundation model",
+      "cited_authors": [
+        "Team Seawead",
+        "Ceyuan Yang",
+        "Zhijie Lin",
+        "Yang Zhao",
+        "Shanchuan Lin",
+        "Zhibei Ma",
+        "Haoyuan Guo",
+        "Hao Chen",
+        "Lu Qi",
+        "Sen Wang"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2504.08685",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b52",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::53",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Instancegen: Image generation with instancelevel instructions",
+      "cited_authors": [
+        "Etai Sella",
+        "Yanir Kleiman",
+        "Hadar Averbuch-Elor"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b53",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::54",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Encoding robustness to image style via adversarial feature perturbations",
+      "cited_authors": [
+        "Manli Shu",
+        "Zuxuan Wu",
+        "Micah Goldblum",
+        "Tom Goldstein"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b54",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::55",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Test-time prompt tuning for zero-shot generalization in vision-language models",
+      "cited_authors": [
+        "Manli Shu",
+        "Weili Nie",
+        "De-An Huang",
+        "Zhiding Yu",
+        "Tom Goldstein",
+        "Anima Anandkumar",
+        "Chaowei Xiao"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b55",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::56",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "T2v-compbench: A comprehensive benchmark for compositional text-to-video generation",
+      "cited_authors": [
+        "Kaiyue Sun",
+        "Kaiyi Huang",
+        "Xian Liu",
+        "Yue Wu",
+        "Zihan Xu",
+        "Zhenguo Li",
+        "Xihui Liu"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b56",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::57",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Test-time training with self-supervision for generalization under distribution shifts",
+      "cited_authors": [
+        "Yu Sun",
+        "Xiaolong Wang",
+        "Zhuang Liu",
+        "John Miller",
+        "Alexei Efros",
+        "Moritz Hardt"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b57",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::58",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Learning to (learn at test time): Rnns with expressive hidden states",
+      "cited_authors": [
+        "Yu Sun",
+        "Xinhao Li",
+        "Karan Dalal",
+        "Jiarui Xu",
+        "Arjun Vikram",
+        "Genghan Zhang",
+        "Yann Dubois",
+        "Xinlei Chen",
+        "Xiaolong Wang",
+        "Sanmi Koyejo"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2407.04620",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b58",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::59",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Videotetris: Towards compositional text-to-video generation",
+      "cited_authors": [
+        "Ye Tian",
+        "Ling Yang",
+        "Haotian Yang",
+        "Yuan Gao",
+        "Yufan Deng",
+        "Xintao Wang",
+        "Zhaochen Yu",
+        "Xin Tao",
+        "Pengfei Wan",
+        "Zhang Di"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b59",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::60",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Open and advanced large-scale video generative models",
+      "cited_authors": [
+        "Team Wan",
+        "Ang Wang",
+        "Baole Ai",
+        "Bin Wen",
+        "Chaojie Mao",
+        "Chen-Wei Xie",
+        "Di Chen",
+        "Feiwu Yu",
+        "Haiming Zhao",
+        "Jianxiao Yang"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2503.20314",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b60",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::61",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Think-while-generating: On-the-fly reasoning for personalized long-form generation",
+      "cited_authors": [
+        "Chengbing Wang",
+        "Yang Zhang",
+        "Wenjie Wang",
+        "Xiaoyan Zhao",
+        "Fuli Feng",
+        "Xiangnan He",
+        "Tat-Seng Chua"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2512.06690",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b61",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::62",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Modelscope text-to-video technical report",
+      "cited_authors": [
+        "Jiuniu Wang",
+        "Hangjie Yuan",
+        "Dayou Chen",
+        "Yingya Zhang",
+        "Xiang Wang",
+        "Shiwei Zhang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b62",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::63",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Test-time training on video streams",
+      "cited_authors": [
+        "Renhao Wang",
+        "Yu Sun",
+        "Arnuv Tandon",
+        "Yossi Gandelsman",
+        "Xinlei Chen",
+        "Alexei A Efros",
+        "Xiaolong Wang"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b63",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::64",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Towards transformer-based aligned generation with selfcoherence guidance",
+      "cited_authors": [
+        "Shulei Wang",
+        "Wang Lin",
+        "Hai Huang",
+        "Hanting Wang",
+        "Sihang Cai",
+        "Wenkang Han",
+        "Tao Jin",
+        "Jingyuan Chen",
+        "Jiacheng Sun",
+        "Jieming Zhu"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b64",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::65",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Divide and conquer: Language models can plan and self-correct for compositional text-to-image generation",
+      "cited_authors": [
+        "Zhenyu Wang",
+        "Enze Xie",
+        "Aoxue Li",
+        "Zhongdao Wang",
+        "Xihui Liu",
+        "Zhenguo Li"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2401.15688",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b65",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::66",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Self-training boosted multi-factor matching network for composed image retrieval",
+      "cited_authors": [
+        "Haokun Wen",
+        "Xuemeng Song",
+        "Jianhua Yin",
+        "Jianlong Wu",
+        "Weili Guan",
+        "Liqiang Nie"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b66",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::67",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Self-correcting llmcontrolled diffusion models",
+      "cited_authors": [
+        "Tsung-Han Wu",
+        "Long Lian",
+        "Joseph E Gonzalez",
+        "Boyi Li",
+        "Trevor Darrell"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b67",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::68",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Boxdiff: Text-to-image synthesis with training-free box-constrained diffusion",
+      "cited_authors": [
+        "Jinheng Xie",
+        "Yuexiang Li",
+        "Yawen Huang",
+        "Haozhe Liu",
+        "Wentian Zhang",
+        "Yefeng Zheng",
+        "Mike Zheng Shou"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b68",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::69",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Mastering textto-image diffusion: Recaptioning, planning, and generating with multimodal llms",
+      "cited_authors": [
+        "Ling Yang",
+        "Zhaochen Yu",
+        "Chenlin Meng",
+        "Minkai Xu",
+        "Stefano Ermon",
+        "Bin Cui"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b69",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::70",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Cogvideox: Text-to-video diffusion models with an expert transformer",
+      "cited_authors": [
+        "Zhuoyi Yang",
+        "Jiayan Teng",
+        "Wendi Zheng",
+        "Ming Ding",
+        "Shiyu Huang",
+        "Jiazheng Xu",
+        "Yuanming Yang",
+        "Wenyi Hong",
+        "Xiaohan Zhang",
+        "Guanyu Feng"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2408.06072",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b70",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::71",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Show-1: Marrying pixel and latent diffusion models for text-to-video generation",
+      "cited_authors": [
+        "David Junhao Zhang",
+        "Jay Zhangjie Wu",
+        "Jia-Wei Liu",
+        "Rui Zhao",
+        "Lingmin Ran",
+        "Yuchao Gu",
+        "Difei Gao",
+        "Mike Zheng Shou"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b71",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::72",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Memo: Test time robustness via adaptation and augmentation",
+      "cited_authors": [
+        "Marvin Zhang",
+        "Sergey Levine",
+        "Chelsea Finn"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b72",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::73",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Nextquill: Causal preference modeling for enhancing llm personalization",
+      "cited_authors": [
+        "Xiaoyan Zhao",
+        "Juntao You",
+        "Yang Zhang",
+        "Wenjie Wang",
+        "Hong Cheng",
+        "Fuli Feng",
+        "See-Kiong Ng",
+        "Tat-Seng Chua"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2506.02368",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b73",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.07940::citation::74",
+      "paper_id": "2510.07940",
+      "raw_text": null,
+      "cited_title": "Don't start over: A cost-effective framework for migrating personalized prompts between llms",
+      "cited_authors": [
+        "Ziyi Zhao",
+        "Chongming Gao",
+        "Yang Zhang",
+        "Haoyan Liu",
+        "Weinan Gan",
+        "Huifeng Guo",
+        "Yong Liu",
+        "Fuli Feng"
+      ],
+      "cited_year": 2026,
+      "cited_arxiv_id": "arXiv:2601.12034",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b74",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

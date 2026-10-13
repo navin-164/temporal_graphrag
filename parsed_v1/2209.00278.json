@@ -1,0 +1,768 @@
+{
+  "arxiv_id": "2209.00278",
+  "title": "Enhancing Semantic Understanding with Self-supervised Methods for   Abstractive Dialogue Summarization",
+  "authors": [
+    {
+      "name": "Hyunjae Lee",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Jaewoong Yun",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Hyunjin Choi",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Seongho Joe",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Youngjune L.\n  Gwon",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Contextualized word embeddings can lead to state-of-the-art performances in natural language understanding. Recently, a pre-trained deep contextualized text encoder such as BERT has shown its potential in improving natural language tasks including abstractive summarization. Existing approaches in dialogue summarization focus on incorporating a large language model into summarization task trained on large-scale corpora consisting of news articles rather than dialogues of multiple speakers. In this paper, we introduce self-supervised methods to compensate shortcomings to train a dialogue summarization model. Our principle is to detect incoherent information flows using pretext dialogue text to enhance BERT's ability to contextualize the dialogue text representations. We build and fine-tune an abstractive dialogue summarization model on a shared encoder-decoder architecture using the enhanced BERT. We empirically evaluate our abstractive dialogue summarizer with the SAMSum corpus, a recently introduced dataset with abstractive dialogue summaries. All of our methods have contributed improvements to abstractive summary measured in ROUGE scores. Through an extensive ablation study, we also present a sensitivity analysis to critical model hyperparameters, probabilities of switching utterances and masking interlocutors.",
+  "categories": [
+    "cs.CL",
+    "cs.AI"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2022-09-01T07:51:46"
+    }
+  ],
+  "doi": "10.21437/Interspeech.2021-1270",
+  "venue": {
+    "name": "Interspeech",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2021-08-30",
+  "citation_count": 3,
+  "reference_count": 25,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2209.00278::section::0",
+      "paper_id": "2209.00278",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::0::para::0",
+          "section_id": "2209.00278::section::0",
+          "text": "In natural language processing, abstractive summarization generates a concise summary for lengthy source text using words that do not necessarily appear in the source. Such creative aspect (in comparison with extractive summarization) makes abstractive summarization one of the most challenging tasks in computational linguistics. In speech, dialogue summarization enables a useful capability to capture salient information scattered in a dialogue containing the utterances by multiple interlocutors and rewrite them into simplified, easy-to-grasp text. With the rapid growth of online communications, providing dialogue summaries is becoming one of the most important features in a speech system. The recent outbreak of the coronavirus pandemic (COVID-19) and other on-going global incidents demand a crisp summary of long speech conversations more useful and appealing than ever.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2209.00278::section::0::para::1",
+          "section_id": "2209.00278::section::0",
+          "text": "Self-supervised learning has been used widely to complement or replace entirely human-annotated datasets in training deep networks of language, speech, and visual models. There are numerous approaches for neural dialogue summarization, yet not many have aimed to improve semantic and structural understanding of dialogue with a specifically-designed selfsupervised learning method.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2209.00278::section::0::para::2",
+          "section_id": "2209.00278::section::0",
+          "text": "In this paper, we propose self-supervised methods for training a neural abstractive dialogue summarization model. We Neville: Hi there, does anyone remember what date I got married on? Don: Are you serious? Wyatt : Dead serious. We're on vacation, and Tina's mad at me about something.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2209.00278::section::0::para::3",
+          "section_id": "2209.00278::section::0",
+          "text": "I have a strange suspicion that this might have something to do with our wedding anniversary. Neville : Hang on, I'll ask my wife.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2209.00278::section::0::para::4",
+          "section_id": "2209.00278::section::0",
+          "text": "[mask]: Haha, someone's in a lot of trouble :D Wyatt: Oh come on, Meg, we've known each other for 10 years now Wyatt: September 17. I hope you remember the year ;)",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2209.00278::section::0::para::5",
+          "section_id": "2209.00278::section::0",
+          "text": "[mask] reminds [mask] his wedding anniversary is on the 17th of September.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2209.00278::section::0::para::6",
+          "section_id": "2209.00278::section::0",
+          "text": "[mask]'s wife is upset and it might be because [mask] forgot about their anniversary have designed pretext tasks that require the model under training predict whether there are incorrect ordering and irrelevant information in utterances or not. There are also tasks to predict switched and masked interlocutor names. When pre-training with our self-supervised methods, the model seems to learn a better understanding of the semantic relevance between interlocutor and utterance. This can be crucial to capture the essence of a whole dialogue in much shortened text while preserving the most salient information.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2209.00278::section::0::para::7",
+          "section_id": "2209.00278::section::0",
+          "text": "In Figure 1, we describe an illustrative example about how our self-supervised methods take place during the pre-training of a neural language model upon which abstractive summarization task can be fine-tuned. There are four self-supervised methods, namely switching utterance, switching interlocutor, inserting utterance, and masking interlocutor. Notice that three out of the four self-supervised methods are set up as a simple binary classification problem (i.e., corrupted or not). In masking interlocutor method, mapping to a correct interlocutor's name would be required instead. We remark that our proposed method is fully compatible with a publicly available pre-trained language model like BERT [1]. This makes our approach more appealing and retrofitting in the popular paradigm comprising the pretraining and fine-tuning stages for building contemporary NLP applications.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2209.00278::section::0::para::8",
+          "section_id": "2209.00278::section::0",
+          "text": "To construct a neural abstractive dialogue summarizer, we enhance a pre-trained BERT with our self-supervised methods and use it as both encoder and decoder in sequence-to-sequence model [2,3] while sharing the weights between the encoder and the decoder (see Figure 2). We fine-tune and evaluate empirically our BERT-based summarizer using the SAMSum corpus [4]. Our self-supervised methods indicate a significantly improved performance compared to the baseline (BERTSHARE ), which is using the pre-trained BERT as is (without applying the BERT [mask]: are you going to that trip Wayne: was Jade: are you kidding me XD [mask]: its portponed Jade: what do you mean Wayne: im serious, why surprised Jade: i had to go home and miss it xD [mask]: are you going to that trip Wayne: was Jade: are you kidding me XD [mask]: its portponed Jade: what do you mean Wayne: im serious, why surprised Jade: i had to go home and miss it xD proposed self-supervised methods).",
+          "paragraph_index": 8
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::1",
+      "paper_id": "2209.00278",
+      "heading": "Self-supervised pre-training for text summarization",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::1::para::0",
+          "section_id": "2209.00278::section::1",
+          "text": "In recent years, self-supervised learning has pushed the performance of a wide range of natural language processing (NLP) tasks to new state-of-the-art and becoming a dominant paradigm in NLP. Numerous pre-training methods based on self-supervised learning for text summarization have been introduced. A common approach lets a model predict the original input tokens from randomly masked tokens (or sentences) in a document to resemble a target downstream task, i.e., abstractive summarization [5,6,7]. Zhang et al. [8] adopt masked sentence prediction in pre-training stage and employed it as a sentence encoder for extractive summarization on large-scale news corpus. The most similar approach to ours is Wang et al. [9], where they introduced three self-supervised pre-training tasks for extractive summarization with CNN/DM datasets [10]. Compared to previous work, our approach focuses more on how to incorporate the heterogeneous attributes of a dialogue to selfsupervised methods in order to overcome the challenge that fine-tuning is often unstable on small datasets and causes performance degradation [3].",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::2",
+      "paper_id": "2209.00278",
+      "heading": "Leveraging pre-trained model for text summarization",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::2::para::0",
+          "section_id": "2209.00278::section::2",
+          "text": "Liu & Lapata [11] has shown that BERT can beneficially be applied to both extractive and abstractive document summarization. For abstractive task, their model consists of a BERT pre-trained on extractive summarization task as the encoder and randomly initialized the 6-layer Transformer blocks for the decoder. On the contrary, we aim to leverage the full power of the proposed self-supervised methods by employing BERT as both an encoder and a decoder, which is pretrained on the task destined to enhance semantic understanding of a dialogue. In recent empirical studies by Google Research [3,12], it is possible to achieve state-of-the art results on text summarization without any auxiliary task with the encoderdecoder network utilizing pre-trained BERT, RoBERTa, GPT-2 (so-called BERT2BERT, BERT2GPT2). Our implementation of BERT2BERT architecture, however, could not have reached higher performance than baselines because the dataset of our choice is much smaller (about 10 times smaller) than previous work. This means that BERT2BERT architecture has a great potential for a nice warm-starting model but may not be sufficient for low-resource datasets to achieve a better performance.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::3",
+      "paper_id": "2209.00278",
+      "heading": "Abstractive dialogue summarization",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::3::para::0",
+          "section_id": "2209.00278::section::3",
+          "text": "We have chosen a dialogue dataset of messenger-like natural conversations that have very distinct features from formallywritten styled documents like a news article. Most salient pieces of conversations are scattered across the utterances by multiple interlocutors, and it makes difficult to decide what the key point of a dialogue is. Moreover, There are no large enough annotated datasets for abstractive dialogue summarization to train deep neural generative models. To address these problems, Ganesh and Dingliwal [13] propose a two-phase pipeline method that uses discourse labels and an existing document summarizer in the zero-shot learning perspectives. Feng et al. [14] propose the first to incorporate commonsense knowledge into abstractive dialogue summarization with a graph neural net that includes both utterance and knowledge nodes. Another approach using the graph structure for dialogue summarization is in Zhao et al. [15]. They have tackled the problem of previous sequence-to-sequence models [2] about not paying an attention to handle the sentence-level long-distance dependency and capture the cross-sentence relations by proposing a method that can construct the whole dialogue as a graph for abastractive dialogue summarization. These two approaches constitute the most recent work on the SAMSum corpus. In this work, we choose them as the baselines to compare our model's score with.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::4",
+      "paper_id": "2209.00278",
+      "heading": "Methods",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::4::para::0",
+          "section_id": "2209.00278::section::4",
+          "text": "In this section, we describe how to enhance BERT's semantic understanding of dialogue in self-supervised fashion.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2209.00278::section::4::para::1",
+          "section_id": "2209.00278::section::4",
+          "text": "• Switching Utterance: Similar with previous works [16,17] of predicting switched sentences, this task is to predict whether each utterance (not sentence) is switched or not. We switch some utterances selected with the probability Pu. Hence, the number of switched utterances changes dynamically at each training step. At the same time, we mask some interlocutor's name with the probabilty Pn. This optional constraint of input utterances makes the task more challenging.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2209.00278::section::4::para::2",
+          "section_id": "2209.00278::section::4",
+          "text": "• Switching Interlocutor: For this task, we switch interlocutor's name in utterances instead of utterances with the probabilty Pi and we did not mask the name of interlocutors. Additionally, we concatenate corresponding reference summary with the utterances for each input sequence, so it can help the model find a mismatch between interlocutor and what they said.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2209.00278::section::4::para::3",
+          "section_id": "2209.00278::section::4",
+          "text": "• Inserting Utterance: For this task, we insert K utterances from other dialogues selected with a pre-defined probability into randomly selected K positions from inter-utterances and the model predict whether each utterance is from other dialogue or not. If interlocutor's name in inserted utterances remains same as the original, which look obviously unfamiliar, the task has a lit-Table 1: The number of each components of SAMSum corpus, where \"Dial.\" stands for \"Dialogue.\", \"Utter.\" for \"Utterance\", \"Inter.\" for \"Interlocutor's name\" appearing in dialogues. \"OOV.\" is short for the number (proportion) of utterance that contains at least one out of vocabulary token which is mostly facial emojis such as in \"Nadine: caaaaaat \" , and \"OOV. w/ FE\" for the case \"with facial emoji appended vocabulary\".",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2209.00278::section::4::para::4",
+          "section_id": "2209.00278::section::4",
+          "text": "Type # Dial. # Utter. # Inter. # OOV. # OOV. w/ FE Train 14,732 164,505 4,289 3,315 (2.0%) 1,165 (0.7%) Valid 819 8,860 894 179 (2.0%) 44 (0.4%) Test 818 9,212 912 179 (1.9%) 82 (0.9%)",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2209.00278::section::4::para::5",
+          "section_id": "2209.00278::section::4",
+          "text": "tle worth to solve. Hence, we replace the name of them properly to camouflage where they come from.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2209.00278::section::4::para::6",
+          "section_id": "2209.00278::section::4",
+          "text": "• Masking Interlocutor: This task is similar to masked language modeling [1] task which a model needs to recover masked token from a vocabulary. In our work, we only masked interlocutor's name appeared in reference summary. Then, the model predicts masked names using the information of utterances.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::5",
+      "paper_id": "2209.00278",
+      "heading": "Dataset",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::5::para::0",
+          "section_id": "2209.00278::section::5",
+          "text": "We evaluate our approach on the SAMSum corpus [4] that is constructed by linguists fluent in English, which contains over 16k chat dialogues consists of over 182K utterances (see Table 1 for statistics on dataset). Each utterance has the specified format that a colon at the beginning of an utterance separates the interlocutor's name and their speaking content. And also, we append 311 facial emojis into our vocab that appear most often in the train dataset in order to avoid including too many [unk] in the input sequence. The effect of appended tokens is on Table 2.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::6",
+      "paper_id": "2209.00278",
+      "heading": "Implementation and training details",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::6::para::0",
+          "section_id": "2209.00278::section::6",
+          "text": "All our experiment start from publicly available 'bert-baseuncased' version. For self-supervised tasks, we preprocess the dialogue datasets for our experiments following steps: a) add [SEP] token at every end of utterance which improves structural information of dialogue [15] and is used as the utterance representation in our self-supervised methods, b) replace each name with a single token included in our vocabulary to simplify the problem so that model can learn the semantic relations between the subject and action (\"Who did What\"), rather than distribution of name tokens. Then, we add a linear layer with dropout (0.1) on top of BERT, where [SEP] and [MASK] tokens are fed into for classification task. Throughout abstractive summarization task, we use the shared encoder-decoder architecture (so called BERTSHARE in [3]) where both model's weights are shared and initialized with BERT trained by one of proposed self-supervised methods. Note that weight sharing between encoder and decoder is necessary rather than optional in that it reduces model parameters and improves the final performance as well in our experimental setup. The hyper-parameters of self-supervised learning and summarization are almost identical except training epochs. We use the AdamW optimizer [18] for both self-supervised and summarization task, with batch size 128, input sequence length 512 and learning rate from 2e-5 to 5e-5, warmup steps are 500. For self-supervised learning, we train the model until the train loss",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2209.00278::section::6::para::1",
+          "section_id": "2209.00278::section::6",
+          "text": "Table 2: Results in terms of ROUGE metric on the SAMSum corpus test set.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::7",
+      "paper_id": "2209.00278",
+      "heading": "R-1 R-2 R-L R-AVG",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::7::para::0",
+          "section_id": "2209.00278::section::7",
+          "text": "LONGEST-3 32.46 10.27 29.92 24.22 Transformer [19] 37.27 10.76 32.73 26.92 Fast Abs RL Enhanced [20] 41.95 18.06 39. 23 33.08 D-HGN [14] 42.03 18.07 39.56 33.22 TGDGA [15] 43. 11 19.15 40.49 34.25 BERTSHARE 39.07 12.74 36.05 29.29 + Facial Emoji 39.97 13.7 36.42 30.03 w/ Masking Interlocutor 40.29 13.91 37.46 30.55 w/ Inserting Utterance 44.17 18.76 41.68 34.87 w/ Switching Interlocutor 44.01 18.03 41.42 34.49 w/ Switching Utterance 44.78 19.12 42.21 35.37",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2209.00278::section::7::para::1",
+          "section_id": "2209.00278::section::7",
+          "text": "converged (upper bounded by 5K steps). After that, we finetune the model for summarization task until the validation loss converges.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::8",
+      "paper_id": "2209.00278",
+      "heading": "Evaluation Metrics",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::8::para::0",
+          "section_id": "2209.00278::section::8",
+          "text": "ROUGE [21] is one of standard measures to evaluate machine generated text over many natural language processing fields. However, the metric based on only n-gram overlapping may not be the best choice for abstractive dialogue summarization [4]. Such measure is lacking aspects of fluency, intelligibility, and repetition [22]. In order to address this issue, we also report consine-similarity between model's prediction (i.e. generated summary) and ground truth using the sentence encoder [23], 'stsb-roberta-large (available at https://www.sbert.net/)' finetuned on Semantic Text Similarity dataset. More precisely, we use only the longest 100 samples for calculating cosinesimilarity in order to uncover the differences between good and poor quality summaries more clearly.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::9",
+      "paper_id": "2209.00278",
+      "heading": "Evaluation of Self-supervised Learning",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::9::para::0",
+          "section_id": "2209.00278::section::9",
+          "text": "Table 2 shows the result of the proposed self-supervised learning methods on SAMSum dataset. The upper part of Table 2 is the scores reported in each paper or [4]. We use the official PyRouge package (https://pypi.org/project/py-rouge) to compute the ROUGE score. In contrast to BERTSHARE 's promising results [3] on a large corpus of news like CNN/DM, it shows the relatively lower performance on our dataset compared to recent strong baselines. However, all combinations of BERTSHARE and our methods improve performance dramatically by up to 6.08% (Switching Utterance) in averaged ROUGE score. On the other hand, Masking Interlocutor methods shows the poor result compared to other methods. This is because the generative training objective that predicts masked tokens from thousands of candidates usually requires much longer training steps with a larger corpus than other binary decision task (i.e. switched or not), and we will investigate proper training setup in future work.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2209.00278::section::9::para::1",
+          "section_id": "2209.00278::section::9",
+          "text": "In addition, we confirm that the inclusion of facial emojis in the vocabulary is advantageous for abstractive summarization task, even though they do not appear in the reference summary at all. This is also evidence that if the encoder is enhanced and is employed as decoder too, it leads to better performance on sequence generation task.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::10",
+      "paper_id": "2209.00278",
+      "heading": "Probability of Switching and Masking Name",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::10::para::0",
+          "section_id": "2209.00278::section::10",
+          "text": "We also investigate the effects of probability of switching, Pu and masking name, Pn for Switching Utterance task. We set the Pu a range of [0.33, 1] and (0, 1] for Pn. Even if Pu is 1.0, that does not mean all utterances are switched, because there are chances to restore the original order of utterances while reordering utterances randomly. The numbers in Figure 3 refer to the average score of ROUGE-1, 2 and L measure, obtained from the model pre-trained by Switching Utterance method with each probability and fine-tuned on SAMSum dataset for abstractive summarization. As shown in Figure 3, we found that combination of two probabilities on the edges in the matrix, i.e. (1.0, 1.0), (1.0, 0.0), (0.33, 0), tends to show better performance. On the other hand, the combination of 0.5 and 0.5 yields the worst result.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2209.00278::section::11",
+      "paper_id": "2209.00278",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2209.00278::section::11::para::0",
+          "section_id": "2209.00278::section::11",
+          "text": "We proposed four self-supervised methods to enhance semantic understanding of conversational text by multiple interlocutors for abstractive dialogue summarization. The methods, switching utterance, switching interlocutor, inserting utterance, and masking interlocutor, specifically strengthen the learning of structural and component information in dialogues. By enhancing an off-the-shelf pre-trained BERT with our methods, we build an abstractive summarizer in a shared encoder-decoder architecture for sequence-to-sequence training. Our experimental results on the SAMSum corpus indicate a substantive improvement measured in ROUGE scores. Through a careful ablation study, we provide a practical insight for the crucial hyperparameter settings of the proposed self-supervised methods.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2209.00278::section::11::para::1",
+          "section_id": "2209.00278::section::11",
+          "text": "We believe there is still much room for improvements in our setting. We used only 'bert-base-uncased' version to prove our concept, \"Can intuitively enhanced representation of encoder produce better performance in the sequence generation task?\". Nevertheless, this base model has already achieved promising results so that it will inspire more investigation into engaging large language models with more sophisticated experimental setup.",
+          "paragraph_index": 1
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2209.00278::citation::0",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "References"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::1",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Bert: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "J Devlin",
+        "M.-W Chang",
+        "K Lee",
+        "K Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::2",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Neural machine translation by jointly learning to align and translate",
+      "cited_authors": [
+        "D Bahdanau",
+        "K Cho",
+        "Y Bengio"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::3",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Leveraging pre-trained checkpoints for sequence generation tasks",
+      "cited_authors": [
+        "S Rothe",
+        "S Narayan",
+        "A Severyn"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::4",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Samsum corpus: A human-annotated dialogue dataset for abstractive summarization",
+      "cited_authors": [
+        "B Gliwa",
+        "I Mochol",
+        "M Biesek",
+        "A Wawer"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::5",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Bart: Denoising sequence-to-sequence pre-training for natural language generation, translation, and comprehension",
+      "cited_authors": [
+        "M Lewis",
+        "Y Liu",
+        "N Goyal",
+        "M Ghazvininejad",
+        "A Mohamed",
+        "O Levy",
+        "V Stoyanov",
+        "L Zettlemoyer"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::6",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "PEGASUS: Pre-training with extracted gap-sentences for abstractive summarization",
+      "cited_authors": [
+        "J Zhang",
+        "Y Zhao",
+        "M Saleh",
+        "P Liu"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::7",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Mass: Masked sequence to sequence pre-training for language generation",
+      "cited_authors": [
+        "K Song",
+        "X Tan",
+        "T Qin",
+        "J Lu",
+        "T.-Y Liu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::8",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "HIBERT: Document level pretraining of hierarchical bidirectional transformers for document summarization",
+      "cited_authors": [
+        "X Zhang",
+        "F Wei",
+        "M Zhou"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::9",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Self-supervised learning for contextualized extractive summarization",
+      "cited_authors": [
+        "H Wang",
+        "X Wang",
+        "W Xiong",
+        "M Yu",
+        "X Guo",
+        "S Chang",
+        "W Y Wang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::10",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Get to the point: Summarization with pointer-generator networks",
+      "cited_authors": [
+        "A See",
+        "P J Liu",
+        "C D Manning"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::11",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Text summarization with pretrained encoders",
+      "cited_authors": [
+        "Y Liu",
+        "M Lapata"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::12",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Multi-stage pretraining for abstractive summarization",
+      "cited_authors": [
+        "S Goodman",
+        "Z Lan",
+        "R Soricut"
+      ],
+      "cited_year": 1909,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::13",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Restructuring conversations using discourse relations for zero-shot abstractive dialogue summarization",
+      "cited_authors": [
+        "P Ganesh",
+        "S"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::14",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Incorporating commonsense knowledge into abstractive dialogue summarization via heterogeneous graph networks",
+      "cited_authors": [
+        "X Feng",
+        "X Feng",
+        "B Qin",
+        "T Liu"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::15",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Improving abstractive dialogue summarization with graph structures and topic words",
+      "cited_authors": [
+        "L Zhao",
+        "W Xu",
+        "J Guo"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::16",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Self-supervised dialogue learning",
+      "cited_authors": [
+        "J Wu",
+        "X Wang",
+        "W Y Wang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::17",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Sentence ordering and coherence modeling using recurrent neural networks",
+      "cited_authors": [
+        "L Logeswaran",
+        "H Lee",
+        "D Radev"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::18",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Fixing weight decay regularization in adam",
+      "cited_authors": [
+        "I Loshchilov",
+        "F Hutter"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::19",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Attention is all you need",
+      "cited_authors": [
+        "A Vaswani",
+        "N Shazeer",
+        "N Parmar",
+        "J Uszkoreit",
+        "L Jones",
+        "A N Gomez",
+        "L Kaiser",
+        "I Polosukhin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::20",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Fast abstractive summarization with reinforce-selected sentence rewriting",
+      "cited_authors": [
+        "Y.-C Chen",
+        "M Bansal"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::21",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "ROUGE: A package for automatic evaluation of summaries",
+      "cited_authors": [
+        "C.-Y Lin"
+      ],
+      "cited_year": 2004,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::22",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Abstractive summarization of spoken and written conversation",
+      "cited_authors": [
+        "P Ganesh",
+        "S"
+      ],
+      "cited_year": 1615,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2209.00278::citation::23",
+      "paper_id": "2209.00278",
+      "raw_text": null,
+      "cited_title": "Sentence-bert: Sentence embeddings using siamese bert-networks",
+      "cited_authors": [
+        "N Reimers",
+        "I Gurevych"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

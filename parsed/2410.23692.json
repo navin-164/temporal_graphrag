@@ -1,0 +1,1420 @@
+{
+  "arxiv_id": "2410.23692",
+  "title": "Llama-Mob: Instruction-Tuning Llama-3-8B Excels in City-Scale Mobility Prediction",
+  "authors": [
+    {
+      "name": "Peizhi Tang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Chuang Yang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Tong Xing",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Xiaohang Xu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Jiayi Xu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Renhe Jiang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Kaoru Sezaki",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Human mobility prediction plays a critical role in applications such as disaster response, urban planning, and epidemic forecasting. Traditional methods often rely on designing crafted, domain-specific models, and typically focus on short-term predictions, which struggle to generalize across diverse urban environments. In this study, we introduce Llama3-8B-Mob, a large language model fine-tuned with instruction tuning, for long-term citywide mobility prediction--in a Q&A manner. We validate our approach using large-scale human mobility data from four metropolitan areas in Japan, focusing on predicting individual trajectories over the next 15 days. The results demonstrate that Llama3-8B-Mob excels in modeling long-term human mobility--surpassing the state-of-the-art on multiple prediction metrics. It also displays strong zero-shot generalization capabilities--effectively generalizing to other cities even when fine-tuned only on limited samples from a single city. Moreover, our method is general and can be readily extended to the next POI prediction task. For brevity, we refer to our model as Llama-Mob, and the corresponding results are included in this paper. Source codes are available at https://github.com/TANGHULU6/Llama3-8B-Mob.",
+  "categories": [
+    "cs.CL",
+    "cs.CY"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2024-10-31T07:30:38"
+    },
+    {
+      "version": "v2",
+      "created": "2026-03-07T04:45:31"
+    }
+  ],
+  "doi": "10.1145/3681771.3699908",
+  "venue": {
+    "name": "HuMob-Challenge@SIGSPATIAL",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2024-10-29",
+  "citation_count": 21,
+  "reference_count": 26,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2410.23692::section::0",
+      "paper_id": "2410.23692",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::0::para::0",
+          "section_id": "2410.23692::section::0",
+          "text": "Human mobility prediction plays a vital role in various critical scenarios, such as disaster management [10], epidemic forecasting [11], and personalized location recommendations [21]. Numerous advanced machine learning models have been proposed for individuallevel human mobility prediction. For instance, Feng et attention mechanisms to jointly capture users' long-and shortterm preferences for next-location prediction [3]. Similarly, Xu et al. transformed both individual historical movements and collective migration patterns into graphs, applying graph learning to capture complex spatial-temporal trends, leading to significant improvements in prediction accuracy [21]. However, these approaches rely on designing crafted, domain-specific models, which often struggle to generalize effectively across different cities and applications.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::0::para::1",
+          "section_id": "2410.23692::section::0",
+          "text": "In recent years, Large Language Models (LLMs) have rapidly emerged, excelling not only in Natural Language Processing (NLP) tasks such as translation, sentiment analysis, and entity extraction but also redefining various scenarios like data preprocessing [26] and time series prediction [5]. In this context, human mobility modeling is also experiencing a significant paradigm shift. Wang et al. designed an effective prompting strategy that enables LLMs to perform zero-shot next-location prediction in a Q&A format for the first time [19]. The results showed that LLMs demonstrated competitive prediction performance and could offer better interpretability compared to existing domain-specific machine learning models. Furthermore, Li et al. fine-tuned the Llama-2-7B model by framing an individual's historical trajectory as input and the next location as the response, achieving state-of-the-art (SOTA) on three real-world check-in datasets [12]. These studies highlight the enormous potential of LLMs in human mobility modeling. However, several limitations remain: most work just focused on short-term predictions (i.e., next-location prediction), leaving long-term prediction largely unexplored, and the transferability among cities has yet to be examined, making it unclear whether mobility patterns learned in one city can be effectively transferred to another.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.23692::section::0::para::2",
+          "section_id": "2410.23692::section::0",
+          "text": "To this end, we introduce Llama3-8B-Mob, an instruction-tuned version of Llama3-8B [2], for long-term and multi-city human mobility prediction. We validate our approach on a large-scale human trajectory dataset from four metropolitan areas in Japan, focusing on predicting human mobility over the next 15 days. The results significantly surpass the existing SOTA method, showcasing the impressive performance of Llama3-8B-Mob in long-term prediction and its strong zero-shot generalization ability-training in a single city effectively generalizes to others. Beyond the above task, we further extend Llama3-8B-Mob to the next POI prediction task, termed Llama-Mob, and report the results in Sec. 4.5.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2410.23692::section::0::para::3",
+          "section_id": "2410.23692::section::0",
+          "text": "It is worth noting that in the Human Mobility Prediction Challengefoot_0 at ACM SIGSPATIAL 2024, Llama3-8B-Mob stood out among 35 models by fine-tuning with only 16% of the training data, outperforming a range of \"traditional\" competitors. Specifically, it ranked 2nd in trajectory semantic similarity (Geobleu [16]), 3rd in shape similarity (DTW [9]), and had an average ranking of 1st. This fully demonstrates the immense potential of LLMs in predicting human mobility: with a small amount of data for simple instruction finetuning, they can effectively mimic human movement behavior and achieve results that surpass traditional methods.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::1",
+      "paper_id": "2410.23692",
+      "heading": "Problem Definition",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::1::para::0",
+          "section_id": "2410.23692::section::1",
+          "text": "Definition 1. (Trajectory): A trajectory for a moving object consists of a sequence of spatial-temporal records that depict the object's location at a specific timestamp. Formally, it is defined as:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::1::para::1",
+          "section_id": "2410.23692::section::1",
+          "text": "where uid is the unique identifier of the user , (𝑥 𝑖 , 𝑦 𝑖 ) represents the spatial coordinates at time 𝑡 𝑖 , and 𝑛 depicts the trajectory length. for the future 𝑁 records, the objective of individual trajectory prediction is to determine a mapping function 𝑓 (•, •) with parameters 𝜃 , which predicts the locations of the subsequent 𝑁 records:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.23692::section::1::para::2",
+          "section_id": "2410.23692::section::1",
+          "text": "where",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2410.23692::section::1::para::3",
+          "section_id": "2410.23692::section::1",
+          "text": "and",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2410.23692::section::1::para::4",
+          "section_id": "2410.23692::section::1",
+          "text": "Definition 3. (Citywide Trajectories): Citywide trajectories, denoted as T R X , refer to a collection of user trajectories within a specified urban area X and time range R. Definition 4. (Citywide Trajectory Prediction): Given a citywide trajectory dataset for an urban area X within a past time range R past , the goal is to predict the future trajectories in the X over a future time range R future , using the individual trajectory prediction function 𝑓 (•, •) with parameters 𝜃 :",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::2",
+      "paper_id": "2410.23692",
+      "heading": "Methodology 3.1 Problem Reformulation",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::2::para::0",
+          "section_id": "2410.23692::section::2",
+          "text": "It is widely known that LLMs imply vast amounts of knowledge, including the common understanding of human mobility behaviors and patterns [12,19]. To explore the potential of LLMs in human mobility modeling, we re-framed the trajectory prediction (Equation 2) as a Q&A task with instructions (Figure 1):",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::2::para::1",
+          "section_id": "2410.23692::section::2",
+          "text": "• The instruction block offers guidelines on the model's #role, #target environment, #definition and example of trajectory, #task description, and the #format of the output.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2410.23692::section::2::para::2",
+          "section_id": "2410.23692::section::2",
+          "text": "[Role] You are a helpful assistant that predicts human mobility trajectories in a city.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::3",
+      "paper_id": "2410.23692",
+      "heading": "[Introduction #Environment]",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::3::para::0",
+          "section_id": "2410.23692::section::3",
+          "text": "The target city is divided into equally sized cells, creating a 200 x 200 grid. We use coordinate <x>,<y> to indicate the location of a cell within the target area. The horizontal coordinate <x> increases from left to right, and the vertical coordinate <y> increases from top to bottom. The coordinates of the top-left corner are (0, 0), and the coordinates of the bottomright corner are (199,199).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::4",
+      "paper_id": "2410.23692",
+      "heading": "[Introduction #Trajectory Definition]",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::4::para::0",
+          "section_id": "2410.23692::section::4",
+          "text": "A trajectory is a sequence of quadruples ordered by time. Each quadruple follows the format <day_id>, <timeslot_id>, <x>, <y>. It represents a person's location <x>, <y> at the timeslot <timeslot_id> of day <day_id>.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::4::para::1",
+          "section_id": "2410.23692::section::4",
+          "text": "The <day_id> is the index of day, representing a specific day. Each day's 24 hours are discretized into 48 time slots with a time interval of 30 minutes. < timeslot_id> is the index of the time slot, ranging from 0 to 47, representing a specific half-hour in a day.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::5",
+      "paper_id": "2410.23692",
+      "heading": "[Introduction #Trajectory Example]",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::5::para::0",
+          "section_id": "2410.23692::section::5",
+          "text": "Let me give you an example of a quadruple to better illustrate what is a record in a trajectory. For instance, a sequence (1,12,124,121) indicates that an individual was located at cell 124,121 between 11:30 and 12:00 on day 1.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::5::para::1",
+          "section_id": "2410.23692::section::5",
+          "text": "[Task Description] You will receive an individual's trajectory in the target city, with some cell coordinates <x>,<y> that were missed and marked as 999,999. Please replace all instances of 999 with your predictions.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::6",
+      "paper_id": "2410.23692",
+      "heading": "[Format emphasizing]",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::6::para::0",
+          "section_id": "2410.23692::section::6",
+          "text": "Please organize your answer in Json object containing following keys: {\"prediction\": here should be the missing part of sequence only, without adding any extra things.} Do not write any code, just inference by yourself; do not provide any other things in your response besides the Json object.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::7",
+      "paper_id": "2410.23692",
+      "heading": "Instruction",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::7::para::0",
+          "section_id": "2410.23692::section::7",
+          "text": "Here is the data I wish you to predict: day_id, timeslot_id, x, y <0,0,199,199>,<0,1,198,196>, <0,2,195,196>, …<59,47,198,196>, <60,1,999,999>,<60,2,999,999>,<61,1,999,999>,…<74,47,999,999>. • The question block includes the user's #historical trajectory and the #time information for which location predictions are required.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::7::para::1",
+          "section_id": "2410.23692::section::7",
+          "text": "• While the answer block is the #predicted future trajectory in JSON format, which we expect as the model's response given the previous two blocks. Compared to the question block only approach, this design offers LLMs a more comprehensive task context to aid in reasoning. ★ Dataset adaptation. It is important to note that the framework in Figure 1 has been specifically adapted for the Human Mobility Challenge 2024 dataset [22].",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::8",
+      "paper_id": "2410.23692",
+      "heading": "Instruction Tuning",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::8::para::0",
+          "section_id": "2410.23692::section::8",
+          "text": "Limitations of zero-shot approach. We conducted exploratory experiments with GPT-3.5 and 4, and found that our Q&A framework is capable of producing decent results in a zero-shot setting.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::8::para::1",
+          "section_id": "2410.23692::section::8",
+          "text": "However, due to the high cost of API calls and the potential risk of data leakage in production environments, open-source models may be a better option. Nevertheless, further exploration revealed that for open-source models (i.e., the Llama series), zero-shot is not a viable solution-the models struggled to yield outputs that adhered to the desired format or aligned with the task objectives. Even when producing seemingly acceptable results occasionally, the prediction accuracy was still poor. Fine-tuning. To overcome challenges faced in zero-shot scenarios, we fine-tuned Llama3-8B [2] through instruction tuning [27]: (1) Data preparation: we sampled a portion of users from the training set and constructed fine-tuning corpus with Figure 1 as the template, where the instruction block and question block served as the model input, and the answer block as the expected output. (2) Parameter-efficient fine-tuning: given a large number of parameters in LLMs, we applied Low Rank Adaptation (LoRA) adapters [8] to optimize fine-tuning efficiency, only targeting the key modules in the model, such as the query, key, value, and output projections of transformers, as well as the gate, up, and down projections. (3) Loss function: we utilized token-level cross-entropy as the loss function directly, converting the complex spatial-temporal learning problem as a Q&A fine-tuning task in the NLP domain.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::9",
+      "paper_id": "2410.23692",
+      "heading": "Experiments 4.1 Experimental Setup",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::9::para::0",
+          "section_id": "2410.23692::section::9",
+          "text": "Dataset. The dataset we used comes from the Human Mobility Challenge 2024 [22], which includes human mobility data from four metropolitan areas in Japan (cities A, B, C, and D) over a 75day period. Each trajectory is represented as a quadruplet <x, y, day, time slot>, where x and y are discretized spatial coordinates mapped onto a 200 × 200 grid, and day and time slots represent discretized temporal information with half-hour intervals. The dataset contains complete trajectories for 100,000 individuals from city A and for 25,000, 20,000, and 6,000 individuals in cities B, C, and D, respectively. For cities B, C, and D, the location data for the last 3,000 individuals during days 61 to 75 is masked; we excluded this subset of users directly in this study. Table 1 shows the basic statistics of the dataset. The goal is to infer the future trajectories of cities B, C, and D between days 61-75 using the past trajectories from days 1-60, corresponding to parameters R 𝑝𝑎𝑠𝑡 and R 𝑓 𝑢𝑡𝑢𝑟𝑒 as defined in Definition 4. To evaluate the model performance, for each city, the data is further split into training and evaluation sets in an 8:2 ratio by user ids. Moreover, given the efficiency constraints of LLMs in inference tasks-where predicting a single user's trajectory takes approximately 5 minutes-we randomly selected 100 users from the validation set to form a smaller evaluation subset for performance analysis within a restricted timeframe.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::9::para::1",
+          "section_id": "2410.23692::section::9",
+          "text": "Baselines. We used the champion model [18] of the Human Mobility Prediction Challenge 2023, namely LP-Bert, as our baseline. This model treats the trajectory prediction task as a BERT-based imputation task, where each location record's full information is represented as a token, with a spatial-temporal embedding layer converting it into token embedding. Since the model does not support cross-city predictions, we modified the output layer by adding a city embedding module to enable the multi-city scenario. Parameter Settings. Our base model is an optimized version of Llama3-8B, which is 2-5x faster than the original. It uses 4-bit quantization to reduce GPU memory usage by 70%. Readers can access it herefoot_1 . During fine-tuning, the rank of the LoRA adapters was set to 16. The training batch size was 1, with gradient accumulation over 4 steps and a learning rate of 2e-3. The number of fine-tuning epochs was set to 3. AdamW optimizer was used with a cosine learning rate scheduler and a weight decay of 0.01.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::10",
+      "paper_id": "2410.23692",
+      "heading": "Environment.",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::10::para::0",
+          "section_id": "2410.23692::section::10",
+          "text": "Experiments were conducted on a linux server equipped with 2 Intel(R) Xeon(R) Silver 4310 CPUs and 4 NVIDIA RTX A6000 GPUs, each offering 48 GB of memory. All training and inference procedures were tracked and logged using the Wandb tool 3 , ensuring reproducibility and consistent reporting. Evaluation Metrics. We used Dynamic Time Warping (DTW) [9] and GEO-BLEU [16] to evaluate the quality of predictions. DTW measures the shape similarity between predicted and ground truth trajectories, while GEO-BLEU, a geospatial variant of BLEU, incorporates spatial proximity into n-gram matching to assess the similarity of geospatial sequences.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::11",
+      "paper_id": "2410.23692",
+      "heading": "Effectiveness Evaluation",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::11::para::0",
+          "section_id": "2410.23692::section::11",
+          "text": "In this section, we assess the effectiveness of LP-Bert and Llama3-8B-Mob. LP-Bert was trained using the complete training data of cities A, B, C, and D. In contrast, training Llama3-8B-Mob with the entire dataset would be impractical and time-consuming, potentially taking several months (see Section 4.3). Therefore, we conducted instruct tuning separately with the training data from cities B, C, and D, resulting in three distinct versions of Llama3-8B-Mob. Table 2 shows the performance of these models on the validation set. Notably, even with simple fine-tuning based solely on single city data, our model (all three variants) significantly outperforms last year's leading model which was trained on data from all cities. We attribute this superiority to Llama3-8B's inherent understanding of human mobility patterns as well as its strong reasoning ability. Moreover, Llama3-8B-Mob w/ single city performs remarkably well in predictions for other cities, showcasing its generalization ability across different urban environments without the need for cityspecific data! Furthermore, it can be found that fine-tuning with City B yields the best results (mean rank = 2.5). However, the average trajectory length of City B is 998.91, which may not encompass some long trajectory scenarios. Therefore, we randomly selected 1,000 trajectories from A (average trajectory length to 1115.35) to fine-tune together with B, resulting in improved outcomes: all metrics achieved SOTA results except for DTW@City-B. Due to limitations in computational resources and time, we only investigated four data fine-tuning settings here (B, C, D, A+B). Even though, we believe that there exists an optimal data combination that covers more scenarios and corner cases while minimizing information redundancy.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::12",
+      "paper_id": "2410.23692",
+      "heading": "Efficiency Evaluation",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::12::para::0",
+          "section_id": "2410.23692::section::12",
+          "text": "Although Llama3-8B-Mob demonstrates strong predictive capabilities, we must acknowledge that its training and inference costs are significantly higher compared to LP-Bert. Table 3 provides an overview of the training and inference efficiency of both models. As shown, the training time for Llama3-8B-Mob w/ A+B reaches 6.64 days, which is 2.4x longer than that of LP-Bert. Additionally, the average inference time per trajectory (batch size = 1) is 225.61 seconds-16,000x slower than LP-Bert. Due to the auto-regressive nature of the Llama3-8B, the inference time increases linearly with the length of the trajectory, with the longest inference time in the validation set reaching up to 15 minutes. This presents a significant challenge when applying LLMs to long-term trajectory prediction.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::13",
+      "paper_id": "2410.23692",
+      "heading": "Case Study",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::13::para::0",
+          "section_id": "2410.23692::section::13",
+          "text": "We conducted a case study on a randomly selected individual from city B, as shown in Figure 2. The left panel displays the user's historical trajectory for days 1-60, while the middle and right panels show the predictions from LP-Bert and Llama3-8B, respectively. As observed, LP-Bert tends to consistently predict trajectories with right-angled triangular shapes, which clearly deviate from general human mobility patterns. In contrast, Llama3-8B accurately replicates an individual's movement behavior-the orange and blue lines nearly overlap. Notably, LP-Bert's behavior is not an isolated case; in many other examples, it also tends to predict regular geometric shapes (e.g., squares). Additionally, the gray text shows the DTW and GEO-BLEU scores for both models, indicating that Llama3-8B-Mob significantly outperforms LP-Bert.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::14",
+      "paper_id": "2410.23692",
+      "heading": "Extension to Next POI Prediction Task",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::14::para::0",
+          "section_id": "2410.23692::section::14",
+          "text": "Datasets. We conduct our experiments on three public real-world datasets: Foursquare-NYC, Foursquare-TKY [24], and Gowalla-CA [1]. These location-based social media datasets include check-ins with spatio-temporal contexts 𝑐 𝑘 . Following GETNext [25] and STHGCN [23], we partition each user's check-ins to form the historical trajectory s 𝑢 and extract the target subsequent POI 𝑝 𝑡 +1 , consistent with the sequence and prediction objective in Definition 5.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::15",
+      "paper_id": "2410.23692",
+      "heading": "Evaluation Metrics.",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::15::para::0",
+          "section_id": "2410.23692::section::15",
+          "text": "To evaluate the mapping function 𝑓 (•) formulated in Definition 5, we report Top-𝐾 Accuracy (Acc@𝐾) and Mean Reciprocal Rank (MRR). Specifically, Acc@𝐾 measures the proportion of test instances where the ground-truth POI 𝑝 𝑡 +1 appears in the top-𝐾 candidate list generated by 𝑓 (s 𝑢 ), while MRR computes the average of the reciprocal ranks of 𝑝 𝑡 +1 across all predictions.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::15::para::1",
+          "section_id": "2410.23692::section::15",
+          "text": "Baselines. We compare our method against traditional methods for sequential transitions like FPMC [15] and PRME [4]; RNNbased models including LSTM [6], ST-RNN [13], DeepMove [3], STGN [29], LSTPM [17], STGCN [28], and PLSPL [20]; attentionbased models including STAN [14] and MHSA [7]; graph-based models including GETNext [25] and STHGCN [23]. Results are listed in Table 4, where most results are inherited from GETNext [25] and STHGCN [23], and the results of DeepMove [3], LSTPM [17], and MHSA [7] are reproduced by us.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::16",
+      "paper_id": "2410.23692",
+      "heading": "Discussions.",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::16::para::0",
+          "section_id": "2410.23692::section::16",
+          "text": "Our method, abbreviated as Llama-Mob from Llama3-8B-Mob, attains competitive performance in NYC, while leaving room for further improvement in TKY and CA. While our instructiontuned LLM successfully captures trajectory semantics, the absence of explicit spatial inductive biases constrains its precision. Nevertheless, these results establish our model as a solid, simple, and general baseline for future work. Overall, these findings indicate that our instruction-tuned framework can be effectively extended to the next POI prediction setting.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2410.23692::section::17",
+      "paper_id": "2410.23692",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2410.23692::section::17::para::0",
+          "section_id": "2410.23692::section::17",
+          "text": "This study proposes an LLMs instruction tuning approach for longterm human mobility prediction across multiple cities. We validated the effectiveness and the superiority of the proposed method using large-scale human mobility data from four metropolitan areas in Japan. In the future, we will improve our work from three aspects:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2410.23692::section::17::para::1",
+          "section_id": "2410.23692::section::17",
+          "text": "(1) Recognizing that the effectiveness of fine-tuning LLMs is highly",
+          "paragraph_index": 1
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2410.23692::figure::0",
+      "paper_id": "2410.23692",
+      "figure_number": null,
+      "caption": "al. proposed a model that integrates Recurrent Neural Networks (RNNs) with * Corresponding Author and Project Leader.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_0",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.23692::figure::1",
+      "paper_id": "2410.23692",
+      "figure_number": "Definition 2 .",
+      "caption": "(Individual Trajectory Prediction): Given the past 𝑀 records 𝑇 𝑡 𝑡 -𝑀+1 of a trajectory 𝑇 , and the time information 𝐷 𝑡 +𝑁 𝑡 +1",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_1",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.23692::figure::2",
+      "paper_id": "2410.23692",
+      "figure_number": "Question{AnswerFigure 1 :",
+      "caption": "Figure 1: Framing human mobility prediction as a Q&A task with instruction.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_2",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.23692::figure::3",
+      "paper_id": "2410.23692",
+      "figure_number": "Definition 5 .Figure 2 :",
+      "caption": "Figure 2: Visualization comparison of prediction results. 𝜏 𝑘 , the geographical coordinates 𝑙 𝑘 , and the semantic category 𝑣 𝑘 of the POI. The objective of Next-POI prediction is to determine a mapping function 𝑓 (•) with parameters 𝜃 , which predicts the subsequent POI 𝑝 𝑡 +1 : p𝑡+1 = arg max 𝑝 ∈ P 𝑓 (s 𝑢 ).(6)",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_3",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2410.23692::table::0",
+      "paper_id": "2410.23692",
+      "table_number": "Table 1 :",
+      "caption": "Basic statistics of dataset.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "Attribute",
+          "A",
+          "B",
+          "City C",
+          "D"
+        ],
+        [
+          "Time Coverage",
+          "",
+          "",
+          "75 days",
+          ""
+        ],
+        [
+          "Time Granularity",
+          "30 minutes (48 time slots per day)"
+        ],
+        [
+          "Spatial Granularity 500 meters × 500 meters (200 × 200 grids)"
+        ],
+        [
+          "# Trajectories",
+          "100,000 22,000 17,000",
+          "3,000"
+        ],
+        [
+          "Avg. Traj. Len.",
+          "1115.35 998.91 948.08",
+          "1450.83"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.23692::table::1",
+      "paper_id": "2410.23692",
+      "table_number": "Table 2 :",
+      "caption": "Model performance comparison.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "Model",
+          "Average DTW (↓) Average GEO-BLEU (↑) # Trajs Used for Train B C D B C D",
+          "Mean Rank"
+        ],
+        [
+          "LP-Bert [18]",
+          "23.30 23.81 38.89 0.3093 0.2682 0.3033",
+          "113,600",
+          "4.17"
+        ],
+        [
+          "Llama3-8B-Mob w/ B 26.32 22.49 34.41 0.3322 0.2895 0.3157",
+          "17,600",
+          "2.50"
+        ],
+        [
+          "Llama3-8B-Mob w/ C 31.58 23.75 34.49 0.3399 0.2891 0.2833",
+          "13,600",
+          "3.67"
+        ],
+        [
+          "Llama3-8B-Mob w/ D 28.75 22.20 38.46 0.3251 0.2765 0.3056",
+          "2,400",
+          "3.50"
+        ],
+        [
+          "Llama3-8B-Mob w/ A+B 25.39 20.57 31.94 0.3541 0.2969 0.3217",
+          "18,600",
+          "1.17"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.23692::table::2",
+      "paper_id": "2410.23692",
+      "table_number": "Table 3 :",
+      "caption": "Training and inference efficiency.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_2",
+      "raw_data": [
+        [
+          "Model",
+          "# Trainable Parameters",
+          "Training GPU Usage 𝑡 𝑡𝑜𝑡𝑎𝑙",
+          "Inference GPU Usage 𝑡 𝑖𝑛𝑓 𝑒𝑟"
+        ],
+        [
+          "LP-Bert [18]",
+          "12.20 M",
+          "25.97 GiB",
+          "2.77 d",
+          "1.49 GiB",
+          "13.94 ms"
+        ],
+        [
+          "Llama3-8B-Mob w/ A+B",
+          "41.94 M",
+          "43.11 GiB",
+          "6.64 d",
+          "14.86 GiB",
+          "225.61 s"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2410.23692::table::3",
+      "paper_id": "2410.23692",
+      "table_number": "Table 4 :",
+      "caption": "Next-location prediction performance comparison (Acc@K and MRR).quality, designing better data selection strategies (currently random) towards more efficient and effective fine-tuning will be next focus. (2) The slow inference time greatly affects the practicality of the Llama3-8B-Mob. We will continue to explore the latest advances in efficient inference techniques and apply them to our model. (3) Expanding validation to more trajectory datasets, beyond human trajectories and grid-level data.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_3",
+      "raw_data": [
+        [
+          "Model",
+          "NYC Acc@1 Acc@5 Acc@10",
+          "MRR",
+          "TKY Acc@1 Acc@5 Acc@10",
+          "MRR",
+          "CA Acc@1 Acc@5 Acc@10",
+          "MRR"
+        ],
+        [
+          "FPMC [15]",
+          "0.1003 0.2126",
+          "0.2970",
+          "0.1701",
+          "0.0814 0.2045",
+          "0.2746",
+          "0.1344",
+          "0.0383 0.0702",
+          "0.1159",
+          "0.0911"
+        ],
+        [
+          "PRME [4]",
+          "0.1159 0.2236",
+          "0.3105",
+          "0.1712",
+          "0.1052 0.2278",
+          "0.2944",
+          "0.1786",
+          "0.0521 0.1034",
+          "0.1425",
+          "0.1002"
+        ],
+        [
+          "LSTM [6]",
+          "0.1305 0.2719",
+          "0.3283",
+          "0.1857",
+          "0.1335 0.2728",
+          "0.3277",
+          "0.1834",
+          "0.0665 0.1306",
+          "0.1784",
+          "0.1201"
+        ],
+        [
+          "ST-RNN [13]",
+          "0.1483 0.2923",
+          "0.3622",
+          "0.2198",
+          "0.1409 0.3022",
+          "0.3577",
+          "0.2212",
+          "0.0799 0.1423",
+          "0.1940",
+          "0.1429"
+        ],
+        [
+          "DeepMove [3] 0.1520 0.3349",
+          "0.4030",
+          "0.2334",
+          "0.1733 0.3378",
+          "0.3991",
+          "0.2498",
+          "0.0928 0.1844",
+          "0.2288",
+          "0.1384"
+        ],
+        [
+          "STGN [29]",
+          "0.1716 0.3381",
+          "0.4122",
+          "0.2598",
+          "0.1689 0.3391",
+          "0.3848",
+          "0.2422",
+          "0.0810 0.1842",
+          "0.2579",
+          "0.1675"
+        ],
+        [
+          "LSTPM [17]",
+          "0.2034 0.4897",
+          "0.6086",
+          "0.3318",
+          "0.2270 0.4815",
+          "0.5783",
+          "0.3437",
+          "0.1336 0.3110",
+          "0.3873",
+          "0.2172"
+        ],
+        [
+          "STGCN [28]",
+          "0.1799 0.3425",
+          "0.4279",
+          "0.2788",
+          "0.1716 0.3453",
+          "0.3927",
+          "0.2504",
+          "0.0961 0.2097",
+          "0.2613",
+          "0.1712"
+        ],
+        [
+          "PLSPL [20]",
+          "0.1917 0.3678",
+          "0.4523",
+          "0.2806",
+          "0.1889 0.3523",
+          "0.4150",
+          "0.2542",
+          "0.1072 0.2278",
+          "0.2995",
+          "0.1847"
+        ],
+        [
+          "STAN [14]",
+          "0.2231 0.4582",
+          "0.5734",
+          "0.3253",
+          "0.1963 0.3798",
+          "0.4464",
+          "0.2852",
+          "0.1104 0.2348",
+          "0.3018",
+          "0.1869"
+        ],
+        [
+          "MHSA [7]",
+          "0.1999 0.4968",
+          "0.6317",
+          "0.3329",
+          "0.2417 0.5061",
+          "0.6083",
+          "0.3621",
+          "0.1391 0.3218",
+          "0.4034",
+          "0.2281"
+        ],
+        [
+          "GETNext [25]",
+          "0.2435 0.5089",
+          "0.6143",
+          "0.3621",
+          "0.2254 0.4417",
+          "0.5287",
+          "0.3262",
+          "0.1357 0.2852",
+          "0.3590",
+          "0.2103"
+        ],
+        [
+          "STHGCN [23] 0.2734 0.5361",
+          "0.6244",
+          "0.3915 0.2950 0.5207",
+          "0.5980",
+          "0.3986 0.1730 0.3529 0.4191 0.2558"
+        ],
+        [
+          "Llama-Mob",
+          "0.2519 0.4990",
+          "0.5362",
+          "0.3507",
+          "0.2251 0.4169",
+          "0.4703",
+          "0.3059",
+          "0.1446 0.2730",
+          "0.3198",
+          "0.1988"
+        ],
+        [
+          "dependent on data",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2410.23692::equation::0",
+      "paper_id": "2410.23692",
+      "latex": "𝑇 = (uid, {(𝑡 𝑖 , 𝑥 𝑖 , 𝑦 𝑖 )|𝑖 = 1, . . . , 𝑛}),",
+      "equation_number": "(1)",
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.23692::equation::1",
+      "paper_id": "2410.23692",
+      "latex": "𝑓 (𝑇 𝑡 𝑡 -𝑀+1 , 𝐷 𝑡 +𝑁 𝑡 +1 ) = {(𝑥 𝑗 , 𝑦 𝑗 ) | 𝑗 = 𝑡 + 1, . . . , 𝑡 + 𝑁 },",
+      "equation_number": "(2)",
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.23692::equation::2",
+      "paper_id": "2410.23692",
+      "latex": "𝑇 𝑡 𝑡 -𝑀+1 = (uid, {(𝑡 𝑖 , 𝑥 𝑖 , 𝑦 𝑖 ) | 𝑖 = 𝑡 -𝑀 + 1, . . . , 𝑡 }),",
+      "equation_number": "(3)",
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.23692::equation::3",
+      "paper_id": "2410.23692",
+      "latex": "𝐷 𝑡 +𝑁 𝑡 +1 = {𝑡 𝑗 | 𝑗 = 𝑡 + 1, . . . , 𝑡 + 𝑁 }.",
+      "equation_number": "(4)",
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2410.23692::equation::4",
+      "paper_id": "2410.23692",
+      "latex": "T Rpast X , R future 𝑓 (•,•) ---- \\to 𝜃 T R future X .",
+      "equation_number": "(5)",
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2410.23692::citation::0",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Friendship and mobility: user movement in location-based social networks",
+      "cited_authors": [
+        "Eunjoon Cho",
+        "Seth A Myers",
+        "Jure Leskovec"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::1",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "The Llama 3 Herd of Models",
+      "cited_authors": [
+        "Abhimanyu Dubey",
+        "Abhinav Jauhri",
+        "Abhinav Pandey",
+        "Abhishek Kadian",
+        "Ahmad Al-Dahle",
+        "Aiesha Letman",
+        "Akhil Mathur",
+        "Alan Schelten",
+        "Amy Yang",
+        "Angela Fan"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2407.21783",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::2",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "DeepMove: Predicting Human Mobility with Attentional Recurrent Networks",
+      "cited_authors": [
+        "Jie Feng",
+        "Yong Li",
+        "Chao Zhang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::3",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Personalized ranking metric embedding for next new POI recommendation",
+      "cited_authors": [
+        "Shanshan Feng",
+        "Xutao Li",
+        "Yifeng Zeng",
+        "Gao Cong",
+        "Yeow Meng Chee",
+        "Quan Yuan"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::4",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Large language models are zero-shot time series forecasters",
+      "cited_authors": [
+        "Nate Gruver",
+        "Marc Finzi",
+        "Shikai Qiu",
+        "Andrew Gordon",
+        "Wilson"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::5",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Long short-term memory",
+      "cited_authors": [
+        "Sepp Hochreiter",
+        "Jürgen Schmidhuber"
+      ],
+      "cited_year": 1997,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::6",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Contextaware multi-head self-attentional neural network model for next location prediction",
+      "cited_authors": [
+        "Ye Hong",
+        "Yatao Zhang",
+        "Konrad Schindler",
+        "Martin Raubal"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::7",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "LoRA: Low-Rank Adaptation of Large Language Models",
+      "cited_authors": [
+        "J Edward",
+        "Yelong Hu",
+        "Phillip Shen",
+        "Zeyuan Wallis",
+        "Yuanzhi Allen-Zhu",
+        "Shean Li",
+        "Lu Wang",
+        "Weizhu Wang",
+        "Chen"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::8",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Minimum prediction residual principle applied to speech recognition",
+      "cited_authors": [
+        "Fumitada Itakura"
+      ],
+      "cited_year": 1975,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::9",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "DeepUrbanMomentum: An Online Deep-Learning System for Short-Term Urban Mobility Prediction",
+      "cited_authors": [
+        "Renhe Jiang",
+        "Xuan Song",
+        "Zipei Fan",
+        "Tianqi Xia",
+        "Quanjun Chen",
+        "Satoshi Miyazawa",
+        "Ryosuke Shibasaki"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::10",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Country-Wide Origin-Destination Matrix Prediction and Its Application for COVID-19",
+      "cited_authors": [
+        "Renhe Jiang",
+        "Zhaonan Wang",
+        "Zekun Cai",
+        "Chuang Yang",
+        "Zipei Fan",
+        "Tianqi Xia",
+        "Go Matsubara",
+        "Hiroto Mizuseki",
+        "Xuan Song",
+        "Ryosuke Shibasaki"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::11",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Large language models for next point-of-interest recommendation",
+      "cited_authors": [
+        "Peibo Li",
+        "Maarten De Rijke",
+        "Hao Xue",
+        "Shuang Ao",
+        "Yang Song",
+        "Flora D Salim"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::12",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Predicting the next location: A recurrent model with spatial and temporal contexts",
+      "cited_authors": [
+        "Qiang Liu",
+        "Shu Wu",
+        "Liang Wang",
+        "Tieniu Tan"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::13",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "STAN: Spatio-temporal attention network for next location recommendation",
+      "cited_authors": [
+        "Yingtao Luo",
+        "Qiang Liu",
+        "Zhaocheng Liu"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::14",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Factorizing personalized Markov chains for next-basket recommendation",
+      "cited_authors": [
+        "Steffen Rendle",
+        "Christoph Freudenthaler",
+        "Lars Schmidt-Thieme"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::15",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Geo-BLEU Similarity Measure for Geospatial Sequences",
+      "cited_authors": [
+        "Toru Shimizu",
+        "Kota Tsubouchi",
+        "Takahiro Yabe"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::16",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Where to go next: Modeling long-and short-term user preferences for point-of-interest recommendation",
+      "cited_authors": [
+        "Ke Sun",
+        "Tieyun Qian",
+        "Tong Chen",
+        "Yile Liang"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::17",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Human Mobility Prediction Challenge: Next Location Prediction Using Spatiotemporal BERT",
+      "cited_authors": [
+        "Haru Terashima",
+        "Naoki Tamura",
+        "Kazuyuki Shoji",
+        "Shin Katayama",
+        "Kenta Urano",
+        "Takuro Yonezawa",
+        "Nobuo Kawaguchi"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::18",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Where would I go next? Large language models as human mobility predictors",
+      "cited_authors": [
+        "Xinglei Wang",
+        "Meng Fang",
+        "Zichao Zeng",
+        "Tao Cheng"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2308.15197",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::19",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Personalized long-and short-term preference learning for next POI recommendation",
+      "cited_authors": [
+        "Yuxia Wu",
+        "Ke Li",
+        "Guoshuai Zhao",
+        "Xueming Qian"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::20",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Revisiting Mobility Modeling with Graph: A Graph Transformer Model for Next Point-of-Interest Recommendation",
+      "cited_authors": [
+        "Xiaohang Xu",
+        "Toyotaro Suzumura",
+        "Jiawei Yong",
+        "Masatoshi Hanai",
+        "Chuang Yang",
+        "Hiroki Kanezashi",
+        "Renhe Jiang",
+        "Shintaro Fukushima"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::21",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "YJMob100K: City-scale and longitudinal dataset of anonymized human mobility trajectories",
+      "cited_authors": [
+        "Takahiro Yabe",
+        "Kota Tsubouchi",
+        "Toru Shimizu",
+        "Yoshihide Sekimoto",
+        "Kaoru Sezaki",
+        "Esteban Moro",
+        "Alex Pentland"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::22",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Spatio-temporal hypergraph learning for next POI recommendation",
+      "cited_authors": [
+        "Xiaodong Yan",
+        "Tengwei Song",
+        "Yifeng Jiao",
+        "Jianshan He",
+        "Jiaotuan Wang",
+        "Ruopeng Li",
+        "Wei Chu"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::23",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Modeling user activity preference by leveraging user spatial temporal characteristics in LBSNs",
+      "cited_authors": [
+        "Dingqi Yang",
+        "Daqing Zhang",
+        "Vincent W Zheng",
+        "Zhiyong Yu"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::24",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "GETNext: Trajectory flow map enhanced transformer for next POI recommendation",
+      "cited_authors": [
+        "Song Yang",
+        "Jiamou Liu",
+        "Kaiqi Zhao"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::25",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Jellyfish: Instruction-Tuning Local Large Language Models for Data Preprocessing",
+      "cited_authors": [
+        "Haochen Zhang",
+        "Yuyang Dong",
+        "Chuan Xiao",
+        "Masafumi Oyamada"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::26",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Instruction tuning for large language models: A survey",
+      "cited_authors": [
+        "Shengyu Zhang",
+        "Linfeng Dong",
+        "Xiaoya Li",
+        "Sen Zhang",
+        "Xiaofei Sun",
+        "Shuhe Wang",
+        "Jiwei Li",
+        "Runyi Hu",
+        "Tianwei Zhang",
+        "Fei Wu"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2308.10792",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::27",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Where to go next: A spatio-temporal gated network for next POI recommendation",
+      "cited_authors": [
+        "Pengpeng Zhao",
+        "Anjing Luo",
+        "Yanchi Liu",
+        "Jiajie Xu",
+        "Zhixu Li",
+        "Fuzhen Zhuang",
+        "Victor S Sheng",
+        "Xiaofang Zhou"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2410.23692::citation::28",
+      "paper_id": "2410.23692",
+      "raw_text": null,
+      "cited_title": "Where to go next: A spatio-temporal gated network for next POI recommendation",
+      "cited_authors": [
+        "Pengpeng Zhao",
+        "Haifeng Zhu",
+        "Yanchi Liu",
+        "Jiajie Xu",
+        "Zhixu Li",
+        "Fuzhen Zhuang",
+        "Victor S Sheng",
+        "Xiaofang Zhou"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

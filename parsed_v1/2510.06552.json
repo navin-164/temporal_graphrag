@@ -1,0 +1,2429 @@
+{
+  "arxiv_id": "2510.06552",
+  "title": "Flipping the Dialogue: Training and Evaluating User Language Models",
+  "authors": [
+    {
+      "name": "Tarek Naous",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Philippe Laban",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Wei Xu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Jennifer Neville",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Conversations with LMs involve two participants: a human user leading the conversation, and an LM assistant responding to the user's request. To satisfy this specific role, LMs are post-trained to be helpful assistants -- optimized to produce exhaustive and well-structured responses, free of ambiguity and grammar errors. User utterances, on the other hand, are rarely perfected, with each user phrasing requests in unique ways, sometimes putting in partial effort at each turn and refining on the fly. To evaluate LM performance in realistic settings, prior work simulated users in multi-turn conversations, often by prompting an LM originally trained to be a helpful assistant to act as a user. However, we show that assistant LMs make for poor user simulators, with the surprising finding that better assistants yield worse simulators. Instead, we introduce purpose-built User Language Models (User LMs) - models post-trained to simulate human users in multi-turn conversations. Through various evaluations, we show how User LMs align better with human behavior and achieve better simulation robustness than existing simulation methods. When leveraging User LMs to simulate coding and math conversations, the performance of a strong assistant (GPT-4o) drops from 74.6% to 57.4%, confirming that more realistic simulation environments lead to assistant struggles as they fail to cope with the nuances of users in multi-turn setups.",
+  "categories": [
+    "cs.CL"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2025-10-08T01:04:36"
+    },
+    {
+      "version": "v2",
+      "created": "2026-03-22T13:18:21"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2025-10-08",
+  "citation_count": 38,
+  "reference_count": 65,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2510.06552::section::0",
+      "paper_id": "2510.06552",
+      "heading": "UserLM-8b",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::0::para::0",
+          "section_id": "2510.06552::section::0",
+          "text": "… USING A USER LANGUAGE MODEL ignore any number that is not in the 1-to-9 range now reverse the sorted list translate each remaining digit into its capitalized English name now add sorting into it Turn digits into names in a list I want to flip the list after that I want to sort the numbers if they're between 1 and 9",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::1",
+      "paper_id": "2510.06552",
+      "heading": "GPT-4o",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::1::para::0",
+          "section_id": "2510.06552::section::1",
+          "text": "I want to use names for numbers from One to Nine to roleplay a user ( ) vs. our user language model UserLM-8b ( ). Both simulators converse with an assistant ( GPT-4o) to solve a coding problem. The GPT-4o-based simulator produces simple and direct user turns, enabling the assistant to successfully solve the task. In contrast, UserLM-8b reveals the intent in a correct but paraphrased form, leading the assistant to fail on the task. UserLM-8b is more aligned with the behavior of real users, helping better estimate the performance of assistants in realistic, multi-turn conversations.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::2",
+      "paper_id": "2510.06552",
+      "heading": "INTRODUCTION",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::2::para::0",
+          "section_id": "2510.06552::section::2",
+          "text": "Simulating human users is becoming an important area for the interactive evaluation of assistant language models (LMs). Despite their strong performance on static benchmarks (Chang et al., 2025), assistant LMs often fall short of demonstrating their capabilities in multi-turn conversations with users (Laban et al., 2025). This gap stems from a failure to consider the nuances of user behavior in multi-turn interactions with assistants during evaluation. Humans rarely state their full intent upfront, instead revealing it gradually across turns (Herlihy et al., 2024). Users often provide minimal input because typing requires effort, and sometimes phrase their requests in confusing ways. Evaluating assistants under such conditions is critical to understand how they perform when deployed in the real world. This raises the question: how do we simulate realistic human users to replicate their conversational behavior with assistant LMs?",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::2::para::1",
+          "section_id": "2510.06552::section::2",
+          "text": "Recent studies that employ user simulators typically rely on prompting assistant LMs to role-play users (Li et al., 2024). However, because these models are post-trained to be perfect \"assistants\", they tend to produce cooperative and structured user turns, failing to capture the nuanced and often inconsistent behavior of real users. As a concrete example, prior work has pointed out that assistantbased user simulators rarely end conversations, choosing instead to chat endlessly (Ivey et al., 2024). Low-quality simulators are in turn problematic for evaluating assistants, since their overly cooperative behavior can result in overestimating the performance of assistants. In this study, we address this by introducing User Language Models (User LMs) -models post-trained to simulate users that can interact with assistants. A crucial contribution of our work is to train user LMs that can be conditioned on a user intent, enabling us to steer conversations towards tasks we want to study (e.g., solving coding or math problems) while replicating human conversational behavior.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::2::para::2",
+          "section_id": "2510.06552::section::2",
+          "text": "Figure 1 contrasts two user simulators intending to solve a coding problem: a prompted assistant model (GPT-4o) and our user language model (UserLM-8b). The GPT-4o-based simulator produces user turns that are straightforward and direct, making it relatively easy for the assistant to complete the task. In contrast, our UserLM-8b generates user turns that more closely resemble the indirect ways real users phrase requests. Although the core task content is still present, these nuances detract the assistant and ultimately lead the assistant to fail at solving this task.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::2::para::3",
+          "section_id": "2510.06552::section::2",
+          "text": "We first describe the details that are necessary to efficiently train user LMs ( §2), which we demonstrate by measuring distributional alignment (i.e., perplexity) with real human utterances on out-ofdomain data ( §2.3). We then present a set of six evaluations that focus on assessing fine-grained properties of user LMs, specifically around multi-turn interaction and simulation robustness ( §3). Our results show that user LMs achieve superior performance at generating more diverse user turns, decomposing intent across turns, and terminating dialogues ( §3.3) compared to existing methods. We further show that user LMs are more robust simulators, adhering better to their user role and intent compared to assistant-based simulators. Finally, we show that deploying the user LM to simulate coding and math conversations with a GPT-4o assistant leads to a more realistic estimate of real-world performance on these tasks than using prompted assistants as user simulators ( §4). We end the paper with a discussion and scoping of our findings ( §5), and release our trained user LMs publicly to stir further research in user simulation, which we hope to go hand-in-hand with the development of robust assistant LMs.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::3",
+      "paper_id": "2510.06552",
+      "heading": "PROBLEM DESCRIPTION",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::3::para::0",
+          "section_id": "2510.06552::section::3",
+          "text": "Our objective is to train a user LM that mimics human behavior when interacting with assistant LMs and performs three key functions: (1) initiate a conversation with the assistant given a defined user intent, (2) follow-up with the assistant based on its responses in subsequent turns, and (3) end the conversation once it has run its course. To achieve this, our approach leverages real human-assistant conversations as training data and \"flips the dialogue\" to train the UserLM to model the conditional distribution of user utterances: at the first turn conditioned on a user intent, and at subsequent turns conditioned on both the intent and the state of conversation so far. This setup is illustrated in Figure 2, which we now describe in more detail.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::4",
+      "paper_id": "2510.06552",
+      "heading": "does allertine cause weight gain",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::4::para::0",
+          "section_id": "2510.06552::section::4",
+          "text": "As an AI language model, I don't have personal experiences. But according to .. The amount of weight you can lose … Is einstein determinism challenged by quantum mechanics? Quantum mechanics challenges Einstein's determinism, which held that … What did Hawkins say? It seems you are referring to Stephen Hawking, the …",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::4::para::1",
+          "section_id": "2510.06552::section::4",
+          "text": "You are a user talking with an assistant language model to get information about strategies for losing weight and the impact of certain drugs or medications on weight gain.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::5",
+      "paper_id": "2510.06552",
+      "heading": "Generate generic user intents for conversations",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::5::para::0",
+          "section_id": "2510.06552::section::5",
+          "text": "You are a user talking with an assistant language model to … You are a user talking with an assistant language model to understand how quantum Mechanics challenges Einstein's determinism and get the perspective of other scientists.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::6",
+      "paper_id": "2510.06552",
+      "heading": "User Language Modeling",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::6::para::0",
+          "section_id": "2510.06552::section::6",
+          "text": "Flip the dialogue turns to create training samples for a User LM You are a user chatting with an assistant language model to get information about strategies for losing weight and the impact of certain drugs or medications on weight gain.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::7",
+      "paper_id": "2510.06552",
+      "heading": "does allertine cause weight gain",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::7::para::0",
+          "section_id": "2510.06552::section::7",
+          "text": "You are a user chatting with an assistant language model to get information about strategies for losing …",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::7::para::1",
+          "section_id": "2510.06552::section::7",
+          "text": "As an AI language model, I don't have personal experiences. But according to … Figure 2: A diagram illustrating our approach to train a UserLM ( ). We leverage in-the-wild human-assistant conversations, generating high-level user intents for each conversation. We then flip the dialogue, turning each conversation with K turns into K+1 training samples, conditioning both on the high-level intent and conversation state to generate the next user utterance.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::7::para::2",
+          "section_id": "2510.06552::section::7",
+          "text": "Defining User Intents. Similar to how assistant LMs must follow instructions, user LMs must follow an intent that directs the conversation. Initial experimentation revealed that there exists a fine balance in defining user intent. On one extreme, not providing any intent at all reduces the usability of the simulator, as it cannot be effectively directed towards a task. On the other extreme, a fullyspecified intent that contains all information of the user utterances renders the simulator obsolete: it simply parrots information from the intent with little added value. In this work, we define user intents as high-level conversation objectives: capturing the overall goal of the user without mentioning explicit details (see examples in Figure 2) -achieving a balance between the two extremes. Preliminary analyses showed that user LMs trained on high-level intents were practically more useful than ones trained without intent or with fully-specified intents: they can be guided to simulate specific conversations, but are in charge of language choices that allow for diverse and realistic simulation.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::8",
+      "paper_id": "2510.06552",
+      "heading": "Ending the Conversation.",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::8::para::0",
+          "section_id": "2510.06552::section::8",
+          "text": "Humans naturally end conversations -a signal that often indicates the conversation has run its course (i.e., the user has obtained the information they seek, completed a task, etc.). Typically, users disengage without providing explicit feedback to the assistant. To replicate this behavior, it is essential that the user LM can effectively decide when to end the conversation. We implement this by adding a special <|endconversation|> token to the tokenizer, which we then use as the output to generate after the last assistant turn in each conversation.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::9",
+      "paper_id": "2510.06552",
+      "heading": "EXPERIMENTAL DETAILS",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::9::para::0",
+          "section_id": "2510.06552::section::9",
+          "text": "Training Data. We use WildChat (Zhao et al., 2024), which contains 478,498 English conversations between ChatGPT and users from 192 countries. We noticed many near-duplicate samples and performed de-duplication, which resulted in 384,336 conversations (see details in Appendix A). The authors of WildChat did not define data splits (i.e., train vs. test); therefore, we created our own by first identifying unique users based on their hashed IP addresses and countries. For each country, we randomly split users into a 90/5/5 split for training, validation, and testing. All conversations from the same user were then assigned to the same split, ensuring that each split contains conversations from entirely distinct users. This resulted in 343,951 conversations for training, 22,442 for validation, and 17,943 for testing. After formatting conversations as we described in §2.1, we obtained 1,047,930 training samples, 118,291 validation samples, and 137,224 testing samples.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::9::para::1",
+          "section_id": "2510.06552::section::9",
+          "text": "Intent Generation. For each of the 384,336 conversations in WildChat, we generated a generic user intent using few-shot prompting with GPT-4o. The model was given the entire conversation history between the user and the assistant and instructed to produce a high-level summary of the user's intent, abstracting away specific details. To guide this process, we provided three manually crafted examples of generic intents as demonstrations (see exact prompt in Appendix D).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::9::para::2",
+          "section_id": "2510.06552::section::9",
+          "text": "Training Details. We perform full-parameter fine-tuning of Llama3-8b-Base and Llama3.2-1b-Base. As we will show, we find that starting from the base model is better than an instruction-tuned checkpoint. We used a max sequence length of 2048 tokens, a batch size of 1024 samples, and a learning rate of 2e-5. Training was done on 4 A6000 GPUs, taking 62 hours to train the 1b model and 227 hours for the 8b model. We refer to our fine-tuned user LMs as UserLM-1b and UserLM-8b.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::9::para::3",
+          "section_id": "2510.06552::section::9",
+          "text": "Baselines. We compare to multiple assistant LMs: Llama3.2-1b-Instruct, Llama3-8b-Instruct, and GPT-4o. Prompting assistant LMs to role-play users is the predominant approach in prior work on user simulation (Chang et al., 2025;Ivey et al., 2024). We further engineered the prompt of the assistant-based simulators to give explicit instructions on how to replicate user behavior: splitting content across turns, not being verbose, or making occasional typos, without overdoing such phenomena. Starting from prompts used in prior work, we selected the best-performing variant based on validation perplexity on WildChat (see prompts and selection details in Appendix D). We also compare to USP-8b (Wang et al., 2025), a fine-tuned version of Llama3-8b-Base on a subset of 94,874 LMSys-Chat conversations to generate user utterances (Zheng et al., 2023). All baselines were instructed to respond with <|endconversation|> if they believe the user intent is fulfilled.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::10",
+      "paper_id": "2510.06552",
+      "heading": "Distributional Alignment.",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::10::para::0",
+          "section_id": "2510.06552::section::10",
+          "text": "We evaluate models at \"user language modeling\" -how well they match the distribution of human language on the held-out test set of conversations. To measure this, we compute model perplexity (PPL), a standard intrinsic metric commonly used to assess how well an LM predicts a sample of text (Brown et al., 1992;Hewitt et al., 2023). For a test set that consists of a total of N tokens, we compute the per-token perplexity for a model P θ as exp -1 N N i=1 log P θ (x i | x <i ) . Lower PPL reflects less surprisal and better alignment with the underlying data distribution. We evaluate on held-out test samples from WildChat and on the entire PRISM dataset (Kirk et al., 2024), which we use as an out-of-domain test set and consists of 8,011 conversations. We applied the identical intent generation procedure to PRISM conversations.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::10::para::1",
+          "section_id": "2510.06552::section::10",
+          "text": "WildChat PRISM Model (↓) (↓) (↓) (↓) Llama3.2-1b-Base 37.68 29.09 84.00 53.54 Llama3-8b-Base 98.29 48.13 89.98 40.86 Llama3.2-1b-Instruct 26.08 16.08 35.02 20.80 Llama3-8b-Instruct 26.19 21.40 40.25 36.29 USP-8b 32.08 21.78 50.91 30.16 UserLM-1b 8.30 7.78 18.58 10.33 UserLM-8b 5.60 4.33 14.92 7.42 Table 1: Perplexity (PPL) of prompted and trained models on WildChat test set (17,943 conversations) and the PRISM dataset (8,011 conversations). We compare PPL with no test-time conditioning ( ) and conditioning on the generic intent ( ).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::10::para::2",
+          "section_id": "2510.06552::section::10",
+          "text": "Results. Table 1 shows the PPL achieved by base, assistant, and user LMs on the user utterances of the WildChat test set and the PRISM dataset. We compare results where models are not conditioned on intent at prediction time ( ) vs. including the generic intent for conditioning ( ). Three trends are noteworthy. First, intent conditioning leads to gains in PPL for all models across both datasets, confirming that generic intents enable the effective steering of LMs. Second, though all models have higher PPL on PRISM than WildChat, performance trends on the two datasets are consistent, confirming that PRISM serves as a more challenging, out-of-domain test set that effectively measures generalization of user language modeling. Third, the UserLM-8b achieves the lowest PPL by a wide margin, often 60-70% lower than all baselines. Finally, the improvements observed when scaling the UserLM from 1b to 8b are encouraging, and we hypothesize that further scaling will likely yield lower PPL and better distributional alignment. In short, we find that UserLM-8b is more effective than baselines at modeling an out-of-domain user population and effectively leveraging generic user intents.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::10::para::3",
+          "section_id": "2510.06552::section::10",
+          "text": "Do we need to train with intent? The results indicate that even models not trained with intents (such as Llama-3.2-1b-Base) can effectively leverage them (lower PPL). To gain an understanding of whether training with generic intents is truly beneficial, we ablated this parameter by training user LMs without intent conditioning. In this setting, the first user turn is conditioned only on the user role tokens (e.g., <|start header id|>user<|end header id|> in the Llama tokenizer). Figure 3a compares the PPL of user LMs trained with and without intent for different test-time conditioning",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.06552::section::10::para::4",
+          "section_id": "2510.06552::section::10",
+          "text": "None Intent Test Conditioning None Intent Train Conditioning 22.83 15.96 18.58 10.33 UserLM-1b None Intent Test Conditioning None Intent Train Conditioning 12.92 8.40 14.92 7.42 UserLM-8b setups. The models trained without any intent conditioning still show improvements when conditioned on intent at test time. However, we find the biggest drops in PPL with models trained with intent. In summary, the use of intent-conditioning at train-time leads to improved sensitivity to intent in trained user LMs, resulting in a more steerable and usable model.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.06552::section::10::para::5",
+          "section_id": "2510.06552::section::10",
+          "text": "Is starting from instruction-tuned checkpoints better? We investigate whether training a UserLM by starting from an instruction-tuned checkpoint leads to better performance than from a base model. Figure 3b compares the PPL achieved by our 1b and 8b user models when trained from either checkpoint. We find that user models trained from the base checkpoint achieve better results with lower PPL. Instruction-tuned models are typically trained to be helpful assistants using synthetically generated data (Gan & Liu, 2024), which we hypothesize is semantically distant from user behavior, leading to lower distributional fit. On the other hand, base models are trained on natural text, a majority of which could be human-written and is thus initially closer to the distribution of real users. This experiment and additional evaluations reported in Appendix B.2 provide evidence for a high-level observation: base pre-trained LMs are neutral, general-purpose models that can be post-trained towards distinct and opposing roles: user and assistant LMs.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::11",
+      "paper_id": "2510.06552",
+      "heading": "EVALUATING ALIGNMENT WITH HUMAN BEHAVIOR",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::11::para::0",
+          "section_id": "2510.06552::section::11",
+          "text": "Beyond distributional measures such as perplexity, we introduce more fine-grained evaluations that capture key properties user simulators should reflect if they align with human behavior. We first propose evaluations targeting multi-turn interactions between a user and an assistant, spanning the opening, intermediate, and closing turns of a conversation ( §3.1). In addition, we present evaluations designed to assess the robustness of the simulator in maintaining a realistic user behavior ( §3.2).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::12",
+      "paper_id": "2510.06552",
+      "heading": "MULTI-TURN INTERACTION",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::12::para::0",
+          "section_id": "2510.06552::section::12",
+          "text": "First Turn Diversity. At the first turn, real users can express the same request in many ways. To ensure a simulator reflects this natural variability, it is important to measure how diverse its first-turn generations are. We measure diversity by assessing how often models generate new words instead of repeating previously used ones. For each model, we randomly sample 2,000 first-turn utterances and compute the pairwise 1-gram Jaccard index, a common metric for utterance diversity (Stasaski & Hearst, 2022). A higher value indicates better lexical diversity in first-turn utterances.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::12::para::1",
+          "section_id": "2510.06552::section::12",
+          "text": "Intent Decomposition. Human users often omit details in their prompts, phrase requests in varied ways, and rely on the broader conversational context, expecting the assistant to interpret and leverage this information across turns (Herlihy et al., 2024;Yang et al., 2025). It is therefore essential for our user LM to gradually progress through its intent across multiple turns, rather than revealing all the details in a single turn. We measure this by computing the average overlap of 1grams between the generated user turns and the generic intent for each conversation in PRISM. We remove all stopwords before computing overlap. Since the task intents use generic language that does not match the language of real user utterances (as confirmed by the very low n-gram overlap between test intents and real user utterances), a lower overlap indicates that the model rephrases intent information using its own varied language rather than copying verbatim from the intent, while introducing details progressively across turns.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::12::para::2",
+          "section_id": "2510.06552::section::12",
+          "text": "Dialogue Termination. We assess the ability of each simulator to terminate the conversation when the conversation ended with the real user. To measure this, we compare the model's generation of the <|endconversation|> token with actual conversation endings in the PRISM dataset. Treating this as a binary classification task, we compute the F1 score to quantify how accurately the model predicts conversation endings. A high F1 score indicates that the model not only ends conversations at appropriate points but also avoids stopping too early or going on excessively.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::13",
+      "paper_id": "2510.06552",
+      "heading": "SIMULATION ROBUSTNESS",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::13::para::0",
+          "section_id": "2510.06552::section::13",
+          "text": "Naturalness. Text generated by a user LM should resemble the natural way humans write and be distinguishable from the typical style of assistant LMs. To measure the naturalness of the utterances, we use the state-of-the-art AI-detector Pangram (Emi & Spero, 2024), which was shown by Russell et al. (2025) to achieve near-perfect detection accuracy, on par with frequent users of ChatGPT. For our evaluation, we sample 2,000 first-turn generations, ensuring each utterance ranges between 50 and 200 tokens, enough text for the detector to perform its prediction reliably. Pangram returns a likelihood of being human-written, which we average across all 2,000 utterances.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::14",
+      "paper_id": "2510.06552",
+      "heading": "User Role Adherence.",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::14::para::0",
+          "section_id": "2510.06552::section::14",
+          "text": "A robust user simulator must consistently maintain its user role and avoid behaving like the assistant. To measure user role adherence, we test models under the following setup. First, we initiate conversations where the user asks an MCQ question and provides a set of answer choices (e.g., What's the nickname of the monster the beauty loved? The choices are: beast, ugly, ugliness, satellite). We then prompt GPT-4o to generate a response stating uncertainty and seeking help from the user (e.g., I'm honestly not sure about that. It sounds familiar, but I can't confidently say what the nickname is. If it's from a specific story or version. Could you just tell me the answer instead?). We then generate the next user turn and measure the rate at which models adhere to their user role by avoiding revealing the answer to the assistant. An attempt to answer is counted when a model includes one or two of the choices in its second turn, ignoring cases where all options are mentioned, which we found to be repetitions of the question. We perform this test using 2,000 random samples from the CommonsenseQA dataset (Talmor et al., 2018) as the first user turn.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::14::para::1",
+          "section_id": "2510.06552::section::14",
+          "text": "Intent Adherence. Assistants sometimes get confused in a conversation and, as an attempt to clarify, they suggest something the user did not want. Robust user simulators must adhere to their intent and not comply with assistant suggestions that steer away from their intent. To measure this, we initiate conversations where the user asks an open-ended question (e.g., who sang the song i'm a nut?). We then prompt GPT-4o to generate a response stating uncertainty of the answer and suggesting to assist with something else (e.g., I'm not sure what the answer is to who sang the song \"I'm a Nut.\" However, if you're interested in exploring music, how about looking into the fascinating world of unusual instruments?). We then generate the next user turn and measure the rate at which the simulator refuses the assistant's suggestion and adhere to their original intent. We perform this test using 2,000 random samples from NaturalQuestions (Kwiatkowski et al., 2019) as the first user turn. We evaluate whether the model adheres to its original intent by prompting GPT-4o as a judge.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::15",
+      "paper_id": "2510.06552",
+      "heading": "RESULTS & ANALYSES",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::15::para::0",
+          "section_id": "2510.06552::section::15",
+          "text": "Table 2 summarizes the results achieved by all models. We make the following key observations: User LMs better align with humans at multi-turn interaction across the board. User LMs generate more diverse first turns, with UserLM-8B achieving 94.55% unique 1-grams, on-par with real users (94.01%), and outperforming GPT-4o's 74.42%. User LMs are also better at decomposing intent across turns and produce more abstractive utterances, with an average overlap of 2.69% with the conditioned intent -close to the 1.68% observed in human utterances. By spreading information across turns and phrasing requests in varied ways, user LMs more closely reflect the dynamics of real human interactions. Further, user LMs are better at recognizing when to terminate a conversation, achieving an F1 score of 63.54. In contrast, prompted assistants rarely end conversations, with F1 scores ranging from 3-15. In other words, the assistant nature of the LM is still ingrained, leading to a lack of ability to end conversations, which is not reflective of the user role being simulated. User LMs produce more natural-looking utterances. Pangram assigns an average 90.2% confidence that real user utterances are not AI-generated, confirming its efficacy at assigning high scores to human-written utterances. On the opposite end, utterances generated by prompted assistant models were consistently detected as AI-generated, with scores ranging 0-3%. User LMs fared better, with scores ranging from 77-81%, only slightly lower than real user utterances. This sharpens our understanding of naturalness in three ways: (1) user and assistant utterances are distinct text distributions, with AI-detectors focused on detecting AI-generated assistant text (the predominant type of AI-generated text), (2) simply prompting an assistant does not significantly alter its generation distribution, as generated utterances are still easily detected as AI-generated, (3) User LMs learn to generate user-like utterances, demonstrated by high naturalness scores.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::15::para::1",
+          "section_id": "2510.06552::section::15",
+          "text": "User LMs provide a robust base for simulation. The results for role adherence ( ) show how the three trained user LMs achieve stellar robustness ranging from 91-98%, indicating they maintain the user role even when a simulated conversation introduces ambiguity. On the other hand, assistantprompted simulators all show signs of shallow instruction following, reverting to their main assistant role in 20-60% of conversations, over-ruling their prompted instruction to behave as a user.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::15::para::2",
+          "section_id": "2510.06552::section::15",
+          "text": "User LMs stick to their task intent better. The results on intent adherence ( ) paint a similar picture to role adherence, with user LMs achieving robustness scores of 93-97%, indicating a predominant choice to follow original intent and avoid distraction. Prompted assistant LMs, on the other hand, are more easily accepting of diversion, which we hypothesize is related to the sycophantic nature of assistant LMs (Perez et al., 2023;Laban et al., 2023) that favor a surface-level sense of pleasing the conversational partner over following the original instruction. This finding exposes an important difference between the user and assistant roles: the user is the pilot of the conversation, and must maintain a certain stubbornness towards their stated intent, whereas the assistant inherently supports the user, and should demonstrate flexibility when the conversation drifts. This disparity is one of the key limitations in using assistant-trained models to simulate users.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::15::para::3",
+          "section_id": "2510.06552::section::15",
+          "text": "How does scaling affect performance? Our experiments involved three families of models at varied scales (Llama, GPT4o, and UserLM), enabling us to observe how scaling affects user simulation quality. For prompted assistant models, increased model size does not lead to improvements: Llama3-8b outperforms Llama3-1b on only one of six metrics, and GPT-4o outperforms GPT-4omini on two of the six. On the other hand, UserLM-8b outperforms UserLM-1b on all metrics, showing that scaling the training of User LMs effectively leads to better user simulators.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::16",
+      "paper_id": "2510.06552",
+      "heading": "SIMULATING CONVERSATIONS WITH USER LMS",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::16::para::0",
+          "section_id": "2510.06552::section::16",
+          "text": "To gain a more practical understanding of the value of User LMs, we now deploy them as part of an extrinsic evaluation, which uses the simulator to interact with an assistant for solving tasks. We analyze the performance of assistant LMs in multi-turn conversations with the user simulators. As pointed out by Chang et al. (2025), assistant LMs are typically evaluated in single-turn settings, and one of the bottlenecks for multi-turn evaluation is the lack of realistic user simulators.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::17",
+      "paper_id": "2510.06552",
+      "heading": "EXPERIMENTAL SETTING",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::17::para::0",
+          "section_id": "2510.06552::section::17",
+          "text": "Tasks Setup. We adopt the simulation setting of Laban et al. (2025), which simulates multi-turn conversations for various generation tasks. Specifically, we use 65 task intents that involve users completing a math word problem (based on GSM8k (Cobbe et al., 2021)) or writing a Python program (based on HumanEval (Chen et al., 2021)). Both tasks are appealing as they represent common use cases of current LLMs (Tomlinson et al., 2025), and can be evaluated in a verifiable manner. We use UserLM-8b to simulate 10 conversations for each task intent (a total of 650 simulations). We also simulate conversations by prompting GPT-4o-mini and GPT-4o as the user simulators. In all conversations, we use GPT-4o as the assistant LM, keeping this aspect of the simulation fixed. For UserLM-8b, we applied a set of simple generation guardrails (detailed in Appendix C.1) to counteract noise from its smaller model size; these guardrails were only used in this section and do not affect the evaluations in Tables 1 and 2.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::17::para::1",
+          "section_id": "2510.06552::section::17",
+          "text": "Evaluation. We performed a quantitative analysis of the simulations, computing eight metrics focused on five aspects of the simulator: (1) Intent Coverage: whether the simulator reveals the intent information adequately in the course of the conversation, (2) Information Diversity: how the simulator repeats, skips, or adds information during conversations, (3) Pace Diversity: whether the simulator can reveal information at varied speeds, effectively simulating users with differing communication styles, (4) Lexical Diversity: the capacity of the simulator in using unique wording in each simulation, and (5) Assistant Performance: the impact of the simulator on the assistant's ability to complete the task. The implementation details of each metric are provided in Appendix C.3.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::18",
+      "paper_id": "2510.06552",
+      "heading": "SIMULATION RESULTS & ANALYSIS",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::18::para::0",
+          "section_id": "2510.06552::section::18",
+          "text": "User Simulator 4o-mini GPT-4o UserLM-8b Metric Intent Coverage Intent Coverage (%) 86.6 84.7 76.7 Information Diversity %Repeat Required 31.8 9.4 54.3 %Skip Non-Required 10.9 14.6 37.7 %Add Demands 9.5 1.1 43.8 Pace Diversity Turn Variance 0.9 0.6 2.8 Turn Range 3.7-5.7 4.0-5.4 2.1-6.7 Lexical Diversity Unigram Difference 0.43 0.40 0.71 Assistant Performance Assistant Score 73.2 74.6 57.4",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::18::para::1",
+          "section_id": "2510.06552::section::18",
+          "text": "Table 3: Summary of results from simulated conversations with three simulators (prompted assistant LMs, and trained user LMs). Each simulator is evaluated on its coverage of the intent, information selection, conversational pace, lexical diversity, and the average downstream assistant performance. See Appendix C.4 for per-task results.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::18::para::2",
+          "section_id": "2510.06552::section::18",
+          "text": "Table 3 summarizes the results from the simulations. We observe the following:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::18::para::3",
+          "section_id": "2510.06552::section::18",
+          "text": "User LMs selectively reveal and revise their intent while avoiding unnecessary details.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.06552::section::18::para::4",
+          "section_id": "2510.06552::section::18",
+          "text": "The three simulators cover 76-86% of the units of information from the original intent, indicating they successfully stay on topic. Our UserLM-8b is more likely to repeat required information across turns, and less likely to reveal information that is not required to accomplish the task. In contrast, the GPT-based simulators are more monotonic: they tend to reveal information from the intent once, with less emphasis on revising what they mean by repetition or omitting information. UserLM-8b is the only simulator that introduces additional demands not specified in the original intent. We manually labeled the additional demands specified the UserLM-8b, with the three main categories being: (1) providing example test cases (34%, e.g., get closest vowel(\"FULL\") should return U), (2) defining naming conventions (21%, e.g., The function should be named 'rabbit'), and (3) implementation constraints (20%, e.g., Avoid using the built-in min and max functions). In contrast, the GPT-based simulators stick to the script, rarely injecting demands, leading to more homogeneous simulations.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.06552::section::18::para::5",
+          "section_id": "2510.06552::section::18",
+          "text": "User LMs exhibits more turn variance than the GPT-based simulators. Our UserLM-8b dynamically decides the granularity of information revealed at each turn, leading to more variation with conversations ranging from 2.1 to 6.7 turns. The GPT-based simulators are more consistent, with a narrower range of 3.7 to 5.7 turns. This variability is important because it allows UserLM-8b to simulate users with different interaction paces, capturing a broader spectrum of dialogue behaviors.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2510.06552::section::18::para::6",
+          "section_id": "2510.06552::section::18",
+          "text": "User LMs simulate more lexically diverse conversations. UserLM-8b achieves higher lexical diversity. In other words, two simulations based on the same intent have less lexical overlap when using UserLM-8b compared to using GPT-4o as the simulator. The diversity is due to UserLM-8b varying its language and style in different conversations, in contrast to GPT-based simulators that retain high similarity with the intent and avoid language variation. Assistants struggle more when conversing with User LMs. We find that assistant task performance is around 17% lower in conversations with UserLM-8b than with the GPT-based simulators.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2510.06552::section::18::para::7",
+          "section_id": "2510.06552::section::18",
+          "text": "As identified above, UserLM-8b exhibits more diverse behavior in the information it presents, in the pace it sets for the conversation, and in the lexical choices it makes during simulation. In turn, these more realistic simulation conditions are challenging to the GPT-4o assistant, offering a more comprehensive estimation of assistant performance in multi-turn interaction with diverse users.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::19",
+      "paper_id": "2510.06552",
+      "heading": "DISCUSSION & IMPLICATIONS",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::19::para::0",
+          "section_id": "2510.06552::section::19",
+          "text": "Stronger assistants LMs are not necessarily better user simulators. A repeating insight from our results is that scaling up assistant LMs does not automatically result in improved simulators. We first see this in §2.3 when comparing PPL on user utterances, finding that Llama3-8b-Instruct exhibited worse PPL than the smaller 1b model. Similarly, in our analysis on initializing training from instruction-tuned checkpoints, starting from the 1b assistant model resulted in lower PPL (18.45) compared to starting from the 8b assistant model (27.25). This pattern also emerged in some of the intrinsic evaluations where GPT-4o-mini surpassed GPT-4o, particularly in terms of intent and role adherence. These results highlight the need to explicitly train user LMs.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::19::para::1",
+          "section_id": "2510.06552::section::19",
+          "text": "From User LMs to Personalized User LMs. In this work, user LMs were trained to simulate a broad, general audience, capturing behaviors commonly shared across a population of users. However, users with different demographics or personas may exhibit important variations that are important to model. For instance, non-native English speakers in Middle Eastern countries often phrase requests differently from native speakers in the United States, reflecting their own dialects and linguistic backgrounds. We believe a key focus for future studies is the development of more personalized simulators that can simulate specific user groups or behavior in specific domains. The collection of large-scale data in specific settings is often challenging, and we hope the user LMs we propose can serve as a foundation to finetune more personalized user LMs, lowering data requirements.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::19::para::2",
+          "section_id": "2510.06552::section::19",
+          "text": "User LMs will serve purposes beyond interactive evaluation of assistants. Beyond interactive evaluation, we believe user LMs can open up a range of promising applications. One direction is user modeling, where prior work has explored the use of LMs to estimate distributions of user responses to surveys (Hu & Collier, 2024;Suh et al., 2025). User LMs can be seen as a generative extension of this approach: instead of predicting distributions, they can generate natural text responses to survey questions, providing estimates of user behaviors. A second use case is improving judge models. Current approaches often train judge models based on assistant LMs to approximate user preferences, but these are prone to assistant-specific biases and limited personalization (Dong et al., 2024). By contrast, user LMs could serve as more realistic judges through prompting or finetuning into user LM judge models. Finally, user LMs can be leveraged for synthetic data generation (Wang et al., 2025). As we show, user LMs produce more varied simulations, making them better-suited for generating synthetic data that can be used to fine-tune assistants and improve their robustness.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::20",
+      "paper_id": "2510.06552",
+      "heading": "Simulating Users vs. Working with Real Users.",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::20::para::0",
+          "section_id": "2510.06552::section::20",
+          "text": "The experiments we present in this work use automated methods to simulate users, presenting findings that are expected to generalize to real user behavior. However, simulating user behavior is a challenging problem, and we do not anticipate simulations to be applicable to all cases. In particular, working with experts in technical domains such as law (Das et al., 2025), creative writing (Chakrabarty et al., 2025) or science (Asai et al., 2024) remains necessary. We propose the following scope: user simulation is a useful tool in scaling experiments, allowing the efficient discovery of system flaws that affect broad populations, whereas working with experts or specific user populations is necessary to gain knowledge about user nuances.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::20::para::1",
+          "section_id": "2510.06552::section::20",
+          "text": "Building stronger user LMs will help build stronger assistant LMs. The user LMs we release as part of this work are relatively small (1b and 8b parameters) and have been post-trained on a limited set of natural user-assistant interactions (343,951 conversations). Despite this, they still outperform prompted assistants such as GPT-4o in simulating users and provide a more comprehensive evaluation of multi-turn assistant performance on downstream tasks. We expect that scaling up model size and training data will result in better user LMs, serving as more realistic simulation environments. This, in turn, will help develop more robust and effective assistants.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::21",
+      "paper_id": "2510.06552",
+      "heading": "RELATED WORK",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::21::para::0",
+          "section_id": "2510.06552::section::21",
+          "text": "Simulation Environments. Historically, one of the main uses of computers has been to simulate environments across many domains from macro-economics (Holland & Miller, 1991;Zheng et al., 2022), climate (Taylor et al., 2012), elections (Straffin Jr, 1980;Le Pennec & Pons, 2023), molecular biology (Shaw et al., 2010), financial markets (Cont & Bouchaud, 2000), self-driving cars (Dosovitskiy et al., 2017), and robotics (Todorov et al., 2012). Simulation environments are invaluable in these applications as they enable the evaluation of theories or methods, on-the-fly decision-making for a system based on simulation, or the training of AI systems, for instance through reinforcement learning. As conversational interfaces see widespread adoption in society, we view user LMs as a foundational simulation environment for user-AI conversation.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::22",
+      "paper_id": "2510.06552",
+      "heading": "Simulating Human Users In Conversation.",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::22::para::0",
+          "section_id": "2510.06552::section::22",
+          "text": "User simulation has received considerable attention in past research, serving as an environment for dialogue policies to interact with in reinforcement learning setups (Shi et al., 2019). Early conversation simulators were introduced in task-oriented dialogue research, consisting of rule-based systems that define a user goal and an agenda of pending actions that dictate the next user move (Schatzmann et al., 2007;Li et al., 2016). These systems later evolved to include neural-based components that encode the dialogue state and generate user actions (Asri et al., 2016;Kreyssig et al., 2018;Gür et al., 2018;Tseng et al., 2021). More recently, pretrained assistant LMs have been adopted in user simulation research. The majority of existing works have prompted assistant LMs in a zero-shot manner to role-play a user (i.e., \"You are a user chatting with an AI assistant ...\"), instructing them to generate the next user turn given the dialogue history (Li et al., 2024;Luo et al., 2024;Zhong et al., 2025;Chang et al., 2025). However, a growing body of work highlights that these prompted assistants exhibit low alignment with real human interactions and often diverge from human behavior (Ivey et al., 2024;Yoon et al., 2024;Zhu et al., 2024).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::22::para::1",
+          "section_id": "2510.06552::section::22",
+          "text": "A few studies have proposed fine-tuning approaches to generate user turns given the dialogue context (Liu et al., 2022;2023;Sekulić et al., 2024) by training on task-oriented dialogue datasets such as MultiWOZ (Eric et al., 2019;Cheng et al., 2022). Such fine-tuning approaches have been mainly focused on generating synthetic user-assistant conversations that can be used as additional training data for assistant LMs (Wan et al., 2022;Ferreira et al., 2024;Dhole, 2024), with some focusing on generating diverse user profiles (Kong et al., 2024;Wang et al., 2025). Our work complements this body of literature by introducing general-purpose user language models trained to follow a defined user intent and simulate users in conversations with assistants. We show that our user LMs better align with real human behavior compared to prompting assistant LMs to role-play users.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::23",
+      "paper_id": "2510.06552",
+      "heading": "Evaluating User Simulators.",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::23::para::0",
+          "section_id": "2510.06552::section::23",
+          "text": "There is little work on how to evaluate simulators at replicating human behavior in their conversations with assistants (Deriu et al., 2021). Some studies measure the correlation between simulator and human utterances using lexical or stylistic metrics (Ivey et al., 2024;Pietquin & Hastie, 2013), or the diversity of their generated utterances (Wang et al., 2025).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::23::para::1",
+          "section_id": "2510.06552::section::23",
+          "text": "Others have resorted to human annotation to judge the quality of the simulated conversations (Kranti et al., 2025;Sekulić et al., 2024;2022;Shi et al., 2019). Another line of work evaluates the simulator more indirectly by testing whether task performance with the assistant correlates with performance in real user interactions (Chang et al., 2025). Our study introduces fine-grained evaluations of simulator properties related to multi-turn interaction behavior and robustness. We also assess simulators when deployed for solving coding and math tasks with assistants.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::24",
+      "paper_id": "2510.06552",
+      "heading": "CONCLUSION",
+      "section_type": null,
+      "order": 24,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::24::para::0",
+          "section_id": "2510.06552::section::24",
+          "text": "In this work, we introduced approaches to train and evaluate User LMs. Through many experiments, we showed the inefficacy of prompting assistant LMs to simulate users and highlighted the value of purpose-built user LMs, trained on user utterances from a large corpus of user-assistant interactions. We demonstrated a practical application of user LMs -using them to simulate conversations with an assistant. This surfaced limitations in current assistant LMs, which displayed degraded performance due to the more realistic simulation environment. We hope the release of UserLM-8b spurs further research by the community on user language modeling.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::25",
+      "paper_id": "2510.06552",
+      "heading": "A ADDITIONAL EXPERIMENTAL DETAILS",
+      "section_type": null,
+      "order": 25,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::25::para::0",
+          "section_id": "2510.06552::section::25",
+          "text": "WildChat Deduplication. During initial analysis, we noticed a lot of near-duplicate conversations in WildChat -often consisting of prompt templates with minor input variations. To improve the quality of the training corpus, we applied a 7-gram counter on the first-turn user prompts and manually examined the most frequent patterns. We identified several recurring prompt templates, with one used in as many as 81,196 conversations, that do not represent natural user interaction and could degrade model quality. Removing all near-duplicates reduced the dataset to 384,336 conversations. To verify the efficacy of our filtering and data splitting, we computed the 7-gram overlap between the first-turn user prompts in the train and test sets, finding only 4.19% overlap. This low overlap confirms that our deduplication and user-based splitting procedure effectively minimizes data leakage between splits. 2 3 4 5 6 7 8 9 10 Turn 0.00 0.25 0.50 0.75 1.00 Precision 2 3 4 5 6 7 8 9 10 Turn 0.00 0.25 0.50 0.75 1.00 Recall 2 3 4 5 6 7 8 9 10 Turn 0.00 0.25 0.50 0.75 1.00 F1 UserLM-1b UserLM-8b GPT4o-mini USP-8b Figure 6: Precision, Recall, and F1 score per turn for our dialogue termination evaluation. Results are shown for models that achieved more than an average F1 score of 10. B ADDITIONAL RESULTS B.1 PER-TURN ANALYSES 1 2 3 4 5 6 7 8 9 10 Turn 10 20 30 40 50 60 70 80 PPL Llama3.2-1b-Instruct Llama3-8b-Instruct USP-8b UserLM-1b UserLM-8b Figure 4: Per-turn token-level PPL achieved by models on PRISM utterances. All models are conditioned on the generic user intent of each conversation. Our user LMs outperform all baselines and achieve much lower PPL, especially at the first turn.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::25::para::1",
+          "section_id": "2510.06552::section::25",
+          "text": "Perplexity. Figure 4 shows the token-level PPL achieved by all models on the human utterances of the PRISM dataset. Our user LMs outperform the instruction-tuned models and the USP-8b baselines. Particularly, we find the largest PPL differences between our user models and all baselines to be at the first turn. This indicates that our user LMs are much better at initiating the first turn of a conversation the way real users would, but prompted instructiontuned baselines struggle to do so.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::26",
+      "paper_id": "2510.06552",
+      "heading": "Intent Decomposition.",
+      "section_type": null,
+      "order": 26,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::26::para::0",
+          "section_id": "2510.06552::section::26",
+          "text": "Figure 5 shows the cumulative 1-gram overlap across turns between the generated user turns and the generic intent we condition on. Our user models have the lowest overlap across turns, aligning closely with humans and outperforming the GPT-4o simulator that is explicitly instructed to split intent across turns and not to copy. The instruction-tuned Llama models show the highest overlap, starting at 25% which indicates higher levels of copying from the intent at the first turn.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::26::para::1",
+          "section_id": "2510.06552::section::26",
+          "text": "Dialogue Termination. Figure 6 shows the precision, recall, and F1 score per-turn for the dialogue termination evaluation. We find that prompted assistants such as GPT4o-mini achieve high precision, yet very low recall, indicating that while their termination usually aligns with real users, they rarely do so and often proceed to continue the conversation. This behavior becomes worse with better assistants such as GPT-4o, which rarely terminates dialogues, achieving near-zero F1 score. Our UserLM-1b and UserLM-8b show a better balance of precision and recall, aligning better with human behavior. We note that in practice, decoding can be constrained in our user LMs to not generate the <|endconversation|> token if desired.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::27",
+      "paper_id": "2510.06552",
+      "heading": "B.2 STARTING CHECKPOINT ADDITIONAL ANALYSIS",
+      "section_type": null,
+      "order": 27,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::27::para::0",
+          "section_id": "2510.06552::section::27",
+          "text": "Our earlier experiments showed how User LMs trained from a base checkpoint achieve better distributional alignment (lower PPL) on human utterances ( §2.3), suggesting better simulators. We further verify this by evaluating models trained from either checkpoints on our intrinsic properties presented in §3. Table 4 shows the results, where we find that User LMs trained from the base checkpoints generally outperform ones trained from instruction-tuned models. Most notably, models trained from the base checkpoints are better at intent decomposition, dialogue termination, and produce text that more closely resembles the style of real humans. Models trained from instructiontuned checkpoints show similar performance in terms of role and intent adherence. These results further confirm the findings from our initial PPL analyses, which show that models already trained to be assistants are more difficult to train to become user models.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::28",
+      "paper_id": "2510.06552",
+      "heading": "C CONVERSATION SIMULATION EXPERIMENTAL DETAIL C.1 GENERATION CONFIGURATION FOR USERLM-8B",
+      "section_type": null,
+      "order": 28,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::28::para::0",
+          "section_id": "2510.06552::section::28",
+          "text": "In the simulation experiment detailed in Section 4, we implemented a few simple generation guardrails to counteract the small nature of the model (8b parameters), as we found that simply sampling unfiltered responses from the model did not result in satisfactory quality necessary to conduct simulation experiments.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::28::para::1",
+          "section_id": "2510.06552::section::28",
+          "text": "Guardrail 1: Filtering First Tokens. In our experimental simulation setting, initial trials revealed that the UserLM-8b frequently generates responses that started with \"I\", \"You\", or \"Here\", which led to repetitive user utterances. We constrained the decoding by implementing a logit filter, in which a set of 6 tokens (3 words listed above in lower-and capitalized format) had their logits set to 0 for the first token, ensuring they are not sampled as first words. This simple modification was effective in practice at steering the model towards more useful generations.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::28::para::2",
+          "section_id": "2510.06552::section::28",
+          "text": "Guardrail 2: Avoiding Dialogue Termination. In our extrinsic evaluation, we prohibited the model from generating the <|endconversation|> token that we used in our earlier analysis on dialogue termination capability, by setting its probability of being generated to 0.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::28::para::3",
+          "section_id": "2510.06552::section::28",
+          "text": "Guardrail 3: Maximal and Minimal Length Threshold. The experiment we conduct specifically evaluates assistant behavior in multi-turn, under-specified conversations. To encourage such behavior from the user simulator, we filtered out any user utterance of more than 25 words, as we found through inspection that longer utterances tended to reveal the entire problem formulation, reducing the need for multi-turn interaction. In case the UserLM-8b generates a response longer than the set threshold, we discarded the response and generated a new one, until we obtained a response below the threshold. We also filter out responses that contain fewer than three words, though we note that such occurrences were rare in our inspection.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.06552::section::28::para::4",
+          "section_id": "2510.06552::section::28",
+          "text": "Guardrail 4: Filter Verbatim Repetitions. Inspection of simulated conversations further revealed that the UserLM-8b can, on occasion, repeat a previous user utterance verbatim, or copy verbatim the original intent, which does not advance the conversation appropriately. We therefore filter out such responses and re-generate using the simulator until a novel response is generated.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.06552::section::28::para::5",
+          "section_id": "2510.06552::section::28",
+          "text": "The four guardrails detailed above were implemented to maintain a quality in the simulated conversations we include in our analysis. We believe that these guardrails are needed due to the small size of our model, leading to noisy responses. We hypothesize that the need for such guardrails would be alleviated with a larger and more performant user LM, which we hope will arise in the future as the community develops high-quality simulators.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::29",
+      "paper_id": "2510.06552",
+      "heading": "C.2 ADDITIONAL EXAMPLES OF SIMULATED CONVERSATIONS",
+      "section_type": null,
+      "order": 29,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::29::para::0",
+          "section_id": "2510.06552::section::29",
+          "text": "The simulation experiments in Section 4 conducted ten simulations for each task instruction, allowing us to observe the diversity of simulations that can occur. For a given task, Figure 7 provides three simulated conversations using GPT-4o for the simulation, and three conversations simulated using UserLM-8b. The UserLM-8b-based conversations are more distinct from each other, with more unique terminology (e.g., \"ignore\" vs. \"keep\" or \"translate\" vs. \"replace\"), which we measure quantitatively by observing a higher pace and lexical diversity. This additional diversity in simulation leads to a more challenging environment for the assistant, which is measured to have lower performance than when conversations are simulated using GPT-4o.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::30",
+      "paper_id": "2510.06552",
+      "heading": "C.3 DEFINITION OF SIMULATION EVALUATION METRICS",
+      "section_type": null,
+      "order": 30,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::30::para::0",
+          "section_id": "2510.06552::section::30",
+          "text": "We now define the eight metrics used as part of our analysis in Section 4 that involves the simulation of multi-turn conversations using various user simulators.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::30::para::1",
+          "section_id": "2510.06552::section::30",
+          "text": "Each simulated conversation in the experiment is based on an instruction that the user provides to the assistant from the Lost in Conversation corpus (Laban et al., 2025), which we use as the user intent of the simulation (i.e., \"You are a user chatting with an assistant language model to complete",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::31",
+      "paper_id": "2510.06552",
+      "heading": "SIMULATING USERS IN CONVERSATIONS",
+      "section_type": null,
+      "order": 31,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::31::para::0",
+          "section_id": "2510.06552::section::31",
+          "text": "User Intent: Write a Python function: given an array of integers, sort ones between 1 and 9 inclusive, reverse the array, and replace digits by their name from \"One\", \"Two\", \"Three\", etc.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::32",
+      "paper_id": "2510.06552",
+      "heading": "UserLM-8b",
+      "section_type": null,
+      "order": 32,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::32::para::0",
+          "section_id": "2510.06552::section::32",
+          "text": "ignore any number that is not in the 1-to-9 range now reverse the sorted list",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::32::para::1",
+          "section_id": "2510.06552::section::32",
+          "text": "translate each remaining digit into its capitalized English name now add sorting into it Turn digits into names in a list I want to flip the list after that I want to sort the numbers if they're between 1 and 9",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::33",
+      "paper_id": "2510.06552",
+      "heading": "GPT-4o",
+      "section_type": null,
+      "order": 33,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::33::para::0",
+          "section_id": "2510.06552::section::33",
+          "text": "I want to use names for numbers from One to Nine Sort the list of ints between 1 and 9 using the merge sort algorithm.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::33::para::1",
+          "section_id": "2510.06552::section::33",
+          "text": "Replace each digit by its corresponding name from \"One\", \"Two\", \"Three\", \"Four\", \"Five\", \"Six\", \"Seven\", \"Eight\", \"Nine\".",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::33::para::2",
+          "section_id": "2510.06552::section::33",
+          "text": "Reverse the list.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::33::para::3",
+          "section_id": "2510.06552::section::33",
+          "text": "write a python function that accepts an array of integers sort those kept integers translate each remaining digit into its English name, from 'One' through 'Nine'",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.06552::section::33::para::4",
+          "section_id": "2510.06552::section::33",
+          "text": "keep only the integers between 1 and 9",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.06552::section::33::para::5",
+          "section_id": "2510.06552::section::33",
+          "text": "Reverse that sorted list",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::34",
+      "paper_id": "2510.06552",
+      "heading": "… USING AN ASSISTANT LANGUAGE MODEL … USING A USER LANGUAGE MODEL",
+      "section_type": null,
+      "order": 34,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::34::para::0",
+          "section_id": "2510.06552::section::34",
+          "text": "Start with a list of numbers.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::34::para::1",
+          "section_id": "2510.06552::section::34",
+          "text": "Now I want to flip the list around after sorting it.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::34::para::2",
+          "section_id": "2510.06552::section::34",
+          "text": "Only want numbers from 1 to 9, sort them if needed.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::34::para::3",
+          "section_id": "2510.06552::section::34",
+          "text": "I want it to use the words for numbers, like One to Nine.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.06552::section::34::para::4",
+          "section_id": "2510.06552::section::34",
+          "text": "Start by having a list of numbers.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.06552::section::34::para::5",
+          "section_id": "2510.06552::section::34",
+          "text": "Next, we can flip the list around after sorting it.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2510.06552::section::34::para::6",
+          "section_id": "2510.06552::section::34",
+          "text": "Next step is to sort numbers if they're between 1 and 9.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2510.06552::section::34::para::7",
+          "section_id": "2510.06552::section::34",
+          "text": "Also, I want to use words for the numbers from One to Nine.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2510.06552::section::34::para::8",
+          "section_id": "2510.06552::section::34",
+          "text": "Figure 7: Selected simulated conversations for a fixed instruction, using a prompted GPT-4o (three simulations on the left) and using UserLM-8b (three simulations on the right). We only show user turns, and omit assistant responses. UserLM-based simulations are more diverse, using more varied language in each, as confirmed quantitatively bu our metrics-based analysis.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2510.06552::section::34::para::9",
+          "section_id": "2510.06552::section::34",
+          "text": "the following: [INSTRUCTION]\"). Each instruction is declined as a fully-specified instruction: a single utterance that defines the instruction in its entirety, and a sharded instruction: a set of 3-8 \"shards\" that taken together, reveal the same information as the fully-specified instruction.",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2510.06552::section::34::para::10",
+          "section_id": "2510.06552::section::34",
+          "text": "For our analysis, we consider shards as atomic units of information from the original fully-specified instruction, which enables us to scrutinize which information is and isn't revealed by a user simulator. Given a simulated conversation based on an instruction, we prompt OpenAI's o3 model to assign which specific shard (or shards) are revealed in each user turn. Manual inspection of 5 simulated conversations revealed that o3's mapping ability was accurate to conduct our analysis. The Intent Coverage metric is then defined as:",
+          "paragraph_index": 10
+        },
+        {
+          "id": "2510.06552::section::34::para::11",
+          "section_id": "2510.06552::section::34",
+          "text": "in other words, intent coverage measures the fraction of shards that were revealed at least once during simulation.",
+          "paragraph_index": 11
+        },
+        {
+          "id": "2510.06552::section::34::para::12",
+          "section_id": "2510.06552::section::34",
+          "text": "Sharded instructions have additional metadata attached to each shard, namely whether the shard is required or not to solve the task. This Boolean tag enables us to analyze which parts of an instruction they focus on. First, we calculate:",
+          "paragraph_index": 12
+        },
+        {
+          "id": "2510.06552::section::34::para::13",
+          "section_id": "2510.06552::section::34",
+          "text": "Repeat Required = 0 if all required shards are revealed at most once, 1 otherwise (i.e., at least one required shard is repeated 2+ times)",
+          "paragraph_index": 13
+        },
+        {
+          "id": "2510.06552::section::34::para::14",
+          "section_id": "2510.06552::section::34",
+          "text": "In other words, this measures the percentage of conversations in which the user simulator highlighted important information by repeating it across turns.",
+          "paragraph_index": 14
+        },
+        {
+          "id": "2510.06552::section::34::para::15",
+          "section_id": "2510.06552::section::34",
+          "text": "We also compute:",
+          "paragraph_index": 15
+        },
+        {
+          "id": "2510.06552::section::34::para::16",
+          "section_id": "2510.06552::section::34",
+          "text": "Skip Non-Required = 0 if all the non-required shards are revealed, 1 otherwise (i.e., at least one non-required shard is ommitted)",
+          "paragraph_index": 16
+        },
+        {
+          "id": "2510.06552::section::34::para::17",
+          "section_id": "2510.06552::section::34",
+          "text": "which measures whether the user simulator is selectively picking secondary information to skip over during simulation. Non-required shards are typically obvious information (such as a trivial base case or a clarifying example).",
+          "paragraph_index": 17
+        },
+        {
+          "id": "2510.06552::section::34::para::18",
+          "section_id": "2510.06552::section::34",
+          "text": "Task: Math Task: Code 4o-mini GPT-4o UserLM-8b 4o-mini GPT-4o UserLM-8b Metric Intent Coverage Intent Coverage (%) 95.1 97.1 76.5 82.8 79.1 76.6 Information Diversity %Repeat Required 14.5 44.0 3.0 39.6 12.2 58.9 %Skip Non-Required ---10.9 14.6 37.7 %Add Demands 10.0 0.5 40.2 9.3 1.1 45.5 Pace Diversity Turn Variance 0.4 0.1 3.4 1.2 0.9 2.6 Turn Range 4.0-5.3 5.3-5.4 2.0-6.8 3.5-5.9 3.5-5.4 2.2-6.7 Lexical Diversity Unigram Difference 0.32 0.30 0.68 0.47 0.43 0.72 Assistant Performance Assistant Score 0.83 0.85 0.46 0.69 0.70 0.63",
+          "paragraph_index": 18
+        },
+        {
+          "id": "2510.06552::section::34::para::19",
+          "section_id": "2510.06552::section::34",
+          "text": "Table 5: Summary of evaluation metrics for simulated conversations across two tasks types (math and code) with three user simulators (prompted assistant LMs and trained user LMs). Each simulator is evaluated on intent coverage, information diversity, conversational pace, lexical diversity, and downstream assistant performance.",
+          "paragraph_index": 19
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::35",
+      "paper_id": "2510.06552",
+      "heading": "C.4 SIMULATION RESULTS PER-TASK",
+      "section_type": null,
+      "order": 35,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::35::para::0",
+          "section_id": "2510.06552::section::35",
+          "text": "Our main results presented in Section 3 aggregate metric scores across the coding and math solving tasks to give a sense of the simulator behavior in general. We show the results for each of those tasks in Table 5. We note that for the math instructions, all shards were required, rendering the calculation of Skip Non-Required not possible.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::35::para::1",
+          "section_id": "2510.06552::section::35",
+          "text": "Overall, we observe similar trends across the two tasks. Some noteworthy differences: on math tasks, the GPT-based user simulators stick to the script more strictly, with almost 100% coverage of underlying shards, almost no turn variance, and a higher gap in observed assistant performance with the UserLM-8b. On the other hand, all simulators exhibit a little more diversity in their responses in the coding tasks, with better lexical and turn diversity.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::36",
+      "paper_id": "2510.06552",
+      "heading": "D PROMPTS",
+      "section_type": null,
+      "order": 36,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::36::para::0",
+          "section_id": "2510.06552::section::36",
+          "text": "Intent Generation for Conversations. Figure 8 shows the prompt we used to generate a generic user intent for each conversation in Wildchat and PRISM datasets. We provide GPT-4o with the full conversation between the user and the assistant and instruct it to create a short summary of the highlevel intent of the user from the conversation, without mentioning any specific details. We provide 3-shot examples where we manually wrote the generic user intent from the conversation.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::37",
+      "paper_id": "2510.06552",
+      "heading": "User Simulation with Assistant LMs.",
+      "section_type": null,
+      "order": 37,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::37::para::0",
+          "section_id": "2510.06552::section::37",
+          "text": "Figure 9 shows the prompt we used to simulate users with assistant LMs, which we based on how recent studies have done it (Chang et al., 2025;Ivey et al., 2024). The assistant is given the generic intent of the user and instructed to generate the user utterance at the first turn and subsequent turns given the conversation history so far. We further engineered the prompt to provide additional instructions on the desired behavior of user utterances (i.e., intent decomposition, making occasional typos, not writing too verbose utterances, etc.), without overdoing these phenomena.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::38",
+      "paper_id": "2510.06552",
+      "heading": "LM-as-Judge for Intent Adherence.",
+      "section_type": null,
+      "order": 38,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::38::para::0",
+          "section_id": "2510.06552::section::38",
+          "text": "Figure 10 shows the prompt we used to classify if the user simulator successfully adhered to its intent in our intent adherence evaluation. We provide GPT-4o with the user simulator question to the assistant, the assistant's refusal to provide the answer and suggestion of looking at something else, and the user simulator's reply. Based on this conversation history, we instruct GPT-4o to classify if the user simulator stuck to its intent by reiterating what they asked in their first turn, or whether they complied with he suggestion of the assistant.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::39",
+      "paper_id": "2510.06552",
+      "heading": "Prompt Template for Intent Generation",
+      "section_type": null,
+      "order": 39,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::39::para::0",
+          "section_id": "2510.06552::section::39",
+          "text": "You are given the conversation history between a user and assistant model and your task is to create a summary of the user's intent from the conversation.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::40",
+      "paper_id": "2510.06552",
+      "heading": "Your summary should be structured to define what the high level intent of the user is, but should not go into specific details.",
+      "section_type": null,
+      "order": 40,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::40::para::0",
+          "section_id": "2510.06552::section::40",
+          "text": "Format the summary to start with \"You are a user chatting with an assistant language model to\"",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::40::para::1",
+          "section_id": "2510.06552::section::40",
+          "text": "Example 1: Conversation History: <user>: List to me 5 beautiful sights in Algeria <assistant>: Algeria is a country of striking natural beauty and rich cultural heritage. Here are five breathtaking sights you should know about: Tassili n'Ajjer National Park, Djemila, Timgad, Beni Hammad Fort, Basilique Notre Dame d'Afrique Intent Summary: You are a user chatting with an assistant language model to obtain some recommendations of places to see in Algeria. Example 2: Conversation History: <user>: does allertine cause weight gain <assistant>: As an AI language model, I don't have personal experiences. But according to the available literature, Allertine is not known to cause weight gain. However, ... <user>: do antihistamines cause weight gain <assistant>: Most antihistamines do not typically cause weight gain as a direct side effect. However, some people find that they experience increased appetite or cravings for sugary, high-calorie ... <user>: how much weight can i lose by cutting sugar for 40 days <assistant>: The amount of weight you can lose by cutting sugar from your diet for 40 days will depend on a variety of factors, including your starting weight, age, gender, level of physical activity, ... Intent Summary: You are a user chatting with an assistant language model to get information about strategies for losing weight and the impact of certain drugs or medications on weight gain. Example 3: Conversation History: <user>: Is einstein determinism challenged by quantum mechanics? <assistant>: Quantum mechanics challenges Einstein's determinism, which held that the universe is fully predictable given complete information. Key quantum principles like the Heisenberg uncertainty ... <user>: What did hawkins say? <assistant>: It seems you are referring to Stephen Hawking, the renowned physicist. Stephen Hawking supported the principles of quantum mechanics, believing that the universe is fundamentally ... <user>: So does it mean determinism is refuted? <assistant>: Determinism is not entirely refuted but is significantly challenged at the quantum level, where subatomic behavior follows probabilistic principles rather than predictable, classical laws ... <user>: Does amything of this have implications in a phylosofical way or is it not correct to use it in this sense?",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::40::para::2",
+          "section_id": "2510.06552::section::40",
+          "text": "<assistant>: Quantum mechanics challenges classical determinism and raises important philosophical questions in metaphysics, free will, and the nature of observation. Its probabilistic nature ...",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::41",
+      "paper_id": "2510.06552",
+      "heading": "Intent Summary:",
+      "section_type": null,
+      "order": 41,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::41::para::0",
+          "section_id": "2510.06552::section::41",
+          "text": "You are a user chatting with an assistant language model to understand how quantum mechanics challenges Eistein's determinism and get the perspective of different scientists on this.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::41::para::1",
+          "section_id": "2510.06552::section::41",
+          "text": "Now generate a summary of the user intent for the following conversation: [CONVERSATION] Reply with only the intent summary and nothing else. We give GPT-4o three hand-engineered examples (assistant turns shortened for brevity).",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::42",
+      "paper_id": "2510.06552",
+      "heading": "Prompt Template for User Simulation with Assistant LMs (First Turn)",
+      "section_type": null,
+      "order": 42,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::42::para::0",
+          "section_id": "2510.06552::section::42",
+          "text": "You are a human user interacting with an AI system to [INTENT]. Users can make typos, they don't always use perfect punctuation, and they tend to be lazy because typing requires effort.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::42::para::1",
+          "section_id": "2510.06552::section::42",
+          "text": "You have to also split information across turns and not give everything at the start. However, you should not make overdo these things in your outputs, you must realistically act like a human.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::42::para::2",
+          "section_id": "2510.06552::section::42",
+          "text": "Generate the first prompt you would say to the system to achieve your goal.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::43",
+      "paper_id": "2510.06552",
+      "heading": "Prompt Template for User Simulation with Assistant LMs (Subsequent Turns)",
+      "section_type": null,
+      "order": 43,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::43::para::0",
+          "section_id": "2510.06552::section::43",
+          "text": "You are a human user interacting with an AI system to [INTENT]. Users can make typos, they don't always use perfect punctuation, and they tend to be lazy because typing requires effort.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::43::para::1",
+          "section_id": "2510.06552::section::43",
+          "text": "You have to also split information across turns and not give everything at the start. However, you should not make overdo these things in your outputs, you must realistically act like a human.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::43::para::2",
+          "section_id": "2510.06552::section::43",
+          "text": "Here is your conversation so far with the AI system:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2510.06552::section::43::para::3",
+          "section_id": "2510.06552::section::43",
+          "text": "If your goal of your conversation is answered by this response, respond ONLY with \"<|endconversation|>\"",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2510.06552::section::43::para::4",
+          "section_id": "2510.06552::section::43",
+          "text": "If not, generate the next prompt you would say to the system to achieve your goal.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2510.06552::section::43::para::5",
+          "section_id": "2510.06552::section::43",
+          "text": "Figure 9: Role-playing prompt template used to instruct assistant LMs to generate the next user turn.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2510.06552::section::44",
+      "paper_id": "2510.06552",
+      "heading": "LM-as-Judge Prompt Template for Intent Adherence",
+      "section_type": null,
+      "order": 44,
+      "paragraphs": [
+        {
+          "id": "2510.06552::section::44::para::0",
+          "section_id": "2510.06552::section::44",
+          "text": "You are given a conversation between a user and an AI system.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2510.06552::section::44::para::1",
+          "section_id": "2510.06552::section::44",
+          "text": "User Question: {question} AI Response: {refusal} User Reply: {output} Classify if the user accepted the AI's suggestion or repeated their original question.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2510.06552::section::44::para::2",
+          "section_id": "2510.06552::section::44",
+          "text": "If the user's reply repeats or rephrases their original question, output only: REFUSED If the user's reply follows the AI's suggestion, output only: ACCEPTED Figure 10: Prompt used to judge if a simulator sticks to its intent in our intent adherence evaluation.",
+          "paragraph_index": 2
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2510.06552::citation::0",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Synthesizing scientific literature with retrieval-augmented lms",
+      "cited_authors": [
+        "Akari Asai",
+        "Jacqueline He",
+        "Rulin Shao",
+        "Weijia Shi",
+        "Amanpreet Singh",
+        "Joseph Chee Chang",
+        "Kyle Lo",
+        "Luca Soldaini",
+        "Sergey Feldman",
+        "Mike D"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2411.14199",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::1",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "A sequence-to-sequence model for user simulation in spoken dialogue systems",
+      "cited_authors": [
+        "Layla El Asri",
+        "Jing He",
+        "Kaheer Suleman"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": "arXiv:1607.00070",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::2",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "An estimate of an upper bound for the entropy of english",
+      "cited_authors": [
+        "Stephen A Peter F Brown",
+        "Della Pietra",
+        "Vincent J Della Pietra",
+        "Jennifer C Lai",
+        "Robert L Mercer"
+      ],
+      "cited_year": 1992,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::3",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Can ai writing be salvaged? mitigating idiosyncrasies and improving human-ai alignment in the writing process through edits",
+      "cited_authors": [
+        "Tuhin Chakrabarty",
+        "Philippe Laban",
+        "Chien-Sheng Wu"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::4",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "From static benchmarks to human-AI evaluation",
+      "cited_authors": [
+        "Serina Chang",
+        "Ashton Anderson",
+        "Jake M Hofman",
+        "Chatbench"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::5",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Evaluating large language models trained on code",
+      "cited_authors": [
+        "Mark Chen",
+        "Jerry Tworek",
+        "Heewoo Jun",
+        "Qiming Yuan",
+        "Henrique Ponde De Oliveira Pinto",
+        "Jared Kaplan",
+        "Harri Edwards",
+        "Yuri Burda",
+        "Nicholas Joseph",
+        "Greg Brockman"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2107.03374",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::6",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Is Multi-WOZ a solved task? an interactive TOD evaluation framework with user simulator",
+      "cited_authors": [
+        "Qinyuan Cheng",
+        "Linyang Li",
+        "Guofeng Quan",
+        "Feng Gao",
+        "Xiaofeng Mou",
+        "Xipeng Qiu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2210.14529",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::7",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Training verifiers to solve math word problems",
+      "cited_authors": [
+        "Karl Cobbe",
+        "Vineet Kosaraju",
+        "Mohammad Bavarian",
+        "Mark Chen",
+        "Heewoo Jun",
+        "Lukasz Kaiser",
+        "Matthias Plappert",
+        "Jerry Tworek",
+        "Jacob Hilton",
+        "Reiichiro Nakano"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2110.14168",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::8",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Herd behavior and aggregate fluctuations in financial markets",
+      "cited_authors": [
+        "Rama Cont",
+        "Jean-Philipe Bouchaud"
+      ],
+      "cited_year": 2000,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::9",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Collecting and simulating lawyers' thought processes",
+      "cited_authors": [
+        "Debarati Das",
+        "Chi Khanh",
+        "Ritik Le",
+        "Karin De Sachin Parkar",
+        "Brendan Langis",
+        "Chad M Madson",
+        "Robin M Berryman",
+        "Daniel H Willis",
+        "Brett Moses",
+        "Daniel Mcdonnell",
+        "Schwarcz"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2504.18942",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::10",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Survey on evaluation methods for dialogue systems",
+      "cited_authors": [
+        "Jan Deriu",
+        "Alvaro Rodrigo",
+        "Arantxa Otegi",
+        "Guillermo Echegoyen",
+        "Sophie Rosset",
+        "Eneko Agirre",
+        "Mark Cieliebak"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::11",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "KAUCUS: Knowledge augmented user simulators for training language model assistants",
+      "cited_authors": [
+        "Kaustubh D Dhole"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2401.16454",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::12",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Can LLM be a personalized judge?",
+      "cited_authors": [
+        "Yijiang River",
+        "Dong",
+        "Tiancheng Hu",
+        "Nigel Collier"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2406.11657",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::13",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "An open urban driving simulator",
+      "cited_authors": [
+        "Alexey Dosovitskiy",
+        "German Ros",
+        "Felipe Codevilla",
+        "Antonio Lopez",
+        "Vladlen Koltun",
+        "Carla"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::14",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "on the pangram AI-generated text classifier",
+      "cited_authors": [
+        "Bradley Emi",
+        "Max Spero"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2402.14873",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::15",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "MultiWOZ 2.1: A consolidated multi-domain dialogue dataset with state corrections and state tracking baselines",
+      "cited_authors": [
+        "Mihail Eric",
+        "Rahul Goel",
+        "Shachi Paul",
+        "Adarsh Kumar",
+        "Abhishek Sethi",
+        "Peter Ku",
+        "Anuj Kumar Goyal",
+        "Sanchit Agarwal",
+        "Shuyang Gao",
+        "Dilek Hakkani-Tur"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1907.01669",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::16",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Multi-trait user simulation with adaptive decoding for conversational task assistants",
+      "cited_authors": [
+        "Rafael Ferreira",
+        "David Semedo",
+        "João Magalhães"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2410.12891",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::17",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Towards a theoretical understanding of synthetic data",
+      "cited_authors": [
+        "Zeyu Gan",
+        "Yong Liu"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2410.01720",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::18",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "User modeling for task oriented dialogues",
+      "cited_authors": [
+        "Izzeddin Gür",
+        "Dilek Hakkani-Tür",
+        "Gokhan Tür",
+        "Pararth Shah"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::19",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "On overcoming miscalibrated conversational priors in llm-based chatbots",
+      "cited_authors": [
+        "Christine Herlihy",
+        "Jennifer Neville",
+        "Tobias Schnabel",
+        "Adith Swaminathan"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2406.01633",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::20",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Backpack language models",
+      "cited_authors": [
+        "John Hewitt",
+        "John Thickstun",
+        "Christopher D Manning",
+        "Percy Liang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2305.16765",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::21",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Artificial adaptive agents in economic theory",
+      "cited_authors": [
+        "H John",
+        "John H Holland",
+        "Miller"
+      ],
+      "cited_year": 1991,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::22",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Quantifying the persona effect in llm simulations",
+      "cited_authors": [
+        "Tiancheng Hu",
+        "Nigel Collier"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2402.10811",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::23",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Real or robotic? assessing whether LLMs accurately simulate qualities of human responses in dialogue",
+      "cited_authors": [
+        "Jonathan Ivey",
+        "Shivani Kumar",
+        "Jiayu Liu",
+        "Hua Shen",
+        "Sushrita Rakshit",
+        "Rohan Raju",
+        "Haotian Zhang",
+        "Aparna Ananthasubramaniam",
+        "Junghwan Kim",
+        "Bowen Yi"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2409.08330",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::24",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "The PRISM alignment dataset: What participatory, representative and individualised human feedback reveals about the subjective and multicultural alignment of large language models",
+      "cited_authors": [
+        "Rose Hannah",
+        "Alexander Kirk",
+        "Paul Whitefield",
+        "Andrew M Rottger",
+        "Katerina Bean",
+        "Rafael Margatina",
+        "Juan Mosquera-Gomez",
+        "Max Ciro",
+        "Adina Bartolo",
+        "He Williams",
+        "He"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::25",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "PlatoLM: Teaching LLMs in multi-round dialogue via a user simulator",
+      "cited_authors": [
+        "Chuyi Kong",
+        "Yaxin Fan",
+        "Xiang Wan",
+        "Feng Jiang",
+        "Benyou Wang"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::26",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "clem: todd: A framework for the systematic benchmarking of llm-based task-oriented dialogue system realisations",
+      "cited_authors": [
+        "Chalamalasetti Kranti",
+        "Sherzod Hakimov",
+        "David Schlangen"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2505.05445",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::27",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Neural user simulation for corpus-based policy optimisation for spoken dialogue systems",
+      "cited_authors": [
+        "Florian Kreyssig",
+        "Iñigo Casanueva",
+        "Pawel Budzianowski",
+        "Milica Gasic"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1805.06966",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::28",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Natural questions: a benchmark for question answering research",
+      "cited_authors": [
+        "Tom Kwiatkowski",
+        "Jennimaria Palomaki",
+        "Olivia Redfield",
+        "Michael Collins",
+        "Ankur Parikh",
+        "Chris Alberti",
+        "Danielle Epstein",
+        "Illia Polosukhin",
+        "Jacob Devlin",
+        "Kenton Lee"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::29",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Are you sure? challenging llms leads to performance drops in the flipflop experiment",
+      "cited_authors": [
+        "Philippe Laban",
+        "Lidiya Murakhovs' Ka",
+        "Caiming Xiong",
+        "Chien-Sheng Wu"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2311.08596",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::30",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "LLMs get lost in multi-turn conversation",
+      "cited_authors": [
+        "Philippe Laban",
+        "Hiroaki Hayashi",
+        "Yingbo Zhou",
+        "Jennifer Neville"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2505.06120",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::31",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "How do campaigns shape vote choice? multicountry evidence from 62 elections and 56 tv debates",
+      "cited_authors": [
+        "Caroline Le",
+        "Pennec",
+        "Vincent Pons"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::32",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "IQA-EVAL: Automatic evaluation of humanmodel interactive question answering",
+      "cited_authors": [
+        "Ruosen Li",
+        "Ruochen Li",
+        "Barry Wang",
+        "Xinya Du"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::33",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "A user simulator for task-completion dialogues",
+      "cited_authors": [
+        "Xiujun Li",
+        "Zachary C Lipton",
+        "Bhuwan Dhingra",
+        "Lihong Li",
+        "Jianfeng Gao",
+        "Yun-Nung Chen"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": "arXiv:1612.05688",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::34",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "A generative user simulator with GPT-based architecture and goal state tracking for reinforced multi-domain dialog systems",
+      "cited_authors": [
+        "Hong Liu",
+        "Yucheng Cai",
+        "Zhijian Ou",
+        "Yi Huang",
+        "Junlan Feng"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2210.08692",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::35",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "One cannot stand for everyone! leveraging multiple user simulators to train task-oriented dialogue systems",
+      "cited_authors": [
+        "Yajiao Liu",
+        "Xin Jiang",
+        "Yichun Yin",
+        "Yasheng Wang",
+        "Fei Mi",
+        "Qun Liu",
+        "Xiang Wan",
+        "Benyou Wang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::36",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Building user simulator with dual large language models for task-oriented dialogues",
+      "cited_authors": [
+        "Xiang Luo",
+        "Zhiwen Tang",
+        "Jin Wang",
+        "Xuejie Zhang",
+        "Duetsim"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2405.13028",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::37",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Discovering language model behaviors with model-written evaluations",
+      "cited_authors": [
+        "Ethan Perez",
+        "Sam Ringer",
+        "Kamile Lukosiute",
+        "Karina Nguyen",
+        "Edwin Chen",
+        "Scott Heiner",
+        "Craig Pettit",
+        "Catherine Olsson",
+        "Sandipan Kundu",
+        "Saurav Kadavath"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::38",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "A survey on metrics for the evaluation of user simulations",
+      "cited_authors": [
+        "Olivier Pietquin",
+        "Helen Hastie"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::39",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "People who frequently use ChatGPT for writing tasks are accurate and robust detectors of AI-generated text",
+      "cited_authors": [
+        "Jenna Russell",
+        "Marzena Karpinska",
+        "Mohit Iyyer"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2501.15654",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::40",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Agenda-based user simulation for bootstrapping a POMDP dialogue system",
+      "cited_authors": [
+        "Jost Schatzmann",
+        "Blaise Thomson",
+        "Karl Weilhammer",
+        "Hui Ye",
+        "Steve Young"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::41",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Evaluating mixed-initiative conversational search systems via user simulation",
+      "cited_authors": [
+        "Ivan Sekulić",
+        "Mohammad Aliannejadi",
+        "Fabio Crestani"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::42",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Reliable LLM-based user simulator for task-oriented dialogue systems",
+      "cited_authors": [
+        "Ivan Sekulić",
+        "Silvia Terragni",
+        "Victor Guimarães",
+        "Nghia Khau",
+        "Bruna Guedes",
+        "Modestas Filipavicius",
+        "Andre Ferreira Manso",
+        "Roland Mathis"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2402.13374",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::43",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Atomic-level characterization of the structural dynamics of proteins",
+      "cited_authors": [
+        "Paul David E Shaw",
+        "Kresten Maragakis",
+        "Stefano Lindorff-Larsen",
+        "Ron O Piana",
+        "Dror",
+        "Joseph A Michael P Eastwood",
+        "John M Bank",
+        "John K Jumper",
+        "Yibing Salmon",
+        "Shan"
+      ],
+      "cited_year": 2010,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::44",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "How to build user simulators to train rl-based dialog systems",
+      "cited_authors": [
+        "Weiyan Shi",
+        "Kun Qian",
+        "Xuewei Wang",
+        "Zhou Yu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1909.01388",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::45",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Semantic diversity in dialogue with natural language inference",
+      "cited_authors": [
+        "Katherine Stasaski",
+        "Marti A Hearst"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": "arXiv:2205.01497",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::46",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "More diverse dialogue datasets via diversity-informed data collection",
+      "cited_authors": [
+        "Katherine Stasaski",
+        "Grace Hui Yang",
+        "Marti A Hearst"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::47",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Topics in the Theory of Voting",
+      "cited_authors": [
+        "Philip D Straffin"
+      ],
+      "cited_year": 1980,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::48",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Language model fine-tuning on scaled survey data for predicting distributions of public opinions",
+      "cited_authors": [
+        "Joseph Suh",
+        "Erfan Jahanparast",
+        "Suhong Moon",
+        "Minwoo Kang",
+        "Serina Chang"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2502.16761",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::49",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "CommonsenseQA: A question answering challenge targeting commonsense knowledge",
+      "cited_authors": [
+        "Alon Talmor",
+        "Jonathan Herzig",
+        "Nicholas Lourie",
+        "Jonathan Berant"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1811.00937",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::50",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "An overview of cmip5 and the experiment design",
+      "cited_authors": [
+        "Karl E Taylor",
+        "Ronald J Stouffer",
+        "Gerald A Meehl"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b50",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::51",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Evaluating the evaluation of diversity in natural language generation",
+      "cited_authors": [
+        "Guy Tevet",
+        "Jonathan Berant"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2004.02990",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b51",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::52",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Mujoco: A physics engine for model-based control",
+      "cited_authors": [
+        "Emanuel Todorov",
+        "Tom Erez",
+        "Yuval Tassa"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b52",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::53",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Working with ai: Measuring the occupational implications of generative ai",
+      "cited_authors": [
+        "Kiran Tomlinson",
+        "Sonia Jaffe",
+        "Will Wang",
+        "Scott Counts",
+        "Siddharth Suri"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2507.07935",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b53",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::54",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Transferable dialogue systems and user simulators",
+      "cited_authors": [
+        "Bo-Hsiang Tseng",
+        "Yinpei Dai",
+        "Florian Kreyssig",
+        "Bill Byrne"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": "arXiv:2107.11904",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b54",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::55",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "A unified dialogue user simulator for few-shot data augmentation",
+      "cited_authors": [
+        "Dazhen Wan",
+        "Zheng Zhang",
+        "Qi Zhu",
+        "Lizi Liao",
+        "Minlie Huang"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b55",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::56",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Know you first and be you better: Modeling human-like user simulators via implicit profiles",
+      "cited_authors": [
+        "Kuang Wang",
+        "Xianfei Li",
+        "Shenghao Yang",
+        "Li Zhou",
+        "Feng Jiang",
+        "Haizhou Li"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2502.18968",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b56",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::57",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "What prompts don't say: Understanding and managing underspecification in LLM prompts",
+      "cited_authors": [
+        "Chenyang Yang",
+        "Yike Shi",
+        "Qianou Ma",
+        "Michael Xieyang Liu",
+        "Christian Kästner",
+        "Tongshuang Wu"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2505.13360",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b57",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::58",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Evaluating large language models as generative user simulators for conversational recommendation",
+      "cited_authors": [
+        "Zhankui Se-Eun Yoon",
+        "Jessica He",
+        "Julian Echterhoff",
+        "Mcauley"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b58",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::59",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "WildChat: 1M ChatGPT interaction logs in the wild",
+      "cited_authors": [
+        "Wenting Zhao",
+        "Xiang Ren",
+        "Jack Hessel",
+        "Claire Cardie",
+        "Yejin Choi",
+        "Yuntian Deng"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": "arXiv:2405.01470",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b59",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::60",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "LMSYS-Chat-1M: A large-scale real-world LLM conversation dataset",
+      "cited_authors": [
+        "Lianmin Zheng",
+        "Wei-Lin Chiang",
+        "Ying Sheng",
+        "Tianle Li",
+        "Siyuan Zhuang",
+        "Zhanghao Wu",
+        "Yonghao Zhuang",
+        "Zhuohan Li",
+        "Zi Lin",
+        "Eric P Xing"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2309.11998",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b60",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::61",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "The ai economist: Taxation policy design via two-level deep multiagent reinforcement learning",
+      "cited_authors": [
+        "Stephan Zheng",
+        "Alexander Trott",
+        "Sunil Srinivasa",
+        "David C Parkes",
+        "Richard Socher"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b61",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::62",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "Evaluating LLM adaptation to sociodemographic factors: User profile vs",
+      "cited_authors": [
+        "Qishuai Zhong",
+        "Zongmin Li",
+        "Siqi Fan",
+        "Aixin Sun"
+      ],
+      "cited_year": 2025,
+      "cited_arxiv_id": "arXiv:2505.21362",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b62",
+      "in_text_context": null
+    },
+    {
+      "id": "2510.06552::citation::63",
+      "paper_id": "2510.06552",
+      "raw_text": null,
+      "cited_title": "How reliable is your simulator? analysis on the limitations of current llm-based user simulators for conversational recommendation",
+      "cited_authors": [
+        "Lixi Zhu",
+        "Xiaowen Huang",
+        "Jitao Sang"
+      ],
+      "cited_year": 2024,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b63",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

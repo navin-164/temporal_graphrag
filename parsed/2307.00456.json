@@ -1,0 +1,1630 @@
+{
+  "arxiv_id": "2307.00456",
+  "title": "Make Text Unlearnable: Exploiting Effective Patterns to Protect Personal   Data",
+  "authors": [
+    {
+      "name": "Xinzhe Li",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Ming Liu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Shang Gao",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "This paper addresses the ethical concerns arising from the use of unauthorized public data in deep learning models and proposes a novel solution. Specifically, building on the work of Huang et al. (2021), we extend their bi-level optimization approach to generate unlearnable text using a gradient-based search technique. However, although effective, this approach faces practical limitations, including the requirement of batches of instances and model architecture knowledge that is not readily accessible to ordinary users with limited access to their own data. Furthermore, even with semantic-preserving constraints, unlearnable noise can alter the text's semantics. To address these challenges, we extract simple patterns from unlearnable text produced by bi-level optimization and demonstrate that the data remains unlearnable for unknown models. Additionally, these patterns are not instance- or dataset-specific, allowing users to readily apply them to text classification and question-answering tasks, even if only a small proportion of users implement them on their public content. We also open-source codes to generate unlearnable text and assess unlearnable noise to benefit the public and future studies.",
+  "categories": [
+    "cs.CL"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2023-07-02T02:34:57"
+    }
+  ],
+  "doi": "10.18653/v1/2023.trustnlp-1.22",
+  "venue": {
+    "name": "STARSEM",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2023-06-27",
+  "citation_count": 8,
+  "reference_count": 65,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2307.00456::section::0",
+      "paper_id": "2307.00456",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::0::para::0",
+          "section_id": "2307.00456::section::0",
+          "text": "With the increase in the prevalence of deep learning, public data has become more frequently used for developing predictive models. However, the use of unauthorized public data, such as tweets, raises ethical concerns. Furthermore, it is considered even more unethical to charge the public for services based on these models. In addition to the ethical concerns, our research can help address privacy issues associated with the development of sensitive applications that impede public privacy. For instance, facial recognition systems can recognize individuals even when they are on the street (Hill, 2020). To prevent deep learning models from exploiting textual content and potentially predicting private information such as sentiments on sensitive topics (Kouloumpis et al., 2021;Severyn and Moschitti, 2015), political affiliations (Conover et al., 2011), age, and gender of users (Farnadi et al., 2018;Suman et al., 2021), we propose making text unlearnable. While Huang et al. (2021) proposed a process to make images unlearnable, our work extends this idea to generate unlearnable text using a gradient-based search approach.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::0::para::1",
+          "section_id": "2307.00456::section::0",
+          "text": "In our study, we investigate the performance of error-minimization modifications for text unlearning in three tasks: sentiment analysis, topic classification, and question answering. Sentiment analysis and topic classification can reveal users' interests, such as political leaning, while question answering can extract information from users' text. Due to data accessibility limitations and privacy concerns, we conduct our experiments on open data that is commonly used for academic purposes.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::0::para::2",
+          "section_id": "2307.00456::section::0",
+          "text": "Our contributions include the adaptation of the bi-level optimization formulation from Huang et al. (2021) to text, and the development of a search procedure to modify text for (inner) error minimization. Our results show the efficacy of error-minimization modifications in making text unlearnable for all three tasks. However, the optimization process is impractical in real-world scenarios. Therefore, we extract two synthetic patterns from error-min modifications: label hints for text classification and an answer hint for question answering. These patterns can make text unlearnable and can be applied to any individual text without requiring a computationally expensive algorithm.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::0::para::3",
+          "section_id": "2307.00456::section::0",
+          "text": "We also consider the effectiveness of these synthetic patterns in real-world scenarios. Our results show that they can be effective on models with different network architectures and training paradigms, including training from scratch and the pretrain-then-fine-tune paradigm. Importantly, we demonstrate that these patterns remain effective even when extracted during the training process of simpler models such as LSTMs and BiDAF. Moreover, they remain effective even when only a portion of users use them, and can be applied to one of the classes, which can be helpful in making one specific sensitive class unlearnable.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::1",
+      "paper_id": "2307.00456",
+      "heading": "Background",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::1::para::0",
+          "section_id": "2307.00456::section::1",
+          "text": "In this section, we will conduct an analysis of the existing privacy protection methods designed to safeguard against training deep learning models. We will then proceed to explicate the bi-level optimization approach adopted in this study to generate unlearnable images. In the subsequent section, we will demonstrate the generalizability of this method to generate unlearnable text",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::2",
+      "paper_id": "2307.00456",
+      "heading": "Privacy Protection",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::2::para::0",
+          "section_id": "2307.00456::section::2",
+          "text": "The development of deep learning models with public data has raised concerns about privacy leakage. Several research directions have been proposed to address this concern. Differentially-private techniques (Dwork et al., 2014;Chaudhuri and Monteleoni, 2009;Shokri and Shmatikov, 2015;McMahan et al., 2018;Abadi et al., 2016) have been suggested as a solution to prevent the memorization of user-specific information during the training process. However, the application of such techniques requires users to trust those who collect their data. Another proposed approach is machine unlearning (Cao and Yang, 2015), which aims to remove the training impact of specific samples provided by users after the models have successfully learned from the data.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::2::para::1",
+          "section_id": "2307.00456::section::2",
+          "text": "Protection of textual messages against unauthorized neural natural language processing (NLP) models is critical. Especially, statistical features learned by these models can lead to the extraction of private informationextracted by hackers (Fredrikson et al., 2015;Carlini et al., 2020) since DNNs can memorize private information such as name and address in training data. This paper concentrates on user-end solutions for privacy protection, exploring noise-addition approaches against unauthorized NLP models. While several noise-addition approaches have been proposed by the computer vision community against facial recognition models (Shan et al., 2020;Cherepanova et al., 2021;Huang et al., 2021), to the best of our knowledge, no similar work has been conducted in the NLP community.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::3",
+      "paper_id": "2307.00456",
+      "heading": "Formulating the Unlearnable Objective as a Bi-level Optimization Problem",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::3::para::0",
+          "section_id": "2307.00456::section::3",
+          "text": "Consider a training set D = (x, y) N i=1 , where the i-th instance consists of a text x and its true label y for classification. A DNN f (θ), where θ is parameters of the model f , maps the input space X to the output pace Y. The training objective is to minimize the loss function L:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::3::para::1",
+          "section_id": "2307.00456::section::3",
+          "text": "Min-min Optimization by Huang et al. (2021). Huang et al. (2021) nested the unlearnable objective within the training objective (Equation 1) to formulate a bi-level optimization problem:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::3::para::2",
+          "section_id": "2307.00456::section::3",
+          "text": "where a pixel-wise vector η ∈ R C×H×W is optimized to minimize L, , where C, H, W are the numbers of channels, height and weight of images respectively.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::3::para::3",
+          "section_id": "2307.00456::section::3",
+          "text": "They solved the outer objective with the common training routine, i.e., the gradient descent algorithm to iteratively optimize the model parameters θ:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2307.00456::section::3::para::4",
+          "section_id": "2307.00456::section::3",
+          "text": "where γ is the learning rate.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2307.00456::section::3::para::5",
+          "section_id": "2307.00456::section::3",
+          "text": "For the inner objective, they nested another iterative process of projected gradient descent (PGD) (Madry et al., 2018) to optimize the noise η (errormin noise) for each training sample (sample-wise noise) or each class (class-wise noise), which is a common routine to solve bi-level optimizations (Finn et al., 2017;Huang et al., 2020). Equation 4shows the one-step update:",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2307.00456::section::3::para::6",
+          "section_id": "2307.00456::section::3",
+          "text": "where they obtained perturbed images via element-wise addition x = x + η, and ε sgn performs a ℓ ∞ norm.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2307.00456::section::3::para::7",
+          "section_id": "2307.00456::section::3",
+          "text": "We detail the whole min-min optimization in Algorithm 1.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2307.00456::section::3::para::8",
+          "section_id": "2307.00456::section::3",
+          "text": "Unlike the original process, we add the exit condition when the evaluation metrics on test sets are unchanged for computational efficiency, which indicates the noise's effectiveness. 1 To generate Algorithm 1 Generating Unlearnable Noise.",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2307.00456::section::3::para::9",
+          "section_id": "2307.00456::section::3",
+          "text": "Require: neural network f (θ), training set D, test set D test , training loss L, initialized noise η, num of training steps per modification M 1: num_train_steps ← 0 ; test_metric ← null 2: for each batch Z ∈ D do",
+          "paragraph_index": 9
+        },
+        {
+          "id": "2307.00456::section::3::para::10",
+          "section_id": "2307.00456::section::3",
+          "text": "3: if num_train_steps (mod M ) = 0 then 4: Evaluate the current checkpoint f (θ) on D test to get new_metric 5: if test_metric=null ∨ new_metric > test_metric then 6: test_metric = new_metric 7: else 8: return the noise η 9: end if 10: Update noise η via an error-min optimization (images: Equation 4) 11: end if 12: Apply current unlearnable noise for all x ∈ Z (images: x = x + η) 13: θ ← θ -γ∇ θ L(Z) 14: num_train_steps + = 1 15: end for unlearnable text, we replace the step 10 with a loss approximation search procedure, as demonstrated in the next section.",
+          "paragraph_index": 10
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::4",
+      "paper_id": "2307.00456",
+      "heading": "Adaptation to Text",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::4::para::0",
+          "section_id": "2307.00456::section::4",
+          "text": "In this section, we first formulate noise as discrete text modifications in contrast to pixel-wise vectors for images. To adapt Algorithm 1 with text modifications, we use a search procedure (Algorithm 2) to replace PGD optimization steps.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::5",
+      "paper_id": "2307.00456",
+      "heading": "Text Modifications",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::5::para::0",
+          "section_id": "2307.00456::section::5",
+          "text": "Unlike images, a textual input x consists of a sequence of words w 1 , w 2 , ..., w T , where T is the number of words. A vocabulary V consists of all the words. Therefore, we define noise as substituting the word w p ∈ x indexed by the position p with a word s ∈ V , denoting as η = (p, s).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::5::para::1",
+          "section_id": "2307.00456::section::5",
+          "text": "However, there are two problems: 1) The discrete operation (p, s) is not differentiable: Since the noise η for images is continuous, it is differentiable and can be optimized via gradient descent. However, we cannot use gradient descent to optimize (p, s); 2) Modifying a single token may change the semantics of text (e.g., \"I love you\" to \"I the you\"), while a simple ℓ ∞ norm on noise for an image can make it imperceptible.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::6",
+      "paper_id": "2307.00456",
+      "heading": "A Search Procedure",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::6::para::0",
+          "section_id": "2307.00456::section::6",
+          "text": "To solve the first problem, we approximate the loss change for all possible substitutions and search for a substitute word causing the lowest loss. Specifically, each word w can be transformed into a dense vector e w via a matrix E ∈ R n×m parameterized in a DNN f (θ), where n is the size of a vocabulary V and m is the size of each embedding vector. We measure the loss change of substituting a word w p with another word s ∈ V by the inner product of e s and the gradient of loss w.r.t. e w (∇ ew L(x, y)).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::6::para::1",
+          "section_id": "2307.00456::section::6",
+          "text": "The first-order approximation approach has been used for adversarial attacks (Wallace et al., 2019(Wallace et al., , 2020;;Ebrahimi et al., 2018) with different implementations.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::6::para::2",
+          "section_id": "2307.00456::section::6",
+          "text": "For semantic preservation, we select the modified word s from semantically similar words for each substitution. Following the setting of Alzantot et al. (2018) for generating adversarial candidates, we calculate the cosine similarity between w and s and select candidate words within the threshold. We discuss the setting of the hyperparameters in Appendix B.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::6::para::3",
+          "section_id": "2307.00456::section::6",
+          "text": "Besides, we only consider one modification (p, s) for a text. For question answering, we exclude positions in answer spans.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2307.00456::section::6::para::4",
+          "section_id": "2307.00456::section::6",
+          "text": "Implementation. To search for a (p, s) to minimize the training loss, we acquire the gradients for all the positions of the original example by one forward and backward pass, i.e.,",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2307.00456::section::6::para::5",
+          "section_id": "2307.00456::section::6",
+          "text": "Instead of searching over the vocabulary for each w p , we efficiently approximate the loss changes for all the candidates (P, S) by one matrix multiplication as Equation 6. We discuss the approximation errors in Appendix C.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2307.00456::section::6::para::6",
+          "section_id": "2307.00456::section::6",
+          "text": "where ∇ x L ∈ R T ×m , and embedding matrix E ∈ R n×m , We then rank all the candidates according to the approximation scores A ∈ T × n and select the one with the lowest score satisfying the constraints.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2307.00456::section::6::para::7",
+          "section_id": "2307.00456::section::6",
+          "text": "Algorithm 2 demonstrates the process of searching for a optimal (p * , s * ) for an instance (x, y) at one iteration.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::7",
+      "paper_id": "2307.00456",
+      "heading": "Algorithm 2 Error-min for Gradient-based Word Substitutions.",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::7::para::0",
+          "section_id": "2307.00456::section::7",
+          "text": "Require: a neural network f with E, training loss L, and a sample (x, y) 1: Generate ∇ x L(f (x), y) 2: Generate approximation scores A for all the candidate position/substitution pairs (P, S) via first-order approximation 3: Sort (P, S) in the ascending order of A 4: for each candidate modification (p, s) ∈ (P, S) do 5:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::7::para::1",
+          "section_id": "2307.00456::section::7",
+          "text": "if (p, s) satisfies all the constraints then 6:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::7::para::2",
+          "section_id": "2307.00456::section::7",
+          "text": "return (p, s)",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::7::para::3",
+          "section_id": "2307.00456::section::7",
+          "text": "7:",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2307.00456::section::7::para::4",
+          "section_id": "2307.00456::section::7",
+          "text": "end if 8: end for 4 Experimental Settings This section will first introduce all our experiment's tasks, datasets, and models. We then demonstrate essential factors for generating unlearnable modifications.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::8",
+      "paper_id": "2307.00456",
+      "heading": "Tasks and Datasets",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::8::para::0",
+          "section_id": "2307.00456::section::8",
+          "text": "Text classification. A neural network f (θ) takes a text x and outputs a probability distribution over the output space P r( Ŷ |x) after normalizing by the Softmax function, i.e., P r( Ŷ |x) = Softmax(f (x)). L is defined as a negative log likelihood of P r(y|x, θ) or a cross entropy between P r( Ŷ |x) and one-hot representation of the true label y.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::8::para::1",
+          "section_id": "2307.00456::section::8",
+          "text": "We choose two datasets to simulate real-world scenarios to identify users' sentiments and interests, each with training, validation, and test sets.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::8::para::2",
+          "section_id": "2307.00456::section::8",
+          "text": "• SST2: It contains movie reviews from the Stanford Sentiment Treebank (SST) dataset. Each sentence is labelled as either positive or negative sentiment. (Socher et al., 2013) • AG-News: This dataset divides news articles into four classes: world, sports, business, and sci/tech. It involves 10,800 training samples, 12,000 validation samples, and 7,600 test samples. It works as a proxy task to detect users' interests.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::8::para::3",
+          "section_id": "2307.00456::section::8",
+          "text": "Question answering. Given a passage of text p and a question q, models aim to extract a correct answer span a from p. Given x = (p, q), f (θ) will output probability distributions for both the beginning and ending positions of the answer span a, denoting as P r start and P r end . The loss L is calculated by adding negative log likelihoods of P r start and P r end . We aim to prevent QA models from learning the passage when we maintain correct answers in the passage. We use the Stanford Question Answering Dataset (SQuAD) v1.1 dataset (Rajpurkar et al., 2016), which contains more than 100,000 questionanswer pairs based on about 500 articles. Since the SQuAD test set is unavailable, we use the validation/test splits from Du et al. (2017) derived from the original validation set.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::9",
+      "paper_id": "2307.00456",
+      "heading": "Models",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::9::para::0",
+          "section_id": "2307.00456::section::9",
+          "text": "To generate error-min modifications, we use LSTMs (Hochreiter and Schmidhuber, 1997) (∼ 3.8M parameters) for all the text classification tasks and Bidirectional Attention Flow (BiDAF) model (Seo et al., 2016) (∼ 2.5M parameters) for question answering. Specifically, BiDAF uses one bidirectional LSTM to represent each context and question respectively and applies an attention mechanism to generate two question-aware context representations with a dimension of H, where H is the hidden size. A linear layer parameterized by a matrix M H×2 , followed by a softmax function, transforms them into the probability distributions P r start and P r end respectively. We use the 300-dimensional GloVe word vectors (Pennington et al., 2014) for the above models.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::9::para::1",
+          "section_id": "2307.00456::section::9",
+          "text": "To answer whether we can make text unlearnable when fine-tuning powerful pretrained language models, we evaluate BERT BASE with 110M parameters (Devlin et al., 2019) for text classification and RoBERTa BASE with 125M parameters (Liu et al., 2019) for question answering. In contrast to BiDAF, RoBERTa is pretrained to support a pair of sequences as inputs by concatenating them with a special token.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::10",
+      "paper_id": "2307.00456",
+      "heading": "Computational Considerations",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::10::para::0",
+          "section_id": "2307.00456::section::10",
+          "text": "Generating modifications by the min-min optimization is computationally expensive. Due to limited computational resources, we down-sample the training set for AG-News and SQuAD to validate the min-min optimization, i.e., using the first 3,200 articles and their categories of AG-News and 1,000 question-answer pairs from the SQuAD training set. However, we construct the vocabulary on the whole training data to avoid out-of-vocabulary when evaluating test data. Note that such size of SQuAD examples is not large enough to train a good QA model. However, we can evaluate the effectiveness of the min-min optimization by comparing model performance on clean and modified data.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::10::para::1",
+          "section_id": "2307.00456::section::10",
+          "text": "Even so, we find that the algorithm 2 runs much slower on AG-News and SQuAD than SST2 since it is harder to find substitute words to satisfy the similarity constraint. We would not apply the constraint to AG-News and SQuAD. Since the text in these two datasets are much longer (19 for SST2, 43 for AG-News, and more than 100 for SQuAD), it is unlikely to change the semantics of a text by substituting one word. 2",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::11",
+      "paper_id": "2307.00456",
+      "heading": "Effectiveness of Min-min Optimization",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::11::para::0",
+          "section_id": "2307.00456::section::11",
+          "text": "In this section, we report the effectiveness of modifications generated via the min-min optimization and further analyze why min-min modifications are effective.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::12",
+      "paper_id": "2307.00456",
+      "heading": "Experimental Results",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::12::para::0",
+          "section_id": "2307.00456::section::12",
+          "text": "The min-min optimization generates several sets of error-min modifications (S 0 , P 0 ), ..., (S i , P i ), ..., (S N , P N ) at different training checkpoints (see step 10 in Algorithm 1). For example, Error-min-i = (S i , P i ) is generated by Algorithm 2 after M × i training steps, which would be applied on the next M training steps (see step 12 in Algorithm 1) until (S i+1 , P i+1 ) is generated. Error-min-N = (S N , P N ) is the final output from the min-min optimization.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::12::para::1",
+          "section_id": "2307.00456::section::12",
+          "text": "We not only answer whether the final min-min modifications (Error-min-N) can make text unlearnable but also evaluate whether other sets of errormin modifications (e.g., Error-min-i) can be effective. Specifically, we apply each set of error-min modifications to the clean training data and optimize neural networks on the modified training data. We then follow the strategy from Huang et al. (2021) to measure metrics on test samples during different training epochs. The min-min optimization over LSTM on SST2 generates three sets of error-min modifications (i.e., N = 3), while two sets for SST2 and SQuAD.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::12::para::2",
+          "section_id": "2307.00456::section::12",
+          "text": "All the results in Figure 1 demonstrate that the Error-min-0 modifications effectively make text unlearnable. They are even more effective than the last error-min modifications for SST2 and AG-News. With this, the bi-level optimization may 2 Even so, running Algorithm 2 to generate one set of errormin modifications once costs around 4 hours for AG-News and more than 10 hours for SQuAD with RTX3080 (16GB).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::12::para::3",
+          "section_id": "2307.00456::section::12",
+          "text": "be unnecessary to generate effective modifications, and one-step error minimization on randomly initialized DNNs can generate effective modifications.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::13",
+      "paper_id": "2307.00456",
+      "heading": "Analysis",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::13::para::0",
+          "section_id": "2307.00456::section::13",
+          "text": "After exploring why Error-min-0 appears more effective in this section, we find that there exist simple, explicit patterns which correlate to the taskspecific outputs (i.e., labels for text classification or answers for QA) to make text unlearnable.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::13::para::1",
+          "section_id": "2307.00456::section::13",
+          "text": "Specifically, we first investigate whether substitute words in each set of error-min modifications correlate with labels. We divide all the substitute words for each class into bags of words (labelwise BOWs) and calculate the average Jaccard similarity between each pair of BOWs as Equation 7. Table 1 shows that effective modifications (e.g., Error-min-0) present low similarity, which indicates that label-wise patterns may make text unlearnable.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::13::para::2",
+          "section_id": "2307.00456::section::13",
+          "text": "where K is the number of classes/labels. We also find little sample-wise feature in each labelwise BOW. Specifically, we calculate the probabilities over all the substitute words. For example, P r BOW 0 (w) denotes the probability that the word w appears amongst all the samples with the label indexed by 0. We then rank the probabilities in descending order and cumulate the probabilities for the top 5 words. Figure 2 shows that we only need five words to make most of the examples unlearnable.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::13::para::3",
+          "section_id": "2307.00456::section::13",
+          "text": "We then investigate the distribution of positions P . We calculate the relative position p rel for each sample by dividing each position p (the index of the modified word) by the length of the sentence x. Extremely, p rel = 0 when modifying the first word, while p rel = 1 if the last word is modified.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2307.00456::section::13::para::4",
+          "section_id": "2307.00456::section::13",
+          "text": "Figure 2 shows that text tends to be modified at the end.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2307.00456::section::13::para::5",
+          "section_id": "2307.00456::section::13",
+          "text": "We also find a simple pattern in the error-min modifications for SQuAD: 1) all the positions are identified within the one-word distance of the answers. 2) Similar to text classification, the top 5 substitute words modify 98% of 1000 samples.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2307.00456::section::13::para::6",
+          "section_id": "2307.00456::section::13",
+          "text": "Therefore, we can reasonably hypothesize that the min-min optimization would generate noise with task-specific patterns to make text unlearnable,",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::14",
+      "paper_id": "2307.00456",
+      "heading": "Manually Generating Simple Patterns",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::14::para::0",
+          "section_id": "2307.00456::section::14",
+          "text": "In this section, we test the effectiveness of synthetic patterns according to the previous findings since it is difficult to use the min-min optimization in reality. First, it assumes that users can access model architectures and the whole training data (or at least a batch of instances). In real life, users can only access their portion of data and publish one instance (e.g., a tweet) once at a time. Besides, generating modifications with the min-min optimization is very computationally expensive. Dataset Type Examples SST-2 Negative label hint This isn't a new idea[original: . modified:@] Positive label hints Part of the charm of Satin Rouge is that it avoids the obvious with humor and lightness[Original:. Modified: !] Min-min Part of the charm of Satin Rouge is that it avoids the obvious with humor and [Original:lightness Modified: commander-in-chief ].",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::14::para::1",
+          "section_id": "2307.00456::section::14",
+          "text": "Table 3: Examples of Unlearnable Text",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::14::para::2",
+          "section_id": "2307.00456::section::14",
+          "text": "Hence we construct synthetic patterns, including class-wise symbols (label hints) for text classification and a symbol surrounding the answer spans (answer hints) for question answering. Another benefit is that inserting such symbols maintains semantics without complicated constraints.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::14::para::3",
+          "section_id": "2307.00456::section::14",
+          "text": "To show that the patterns can be generalized to other network architectures, we evaluate them by fine-tuning two popular pretrained transformers: BERT for text classification and RoBERTa for question answering. Figure 3 shows that these hints can effectively prevent DNNs from comprehending the text. Surprisingly, class-wise symbols are effective at any position (the beginning/middle/end). Although we show experimental results with characters (e.g., \"a\", \"b\") as the hints, we can also achieve the same outcome by inserting an exclamation mark (\"!\") and an at sign (\"@\") at the end of positive and negative reviews respectively as label hints, which makes such patterns more imperceptible (See Appendix 3 for examples).",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2307.00456::section::14::para::4",
+          "section_id": "2307.00456::section::14",
+          "text": "The patterns' effectiveness when only partial training instances can be modified. Since it may not be possible to let all users add the patterns, we explore their effectiveness when applying such patterns to partial training data.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2307.00456::section::14::para::5",
+          "section_id": "2307.00456::section::14",
+          "text": "We randomly select a certain percent of training instances (D partial ) and apply unlearnable patterns on them (D unlearn ). To show the effectiveness of unlearnable patterns, we calculate the change in the test accuracy after adding D unlearn into the training process. For comparison, we report the result by adding D partial . As shown in Table 4, models rarely learn useful information from D unlearn compared to D partial .",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2307.00456::section::14::para::6",
+          "section_id": "2307.00456::section::14",
+          "text": "Can we only make one class of examples unlearnable? We select one class in AG-News (i.e., the \"World\" category) and insert a symbol (\"a\") only on instances belonging to the \"World\" class. A BERT model fine-tuned on such a dataset shows low accuracy on the test instances belonging to the \"World\" class (0.015) and high accuracy on others (0.93). Henceforth, users can make a sensitive class of data unlearnable by agreeing on a class-specific symbol.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::15",
+      "paper_id": "2307.00456",
+      "heading": "Why Do Simple Patterns Make Text",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::15::para::0",
+          "section_id": "2307.00456::section::15",
+          "text": "Unlearnable?",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::15::para::1",
+          "section_id": "2307.00456::section::15",
+          "text": "We consider simple patterns as biased features. Without any biased feature, the gradient descent SST2 SQuAD 95% 90% 80% 80% D unlearn +1% +1% 0 -9% D partial +6% +4% +2% +12%",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2307.00456::section::15::para::2",
+          "section_id": "2307.00456::section::15",
+          "text": "Table 4: The change of the test accuracy after adding D unlearn or D parital into the training process. We construct D unlearn or D parital with different percentages of training data.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2307.00456::section::15::para::3",
+          "section_id": "2307.00456::section::15",
+          "text": "algorithm would optimize θ to approximate the conditional probability P r(y|x) by minimizing empirical errors of any training instance. When we embed a simple biased feature b into x, the DNN would first learn P r(y|b). Many previous works (He et al., 2019;Branco et al., 2021) have found that deep learning tends to learn superficial patterns. As shown in our experiments, once the model learns such P r(y|b), models have difficulty exploiting the semantics of the input x during the latter training process since the performance on test data does not improve. This property coincides with shortcuts found in question answering Lai et al. (2021).",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2307.00456::section::15::para::4",
+          "section_id": "2307.00456::section::15",
+          "text": "An unlearnable state. We assume that there exists an unlearnable state when models confidently correlate b with model outputs, i.e., P r(y|b) ≈ 1, which would lead to L ≈ 0 for any input x with b. Correspondingly, the forward pass would generate zero gradients to update the model during the backward pass. Since the model has no update according to the data, we can ensure that there is no information leakage. We verify this by tracing gradient norms during fine-tuning BERT on synthetic patterns. Figure 4 shows that the unlearnable state appears at about 250 iterations, where the model stops updating parameters. The same phenomenon occurs during training LSTM on error-min modifications (see Appendix A).",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::16",
+      "paper_id": "2307.00456",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::16::para::0",
+          "section_id": "2307.00456::section::16",
+          "text": "By adapting min-min optimization, we develop an approach to expose vulnerabilities of deep learning to make text unlearnable. To overcome the limitation of requiring knowledge of models and training data, we extract simple patterns (e.g., label hints and answer hints) from the min-min optimization to make text unlearnable. Although our experiment explores patterns for text classification and question-answering tasks, the pipeline potentially works for any NLP task.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::16::para::1",
+          "section_id": "2307.00456::section::16",
+          "text": "Reproducibility. To ensure the effectiveness of unlearnable modifications, we slightly tuned the training hyperparameters to achieve well-trained models, such as setting maximum gradient norms and early stopping according to validation sets. We open-source codes with configuration files, which contain hyperparameters regarding model architectures (e.g., the number of layers), batching (e.g., data sampling), and training setups (e,g., learning rate). Since these files are configurable in JSON format, future works can easily reproduce and extend the experiments.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::17",
+      "paper_id": "2307.00456",
+      "heading": "Limitations",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::17::para::0",
+          "section_id": "2307.00456::section::17",
+          "text": "The main concern is that debiased techniques may remove simple biased features. However, to our knowledge, most debiased techniques (Rathore et al., 2021) can only remove biases across a concept subspace (e.g., the bias direction for gender) in the embedding space. Another setup of data debiasing, e.g., He et al. (2019), requires hypothesized biases to train biased models and is limited to tasks with known hypothesized biases (e.g., lexical overlap for NLI). Also, they remove biased examples rather than identify biased symbols (e.g., label hints). However, we still expect future works to consider other complicated patterns beyond symbol insertions or word substitution.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::18",
+      "paper_id": "2307.00456",
+      "heading": "A The Change of Gradient Norms",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::18::para::0",
+          "section_id": "2307.00456::section::18",
+          "text": "Figure 5 shows gradient norms with error-min modifications and further proves the argument. The set of the Error-min-0 modifications with label-wise patterns (see Table 1) has almost zero gradients during training. It even has a small gradient update in the first few steps. It may be because the randomly initialized models can easily learn class-wise patterns, while BERT has to overcome its pretrained priors.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::19",
+      "paper_id": "2307.00456",
+      "heading": "B Hyperparameter Setting",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::19::para::0",
+          "section_id": "2307.00456::section::19",
+          "text": "The interval of optimizing the error-min noise M . If M is too small, the test accuracy after another M iterations easily plateaus due to insufficient model update, which causes the early stop of the min-min process. On the other hand, a large interval will linearly increase the computational complexity. Specifically, since we use modifications for batches of instances in the next M training iterations, error-min optimization needs to be run for M × B instances, where B is the batch size. Hence, we set M = 30 for text classification tasks and a smaller M (10) for SQuAD because of a larger batch size and longer sequence lengths to train SQuAD models.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2307.00456::section::19::para::1",
+          "section_id": "2307.00456::section::19",
+          "text": "The threshold of cosine similarity. We set the threshold to 0.5 to follow the work (Alzantot et al., 2018) for generating adversarial noise. The effect of the threshold: Increasing the threshold can help find more semantically similar words (even synonyms), as specified in Mrksic et al. (2016). For example, when we use this threshold, the word \"award-winning\" is identified to replace \"charming\". However, by increasing the threshold to 0.9, the substitute word becomes \"lovely\". However, Algorithm 1 runs much slower by denying most of the high-ranked candidates and leads to noise that is hard to make data unlearnable. Also, it stops us from deriving general unlearnable patterns via qualitative analysis of substitute words. For example, the cumulative probabilities in Table 2 would be smaller due to more varying substitution sets.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2307.00456::section::20",
+      "paper_id": "2307.00456",
+      "heading": "C Errors of Approximating Loss Changes",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2307.00456::section::20::para::0",
+          "section_id": "2307.00456::section::20",
+          "text": "Generally, in our experiment, Equation 6 can always approximate the loss change in a correct direction, in our case, leading to the decrease of the actual loss. Specifically, the errors of the approximate loss change depend on the state of the models (the outcome of the outer minimization). For example, the results (the loss on the original SST2 training instances/the loss on the modified instances/the approximate loss change) for a randomly initialized LSTM would be 0.6931/0.6833/-0.0004, while, at the other extreme, the results for the LSTM checkpoint which has converged on our label hint are 0.4457/0.0782/-0.0012 or 0.4905/0.0714/-0.0379.",
+          "paragraph_index": 0
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2307.00456::figure::0",
+      "paper_id": "2307.00456",
+      "figure_number": null,
+      "caption": "(a) Test Accuracy on AG-News. (b) Test Accuracy on SST2. (c) F1 scores on SQuAD. (d) Exact Match on SQuAD.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_0",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2307.00456::figure::1",
+      "paper_id": "2307.00456",
+      "figure_number": "Figure 1 :",
+      "caption": "Figure1: Test metrics under error-min modifications during the training. We train LSTM models for the classification tasks and BiDAF for SQuAD. Note that some lines halt in the middle due to early stopping.",
+      "page_number": 6,
+      "bounding_box": {
+        "page": 6,
+        "x": 313.23,
+        "y": 413.93,
+        "width": 204.09,
+        "height": 107.15
+      },
+      "grobid_ref_id": "fig_1",
+      "image_path": "extracted_images\\2307.00456_figure_1.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2307.00456::figure::2",
+      "paper_id": "2307.00456",
+      "figure_number": "Figure 2 :",
+      "caption": "Figure 2: Distribution of relative positions to modify.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_2",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2307.00456::figure::3",
+      "paper_id": "2307.00456",
+      "figure_number": null,
+      "caption": "e.g., words correlating to labels for text classification or words to indicate the positions of answers for QA.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_3",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2307.00456::figure::4",
+      "paper_id": "2307.00456",
+      "figure_number": "Figure 3 :",
+      "caption": "Figure 3: The performance of synthetic features. We report test accuracy when fine-tuning BERT on SST2 and F1 scores when fine-tuning RoBERTa on SQuAD.",
+      "page_number": 7,
+      "bounding_box": {
+        "page": 7,
+        "x": 110.55,
+        "y": 70.87,
+        "width": 180.97,
+        "height": 123.23
+      },
+      "grobid_ref_id": "fig_4",
+      "image_path": "extracted_images\\2307.00456_figure_4.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2307.00456::figure::5",
+      "paper_id": "2307.00456",
+      "figure_number": "Figure 4 :",
+      "caption": "Figure 4: The change of gradient norms when we finetune BERT on SST2. Gradient norms shown in the stacked area chart.",
+      "page_number": 8,
+      "bounding_box": {
+        "page": 8,
+        "x": 310.96,
+        "y": 70.88,
+        "width": 208.56,
+        "height": 109.56
+      },
+      "grobid_ref_id": "fig_5",
+      "image_path": "extracted_images\\2307.00456_figure_5.png",
+      "caption_understanding": null,
+      "embedding": null
+    },
+    {
+      "id": "2307.00456::figure::6",
+      "paper_id": "2307.00456",
+      "figure_number": "Figure 5 :",
+      "caption": "Figure5: Training LSTM on SST2 from scratch. Note that the area for Error-min-0 modifications (in Green) is too small to be visible. Gradient norms shown in the stacked area chart.",
+      "page_number": 11,
+      "bounding_box": {
+        "page": 11,
+        "x": 70.87,
+        "y": 70.88,
+        "width": 226.7,
+        "height": 119.09
+      },
+      "grobid_ref_id": "fig_6",
+      "image_path": "extracted_images\\2307.00456_figure_6.png",
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2307.00456::table::0",
+      "paper_id": "2307.00456",
+      "table_number": "Table 1 :",
+      "caption": "The average Jaccard similarity between each pair of bag of words by labels.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "Task",
+          "Modifications Value"
+        ],
+        [
+          "",
+          "Error-min-0",
+          "0"
+        ],
+        [
+          "AG-News",
+          "Error-min-1",
+          "0.08"
+        ],
+        [
+          "",
+          "Error-min-2",
+          "0.12"
+        ],
+        [
+          "SST2",
+          "Error-min-0 Error-min-1",
+          "0 0.36"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2307.00456::table::1",
+      "paper_id": "2307.00456",
+      "table_number": "Table 2 :",
+      "caption": "The cumulative probabilities of the top 5 substitute words.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "Task",
+          "Labels",
+          "Error-min 0 1",
+          "2"
+        ],
+        [
+          "",
+          "World",
+          "0.99 0.88 0.96"
+        ],
+        [
+          "AG-News",
+          "Sports Business 0.91 0.96",
+          "1 1 0.92 1"
+        ],
+        [
+          "",
+          "Science",
+          "1 0.91",
+          "0.9"
+        ],
+        [
+          "SST2",
+          "Negative Positive 0.87 0.69 0.6 0.73",
+          "/ /"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2307.00456::equation::0",
+      "paper_id": "2307.00456",
+      "latex": "arg min \\theta L(f (x), y)]",
+      "equation_number": "(1)",
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2307.00456::equation::1",
+      "paper_id": "2307.00456",
+      "latex": "arg min \\theta E (x+ \\eta ,y)∼D [arg min \\eta L(f (x + \\eta ), y)],",
+      "equation_number": "(2)",
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2307.00456::equation::2",
+      "paper_id": "2307.00456",
+      "latex": "\\theta t+1 = \\theta t - \\gamma \\nabla \\theta t L,",
+      "equation_number": "(3)",
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2307.00456::equation::3",
+      "paper_id": "2307.00456",
+      "latex": "\\eta t+1 = \\eta t - \\epsilon sgn \\nabla \\eta t L(x t ),",
+      "equation_number": "(4)",
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2307.00456::equation::4",
+      "paper_id": "2307.00456",
+      "latex": "arg min s e T s \\nabla ew L(x, y)",
+      "equation_number": "(5)",
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2307.00456::equation::5",
+      "paper_id": "2307.00456",
+      "latex": "\\nabla x L = \\nabla ew 1 L, ..., \\nabla ew T L.",
+      "equation_number": null,
+      "grobid_ref_id": "formula_5",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2307.00456::equation::6",
+      "paper_id": "2307.00456",
+      "latex": "A = \\nabla x L T E,",
+      "equation_number": "(6)",
+      "grobid_ref_id": "formula_6",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2307.00456::equation::7",
+      "paper_id": "2307.00456",
+      "latex": "Average Similarity = K i=1 K j=i+1 |BOW i \\cap BOW j | |BOW i \\cup BOW j | (",
+      "equation_number": "7",
+      "grobid_ref_id": "formula_7",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2307.00456::equation::8",
+      "paper_id": "2307.00456",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_8",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2307.00456::citation::0",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Deep learning with differential privacy",
+      "cited_authors": [
+        "Martin Abadi",
+        "Andy Chu",
+        "Ian Goodfellow",
+        "H Brendan Mcmahan",
+        "Ilya Mironov",
+        "Kunal Talwar",
+        "Li Zhang"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/2976749.2978318",
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::1",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Generating natural language adversarial examples",
+      "cited_authors": [
+        "Moustafa Alzantot",
+        "Yash Sharma",
+        "Ahmed Elgohary",
+        "Bo-Jhang Ho",
+        "Mani Srivastava",
+        "Kai-Wei Chang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D18-1316",
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::2",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Shortcutted commonsense: Data spuriousness in deep learning of commonsense reasoning",
+      "cited_authors": [
+        "Ruben Branco",
+        "António Branco",
+        "João António Rodrigues",
+        "João Ricardo Silva"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::3",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Towards making systems forget with machine unlearning",
+      "cited_authors": [
+        "Yinzhi Cao",
+        "Junfeng Yang"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/SP.2015.35",
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::4",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Ulfar Erlingsson, et al. 2020. Extracting training data from large language models",
+      "cited_authors": [
+        "Nicholas Carlini",
+        "Florian Tramer",
+        "Eric Wallace",
+        "Matthew Jagielski",
+        "Ariel Herbert-Voss",
+        "Katherine Lee",
+        "Adam Roberts",
+        "Tom Brown",
+        "Dawn Song"
+      ],
+      "cited_year": null,
+      "cited_arxiv_id": "arXiv:2012.07805",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::5",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Privacy-preserving logistic regression",
+      "cited_authors": [
+        "Kamalika Chaudhuri",
+        "Claire Monteleoni"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::6",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Lowkey: Leveraging adversarial attacks to protect social media users from facial recognition",
+      "cited_authors": [
+        "Valeriia Cherepanova",
+        "Micah Goldblum",
+        "Harrison Foley",
+        "Shiyuan Duan",
+        "John P Dickerson",
+        "Gavin Taylor",
+        "Tom Goldstein"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::7",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Predicting the political alignment of twitter users",
+      "cited_authors": [
+        "D Michael",
+        "Bruno Conover",
+        "Jacob Goncalves",
+        "Alessandro Ratkiewicz",
+        "Filippo Flammini",
+        "Menczer"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/PASSAT/SocialCom.2011.34",
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::8",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "BERT: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/N19-1423",
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::9",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Learning to ask: Neural question generation for reading comprehension",
+      "cited_authors": [
+        "Xinya Du",
+        "Junru Shao",
+        "Claire Cardie"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P17-1123",
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::10",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "The algorithmic foundations of differential privacy",
+      "cited_authors": [
+        "Cynthia Dwork",
+        "Aaron Roth"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::11",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Hotflip: White-box adversarial examples for text classification",
+      "cited_authors": [
+        "Javid Ebrahimi",
+        "Anyi Rao",
+        "Daniel Lowd",
+        "Dejing Dou"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/P18-2006",
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::12",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "User profiling through deep multimodal fusion",
+      "cited_authors": [
+        "Golnoosh Farnadi",
+        "Jie Tang",
+        "Martine De Cock",
+        "Marie-Francine Moens"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/3159652.3159691",
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::13",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Model-agnostic meta-learning for fast adaptation of deep networks",
+      "cited_authors": [
+        "Chelsea Finn",
+        "Pieter Abbeel",
+        "Sergey Levine"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::14",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Model inversion attacks that exploit confidence information and basic countermeasures",
+      "cited_authors": [
+        "Matt Fredrikson",
+        "Somesh Jha",
+        "Thomas Ristenpart"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::15",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Unlearn dataset bias in natural language inference by fitting the residual",
+      "cited_authors": [
+        "He He",
+        "Sheng Zha",
+        "Haohan Wang"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/D19-6115",
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::16",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "The secretive company that might end privacy as we know it",
+      "cited_authors": [
+        "Kashmir Hill"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::17",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Long short-term memory",
+      "cited_authors": [
+        "Sepp Hochreiter",
+        "Jürgen Schmidhuber"
+      ],
+      "cited_year": 1997,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::18",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Unlearnable examples: Making personal data unexploitable",
+      "cited_authors": [
+        "Hanxun Huang",
+        "Xingjun Ma",
+        "Sarah Monazam Erfani",
+        "James Bailey",
+        "Yisen Wang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::19",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Metapoison: Practical general-purpose clean-label data poisoning",
+      "cited_authors": [
+        "Ronny Huang",
+        "Jonas Geiping",
+        "Liam Fowl",
+        "Gavin Taylor",
+        "Tom Goldstein"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::20",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Twitter sentiment analysis: The good the bad and the omg! Proceedings of the International AAAI Conference on Web and Social Media",
+      "cited_authors": [
+        "Efthymios Kouloumpis",
+        "Theresa Wilson",
+        "Johanna Moore"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::21",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Why machine reading comprehension models learn shortcuts?",
+      "cited_authors": [
+        "Yuxuan Lai",
+        "Chen Zhang",
+        "Yansong Feng",
+        "Quzhe Huang",
+        "Dongyan Zhao"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2021.findings-acl.85",
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::22",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Roberta: A robustly optimized BERT pretraining approach",
+      "cited_authors": [
+        "Yinhan Liu",
+        "Myle Ott",
+        "Naman Goyal",
+        "Jingfei Du",
+        "Mandar Joshi",
+        "Danqi Chen",
+        "Omer Levy",
+        "Mike Lewis",
+        "Luke Zettlemoyer",
+        "Veselin Stoyanov"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::23",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Towards deep learning models resistant to adversarial attacks",
+      "cited_authors": [
+        "Aleksander Madry",
+        "Aleksandar Makelov",
+        "Ludwig Schmidt",
+        "Dimitris Tsipras",
+        "Adrian Vladu"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::24",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Learning differentially private recurrent language models",
+      "cited_authors": [
+        "H",
+        "Brendan Mcmahan",
+        "Daniel Ramage",
+        "Kunal Talwar",
+        "Li Zhang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::25",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Counter-fitting word vectors to linguistic constraints",
+      "cited_authors": [
+        "N Mrksic",
+        "O Diarmuid",
+        "M Thomson",
+        "L Gasic",
+        "Pei Hao Rojas-Barahona",
+        "David Su",
+        "Tsung-Hsien Vandyke",
+        "S Wen",
+        "Young"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::26",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "GloVe: Global vectors for word representation",
+      "cited_authors": [
+        "Jeffrey Pennington",
+        "Richard Socher",
+        "Christopher Manning"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.3115/v1/D14-1162",
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::27",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Squad: 100,000+ questions for machine comprehension of text",
+      "cited_authors": [
+        "Pranav Rajpurkar",
+        "Jian Zhang",
+        "Konstantin Lopyrev",
+        "Percy Liang"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/d16-1264",
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::28",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "A visual tour of bias mitigation techniques for word representations",
+      "cited_authors": [
+        "Archit Rathore",
+        "Sunipa Dev",
+        "Jeff M Phillips",
+        "Vivek Srikumar",
+        "Bei Wang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/3447548.3470807",
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::29",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Bidirectional attention flow for machine comprehension",
+      "cited_authors": [
+        "Min Joon",
+        "Seo",
+        "Aniruddha Kembhavi",
+        "Ali Farhadi",
+        "Hannaneh Hajishirzi"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::30",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Twitter sentiment analysis with deep convolutional neural networks",
+      "cited_authors": [
+        "Aliaksei Severyn",
+        "Alessandro Moschitti"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/2766462.2767830",
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::31",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Fawkes: Protecting privacy against unauthorized deep learning models",
+      "cited_authors": [
+        "Shawn Shan",
+        "Emily Wenger",
+        "Jiayun Zhang",
+        "Huiying Li",
+        "Haitao Zheng",
+        "Ben Y Zhao"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::32",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Privacypreserving deep learning",
+      "cited_authors": [
+        "Reza Shokri",
+        "Vitaly Shmatikov"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/ALLERTON.2015.7447103",
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::33",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Recursive deep models for semantic compositionality over a sentiment treebank",
+      "cited_authors": [
+        "Richard Socher",
+        "Alex Perelygin",
+        "Jean Wu",
+        "Jason Chuang",
+        "Christopher D Manning",
+        "Andrew Ng",
+        "Christopher Potts"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::34",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "A multimodal author profiling system for tweets",
+      "cited_authors": [
+        "Chanchal Suman",
+        "Anugunj Naman",
+        "Sriparna Saha",
+        "Pushpak Bhattacharyya"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1109/TCSS.2021.3082942",
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::35",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Universal adversarial triggers for attacking and analyzing nlp",
+      "cited_authors": [
+        "Eric Wallace",
+        "Shi Feng",
+        "Nikhil Kandpal",
+        "Matt Gardner",
+        "Sameer Singh"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2307.00456::citation::36",
+      "paper_id": "2307.00456",
+      "raw_text": null,
+      "cited_title": "Imitation attacks and defenses for black-box machine translation systems",
+      "cited_authors": [
+        "Eric Wallace",
+        "Mitchell Stern",
+        "Dawn Song"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2020.emnlp-main.446",
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

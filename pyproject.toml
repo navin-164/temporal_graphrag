@@ -1,0 +1,70 @@
+# ==============================================================================
+# pyproject.toml
+#
+# Two jobs:
+#   1. [build-system] + [project] + [tool.setuptools...] make src/temporal_
+#      graphrag/ an actual installable package. This is what fixes the
+#      import-path gap from settings.py: after `pip install -e .`,
+#      `from temporal_graphrag.config import settings` works from anywhere
+#      (scripts/, api/, tests/...), not just the longer `src.temporal_
+#      graphrag...` path.
+#   2. [tool.black] / [tool.ruff] / [tool.mypy] / [tool.pytest] centralize
+#      config for the dev tools already in requirements.txt, so `black .`
+#      or `pytest` behave the same for anyone on the project, without
+#      separate scattered config files.
+#
+# Deliberately does NOT repeat requirements.txt's dependency list here —
+# one list to keep in sync, not two. Setup is still two commands:
+#
+#   pip install -r requirements.txt
+#   pip install -e .
+# ==============================================================================
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "temporal-graphrag"
+version = "0.1.0"
+description = "Temporal Hybrid GraphRAG with Multi-Agent AI for Scientific Document Summarization"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [
+    { name = "Your Name", email = "you@example.com" },
+]
+# No `dependencies` key here on purpose (see note above): `pip install -e .`
+# only registers this package for import — requirements.txt already handles
+# third-party dependencies, and duplicating that list here just creates two
+# places that can drift out of sync.
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ------------------------------------------------------------------------------
+# Dev tool config — reasonable starting points, not final answers. Adjust
+# line-length/rules to taste; nothing here is load-bearing for the project.
+# ------------------------------------------------------------------------------
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]   # pycodestyle, pyflakes, isort, pyupgrade, bugbear
+ignore = ["E501"]                     # line length is black/ruff-format's job, not the linter's
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true   # transformers/faiss/pyvis/groq/etc. mostly lack full type stubs
+disallow_untyped_defs = false   # too strict for week 3 — tighten once ingestion/embeddings mature
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"           # lets `async def test_...` functions run without a decorator each

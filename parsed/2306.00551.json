@@ -1,0 +1,693 @@
+{
+  "arxiv_id": "2306.00551",
+  "title": "Enhancing Programming eTextbooks with ChatGPT Generated   Counterfactual-Thinking-Inspired Questions",
+  "authors": [
+    {
+      "name": "Arun Balajiee Lekshmi Narayanan",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Rully Agus Hendrawan",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Venktesh V",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Digital textbooks have become an integral part of everyday learning tasks. In this work, we consider the use of digital textbooks for programming classes. Generally, students struggle with utilizing textbooks on programming to the maximum, with a possible reason being that the example programs provided as illustration of concepts in these textbooks don't offer sufficient interactivity for students, and thereby not sufficiently motivating to explore or understand these programming examples better. In our work, we explore the idea of enhancing the navigability of intelligent textbooks with the use of ``counterfactual'' questions, to make students think critically about these programs and enhance possible program comprehension. Inspired from previous works on nudging students on counter factual thinking, we present the possibility to enhance digital textbooks with questions generated using GPT.",
+  "categories": [
+    "cs.CL",
+    "cs.HC"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2023-06-01T11:14:15"
+    },
+    {
+      "version": "v2",
+      "created": "2023-06-06T16:27:57"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2023-06-01",
+  "citation_count": 1,
+  "reference_count": 19,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2306.00551::section::0",
+      "paper_id": "2306.00551",
+      "heading": "Introduction & Related Work",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::0::para::0",
+          "section_id": "2306.00551::section::0",
+          "text": "Interactive textbooks have been explored extensively among the computer science education community, for many years [1], with the best examples of these being ELM-ART [2] for LISP programming; OpenDSA [3] an online reading platform for topics in Data Structures and Algorithms; Runestone [4] a platform to host interactive programming practice material, among other, suggesting that some of the most common eTextbooks for computer science education are on programming. In this work, we consider the enhancement of digital textbooks with the use of newer tools such as Large Language Models, as explored in the recent efforts on the use of Large Language Models to generate questions for intelligent textbooks [5].",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2306.00551::section::0::para::1",
+          "section_id": "2306.00551::section::0",
+          "text": "From prior work, we have looked at cases of support for program comprehension using question generation. Specifically, these approaches are directed at some of the following ideas, namely, 1. Critical Thinking and Perspective Taking: Promote a growth mindset [6] and foster robust critical thinking that nudges students towards a higher understanding. This might help students take a step back [7], and think slower and more deeply, encouraging perspective-taking. 2. Syntax Analysis: Encourage students to think based on specific errors and functional keywords within programs [8] about the syntax of the programs, deepening their understanding of syntactic elements. 3. Goal-Oriented Analysis: Focus on the steps and possibilities when tracing a program [9,10], which is essentially about understanding the objective or the goal of the code and how it is achieved. Their work encourages students to think about what changes in the program would mean for its final output or goal. 4. Problem-Solution Mapping: Generate questions based on misconceptions [11]. The approach of asking why or why not a certain line in a program works encourages students to think about the problem that the specific line of code is solving. This helps them reverse engineer the code, i.e., map the solution (code) to the problem. 5.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::1",
+      "paper_id": "2306.00551",
+      "heading": "Intrinsic Program Analysis: Encourage students to deeply analyze the program by",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::1::para::0",
+          "section_id": "2306.00551::section::1",
+          "text": "generating questions that are intrinsically tied to the program [12], while stimulating students to think about the program and its inherent aspects [13]. 6. Large Language Model Prompt-based QG: While the focus of the question generation using LLM for intelligent digital textbooks in prior work [5] is similar to the current work, our work attempts to address the notion of prompting the LLM to an extent where the questions generated could be hierarchical, also specifically, counterfactual questions that allow room for alternative and creative mental constructs that support program comprehension.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2306.00551::section::1::para::1",
+          "section_id": "2306.00551::section::1",
+          "text": "In most cases, the question generation is not the key idea to enhance program comprehension. And in the cases where the program comprehension is supported by question generation [12,13], the approaches have specific types of questions that they generate using fixed templates for the generation tasks using \"in-filling\" approach.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2306.00551::section::1::para::2",
+          "section_id": "2306.00551::section::1",
+          "text": "Additionally, Lehtinen and colleagues [13] construct the question types from prior framework, but these ideas do not necessarily consider an hierarchical approach towards a step-wise program comprehension. If we refer to the past work on program comprehension [14], we can proposition that questions that invoke students to think critically can also be hierarchical. Some other ideas that support this are the ICAP Framework [15] Hence, our contributions in this work are three-fold:",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2306.00551::section::1::para::3",
+          "section_id": "2306.00551::section::1",
+          "text": "1. Systematically explore the use of prompt mechanism in the latest freely available ChatGPT (GPT-3.5) system to generate questions for a JAVA Program 2. Understand the relations between the ChatGPT (GPT-3.5) suggested categorization of these questions and those annotated by humans. Such an understanding could promote transparency in the process of LLM response to prompts.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2306.00551::section::1::para::4",
+          "section_id": "2306.00551::section::1",
+          "text": "3. Present a dataset of questions that are at varying levels in the hierarchy used to describe the program comprehension task. These questions could act as an enhancement to an existing intelligent, digital textbook on programming",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::2",
+      "paper_id": "2306.00551",
+      "heading": "Counterfactual-Thinking Inspired Questions Generation",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::2::para::0",
+          "section_id": "2306.00551::section::2",
+          "text": "Building on existing coding challenges, we generate a set of questions inspired by previous works related to counterfactual thinking. These questions are then manually categorized into distinct themes, enabling a deeper understanding of prevalent trends and insights into the application of counterfactual thinking in problem-solving and creative tasks within programming.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::3",
+      "paper_id": "2306.00551",
+      "heading": "Code Challenges",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::3::para::0",
+          "section_id": "2306.00551::section::3",
+          "text": "Practice exercises help novice programmers learn how to code. The process of learning to code involves understanding various programming concepts and practicing them until they become second nature. This is where practice exercises play a crucial role. These exercises provide an opportunity for novice programmers to apply the theory they have learned, strengthen their problem-solving skills, and learn from trial and error. Sample code challenges are categorized according to their functionality as follows:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2306.00551::section::3::para::1",
+          "section_id": "2306.00551::section::3",
+          "text": "1. Object and Arithmetic: Student Profile, Circle Area Calculator, Coordinate Shift, Shape Measurements 2. Repeated Calculation: Average Calculator, Bingo Board, Grade Calculator, Multiplication Table, Prime Checker 3. Comparisons and Rules: Place Name Comparator, Age Comparison, Phone Buyer, Bank Account",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2306.00551::section::3::para::2",
+          "section_id": "2306.00551::section::3",
+          "text": "We generated these programs using ChatGPT with the goal descriptions provided in Deep-CodeDataset [16]. The prompts to ChatGPT were so it generates the program as a novice programmer would.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::4",
+      "paper_id": "2306.00551",
+      "heading": "Question Generation with LLM",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::4::para::0",
+          "section_id": "2306.00551::section::4",
+          "text": "The efficacy of Language Learning Models (LLMs) is noteworthy [17]. If prompted correctly, an LLM can assist teachers in generating programming questions. We develop 5 prompts to generate questions for each code challenge. Every Prompt starts with the phrase \"In tabular file format with the following columns (LineNumber, LineCode, Question) generate counterfactual questions to make students critically think about the program from .. \", except for a change with a few keywords as specified in Table 1.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::5",
+      "paper_id": "2306.00551",
+      "heading": "Labeling Generated Questions",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::5::para::0",
+          "section_id": "2306.00551::section::5",
+          "text": "The classes used to label questions asked about a piece of code or a programming concept are:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2306.00551::section::5::para::1",
+          "section_id": "2306.00551::section::5",
+          "text": "1. Syntax (S): The ability of code to compile successfully depends on whether it adheres to the syntax rules of the programming language. The concept of syntax in a programming",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::6",
+      "paper_id": "2306.00551",
+      "heading": "Category Prompt Keywords",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::6::para::0",
+          "section_id": "2306.00551::section::6",
+          "text": "Critical Thinking and Perspective Taking different perspectives or aspects",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::7",
+      "paper_id": "2306.00551",
+      "heading": "Goal-Oriented Analysis such that final goal of the program is changed",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::7::para::0",
+          "section_id": "2306.00551::section::7",
+          "text": "Problem-Solution Mapping could ask that have the same program as the solution",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::8",
+      "paper_id": "2306.00551",
+      "heading": "Table 1",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::8::para::0",
+          "section_id": "2306.00551::section::8",
+          "text": "List of various Prompts Keywords used to Generate questions of a certain category language includes the proper use of brackets, punctuation like semicolons or colons, variable declaration, and so on. E.g., \"What would happen if we forgot to include the semicolon at the end?\" 2. Programming Logic (PL): Logical comprehension and overall understanding of a piece of code or a program. The emphasis is not on specific syntax or language constructs, but rather on understanding how the pieces of the code fit together to create a functioning program. This could involve understanding the purpose of specific variables or functions, how control flow structures like loops or conditionals are used, or the logic behind a specific algorithm or data structure used in the code. In some cases, these questions could involve modifications or adaptations of existing code to meet new requirements or goals. E.g. \"What if we needed to read input from a file instead of from the user? How could we modify the code to achieve this?\" 3. Goal-oriented (G): Achieving a desired result regardless of the specifics of the code.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2306.00551::section::8::para::1",
+          "section_id": "2306.00551::section::8",
+          "text": "This category is more focused on the problem-solving aspect of programming, where the specific language or implementation details are secondary to the overall objective. E.g. \"What if we wanted to read the radius value from a file instead of user input?\" 4. Miscellaneous (M): A catch-all category for questions that don't neatly fit into the other categories. This could involve questions about programming best practices, questions about specific development tools or environments, version control, debugging strategies, or questions about the broader principles and philosophies of software development. E.g., \"Why is the main method necessary in a Java program?\"",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::9",
+      "paper_id": "2306.00551",
+      "heading": "Thematic Categorization of Generated Questions",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::9::para::0",
+          "section_id": "2306.00551::section::9",
+          "text": "Once the set of questions is generated, the next step is to categorize them. The categorization phase is an iterative process that seeks to classify the generated questions based on distinct themes. This grouping process is designed to be flexible and iterative, allowing for the continuous refinement of categories as manifested themes or nuances are emerging during the analysis process. We focus on themes that are specific to programming tasks rather than broader aspects of problem-solving or creativity. Each question is analyzed focused on its intent, the concepts it explores, and the specific aspects of programming it addresses. The emergent themes arise organically from the content of the questions, which can cover a diverse range of topics. The end result of this categorization phase is a collection of thematic categories, as reflected in the questions it comprises. Each theme represents a unique challenge that students are facing in learning to program with the application of counterfactual thinking. The themes that we found on the generated questions are:",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::10",
+      "paper_id": "2306.00551",
+      "heading": "Themes",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::10::para::0",
+          "section_id": "2306.00551::section::10",
+          "text": "1. Language Understanding -Syntax: Pertain to the syntax and the grammatical rules of the programming language. E.g., \"Why is there a semicolon at the end of this line in a Java program?\". 2. Language Understanding -Semantic: Relate to the meaning or purpose of specific programming language keywords or constructs, as well as the principles behind how they operate. E.g., \"What does the 'final' keyword do in Java?\".",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2306.00551::section::10::para::1",
+          "section_id": "2306.00551::section::10",
+          "text": "3. Language Understanding -Other: Grasping the core concepts, conventions, and idiosyncrasies of a specific programming language. This theme could involve a broad range of language features. E.g., \"Why is the main method necessary in a Java program?\" 4. Library/Function Understanding: Understanding how a specific library, module, or function works. This could be a standard library in a language or a third-party library. E.g., \"What does the 'Scanner' class do?\". 5. External Behaviour: How a program interacts with things outside of itself (like input/output operations, network requests, etc.) or how it manifests its results. This could involve its inputs or outputs, how it handles data from a user or a file, or the visible effects of its operation (like changes to the UI or the production of log messages). E.g., \"What will this program print?\" or \"What happens when I click this button?\". 6. Refactoring, Internal Behaviour: How the internal logic of the code could be changed without affecting its external behavior. This could be modified, optimized, or restructured without changing what it does. They can also involve understanding the internal workings of a piece of code, such as the control flow or the interactions between different components of a program. E.g., \"What would happen if we replaced this loop with a map function?\".",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2306.00551::section::10::para::2",
+          "section_id": "2306.00551::section::10",
+          "text": "We have summarized our proportions in Figure 1, suggests a richer thematic analysis provides us with sufficient information. This could indicate that the number of codes developed by us may be incomplete, and could be improved.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::11",
+      "paper_id": "2306.00551",
+      "heading": "Conclusion & Future Work",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::11::para::0",
+          "section_id": "2306.00551::section::11",
+          "text": "While there are several directions to consider with our current work, one potential direction that we are likely going to continue explore is with their use as aids in generating smart content [18].",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2306.00551::section::12",
+      "paper_id": "2306.00551",
+      "heading": "Fine-Grained Navigation Support in Intelligent Textbooks",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2306.00551::section::12::para::0",
+          "section_id": "2306.00551::section::12",
+          "text": "Intelligent textbooks are transforming education [19], offering dynamic and interactive learning experiences. Navigation within these textbooks is a crucial aspect that can enhance learning efficiency and engagement. This study demonstrates how the thematic classification of questions, inspired by counterfactual thinking, and generated by pre-trained Large Language Models (LLMs), can enrich navigational support in intelligent textbooks.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2306.00551::section::12::para::1",
+          "section_id": "2306.00551::section::12",
+          "text": "Counterfactual thinking, a mental simulation of alternative realities, often prompted by \"what if\" scenarios. By combining this psychological construct with the capabilities of pre-trained LLMs, we propose an approach to generate coding-related questions, potentially improving programming proficiency. In our work, even if we do not provide sufficient evidence to the efficacy of the use of LLMs for this task, it indicates small successes in the use of LLMs to generate questions suitable to promote and support program comprehension.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2306.00551::section::12::para::2",
+          "section_id": "2306.00551::section::12",
+          "text": "Question themes represent a critical area in computer science education, enhancing learners' problem-solving abilities, coding efficiency, and overall understanding of programming languages. These thematic classifications facilitate learners in personalizing their learning journey and allow for more focused and efficient navigation through the material in intelligent textbooks.",
+          "paragraph_index": 2
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2306.00551::figure::0",
+      "paper_id": "2306.00551",
+      "figure_number": "Figure 1 :",
+      "caption": "Figure 1: With thematic analysis provides a perspective on the question types",
+      "page_number": 5,
+      "bounding_box": {
+        "page": 5,
+        "x": 89.29,
+        "y": 280.09,
+        "width": 416.69,
+        "height": 257.92
+      },
+      "grobid_ref_id": "fig_0",
+      "image_path": "extracted_images\\2306.00551_figure_0.png",
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2306.00551::citation::0",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Merging interactive visualizations with hypertextbooks and course management",
+      "cited_authors": [
+        "G Rößling",
+        "T Naps",
+        "M Hall",
+        "V Karavirta",
+        "A Kerren",
+        "C Leska",
+        "A Moreno",
+        "R Oechsle",
+        "S H Rodger",
+        "J Urquiza-Fuentes",
+        "J A Velazquez-Iturbide"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/1189136.1189184",
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::1",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "ELM-ART: An adaptive versatile system for web-based instruction",
+      "cited_authors": [
+        "G Weber",
+        "P Brusilovsky"
+      ],
+      "cited_year": 2001,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::2",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Design and architecture of an interactive etextbook -the OpenDSA system",
+      "cited_authors": [
+        "E Fouh",
+        "V Karavirta",
+        "D A Breakiron",
+        "S Hamouda",
+        "S Hall",
+        "T L Naps",
+        "C A Shaffer"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1016/j.scico.2013.11.040",
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::3",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Runestone: A platform for free, on-line, and interactive ebooks",
+      "cited_authors": [
+        "B J Ericson",
+        "B N Miller"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/3328778.3366950",
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::4",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Towards human-like educational question generation with large language models",
+      "cited_authors": [
+        "Z Wang",
+        "J Valdez",
+        "D Basu Mallick",
+        "R G Baraniuk"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1007/978-3-031-11644-5_13",
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::5",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Virtual Teaching Assistant to Support Students' Efforts in Programming",
+      "cited_authors": [
+        "M B Manniam Rajagopal"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::6",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Grounded copilot: How programmers interact with code-generating models",
+      "cited_authors": [
+        "S Barke",
+        "M B James",
+        "N Polikarpova"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/3586030",
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::7",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Generation of questions about learners' code in java",
+      "cited_authors": [
+        "A Santos",
+        "T Soares",
+        "N Garrido",
+        "T Lehtinen",
+        "Jask"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::8",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Automated code tracing exercises for cs1, in: Computing Education Practice 2022",
+      "cited_authors": [
+        "S Russell"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::9",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Smart generation of code tracing questions for assessment in introductory programming",
+      "cited_authors": [
+        "E Stankov",
+        "M Jovanov",
+        "A Madevska Bogdanova"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::10",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "An inquisitive code editor for addressing novice programmers' misconceptions of program behavior",
+      "cited_authors": [
+        "A Henley",
+        "J Ball",
+        "B Klein",
+        "A Rutter",
+        "D Lee"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::11",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Automatic question generation for scaffolding self-explanations for code comprehension",
+      "cited_authors": [
+        "L J Tamang",
+        "R Banjade",
+        "J Chapagain",
+        "V Rus"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::12",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Automated questionnaires about students' javascript programs: Towards gauging novice programming processes",
+      "cited_authors": [
+        "T Lehtinen",
+        "L Haaranen",
+        "J Leinonen"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::13",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Block model: an educational model of program comprehension as a tool for a scholarly approach to teaching",
+      "cited_authors": [
+        "C Schulte"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::14",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "The icap framework: Linking cognitive engagement to active learning outcomes",
+      "cited_authors": [
+        "M T H Chi",
+        "R Wylie"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::15",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Deepcode: An annotated set of instructional code examples to foster deep code comprehension and learning",
+      "cited_authors": [
+        "V Rus",
+        "P Brusilovsky",
+        "L J Tamang",
+        "K Akhuseyinoglu",
+        "S D Fleming"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::16",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Are language models worse than humans at following prompts? it's complicated",
+      "cited_authors": [
+        "A Webson",
+        "A M Loo",
+        "Q Yu",
+        "E Pavlick"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": "arXiv:2301.07085",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::17",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "Increasing adoption of smart learning content for computer science education",
+      "cited_authors": [
+        "P Brusilovsky",
+        "S Edwards",
+        "A Kumar",
+        "L Malmi",
+        "L Benotti",
+        "D Buck",
+        "P Ihantola",
+        "R Prince",
+        "T Sirkiä",
+        "S Sosnovsky",
+        "J Urquiza",
+        "A Vihavainen",
+        "M Wollowski"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1145/2713609.2713611",
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2306.00551::citation::18",
+      "paper_id": "2306.00551",
+      "raw_text": null,
+      "cited_title": "The return of intelligent textbooks",
+      "cited_authors": [
+        "P Brusilovsky",
+        "S Sosnovsky",
+        "K Thaker"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.1002/aaai.12061",
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

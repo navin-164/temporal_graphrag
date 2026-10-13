@@ -1,0 +1,1882 @@
+{
+  "arxiv_id": "2007.02033",
+  "title": "Text Data Augmentation: Towards better detection of spear-phishing   emails",
+  "authors": [
+    {
+      "name": "Mehdi Regina",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Maxime Meyer",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "S\\'ebastien Goutal",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Text data augmentation, i.e., the creation of new textual data from an existing text, is challenging. Indeed, augmentation transformations should take into account language complexity while being relevant to the target Natural Language Processing (NLP) task (e.g., Machine Translation, Text Classification). Initially motivated by an application of Business Email Compromise (BEC) detection, we propose a corpus and task agnostic augmentation framework used as a service to augment English texts within our company. Our proposal combines different methods, utilizing BERT language model, multi-step back-translation and heuristics. We show that our augmentation framework improves performances on several text classification tasks using publicly available models and corpora as well as on a BEC detection task. We also provide a comprehensive argumentation about the limitations of our augmentation framework.",
+  "categories": [
+    "cs.CL",
+    "cs.IR",
+    "cs.LG"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2020-07-04T07:45:04"
+    },
+    {
+      "version": "v2",
+      "created": "2021-03-25T14:54:10"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "arXiv.org",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2020-07-04",
+  "citation_count": 21,
+  "reference_count": 69,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2007.02033::section::0",
+      "paper_id": "2007.02033",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::0::para::0",
+          "section_id": "2007.02033::section::0",
+          "text": "Generalization, i.e., the ability of models to predict accurately from unseen data 2 , is paramount for supervised learning applications. However, models generalization is often hindered by a lack of data, the acquisition of annotated data being costly. Data augmentation, which consists in creating new samples from existing ones, helps solve this problem by increasing samples diversity and reinforcing data characteristics such as invariances.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::0::para::1",
+          "section_id": "2007.02033::section::0",
+          "text": "Ubiquitous in computer vision and audio analysis, data augmentation contribution to benchmark results is significant [40,46]. Data augmentation methods usually involve relatively simple operations (e.g., image rotation, frequency modulation) leveraging data continuity and knowledge about invariances regarding the final task (e.g., object detection, voice recognition). In NLP however, data augmentation has had limited application. Guaranteeing augmented texts intelligibility, grammatical correctness and relevance to a given NLP task is a difficult challenge often involving domain or corpus dependent methods [23,54]. Indeed, text processing operates in a discrete space of words and copes with natural language complexity (e.g., polysemy, ambiguity, common-sense knowledge [34]). 1 Approach to solve a problem employing a practical method that is not guaranteed to be optimal. 2 Training data as well as unseen data are supposed to be sampled from an unknown distribution.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::0::para::2",
+          "section_id": "2007.02033::section::0",
+          "text": "Recently, language representation models [7,28,57] leveraging transfer learning have emerged, improving model generalization on NLP tasks. For instance, BERT [7] or XLNet [57] have been successfully finetuned improving state-of-the-art NLP results without requiring data augmentation. However, text augmentation still seems relevant in domains where annotated data cost is particularly high. It is the case of Business Email Compromise (BEC) detection.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.02033::section::0::para::3",
+          "section_id": "2007.02033::section::0",
+          "text": "BEC are among the most advanced email attacks relying on social engineering and human psychology to trick targeted victims [18,33,41]. They convey attacks through their textual content (e.g., impersonation, request of payment or sensitive information) almost indistinguishable from legitimate ones, evading traditional email filtering methods [17,27,37,38]. This elaborate and targeted content drives the rarity of BEC [5,13]. For these reasons, such emails are particularly difficult to detect, collect and can lead to substantial financial losses [10,26]. We address BEC detection with different components to extract and analyze information from an email. One of these components includes an email text classifier trained on an annotated corpus (see Section 4). This corpus made of BEC and benign email texts is unbalanced because of a limited amount of BEC.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.02033::section::0::para::4",
+          "section_id": "2007.02033::section::0",
+          "text": "We developed an augmentation framework that can be easily used in different contexts such as our BEC detection use case but also sentiment analysis with Stanford Sentiment Treebank (SST-2) [48] or question classification with Trec REtrieval Conference (TREC-6) [29]. Examples of augmentations are presented in Table 1.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::1",
+      "paper_id": "2007.02033",
+      "heading": "Dataset",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::1::para::0",
+          "section_id": "2007.02033::section::1",
+          "text": "Original text Augmented text SST-2 the entire movie establishes a wonderfully creepy mood the whole movie creates a wonderfully scary mood What is the secret of the universe? What is the mystery of the cosmos?",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::2",
+      "paper_id": "2007.02033",
+      "heading": "BEC",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::2::para::0",
+          "section_id": "2007.02033::section::2",
+          "text": "Have you got a minute? I need you to complete a task for me discreetly. P.S : I am in a meeting and can't talk.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::2::para::1",
+          "section_id": "2007.02033::section::2",
+          "text": "Do you have a minute? You have to do a task for me discretly. P.S: I'm IAM and I can't speak.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::3",
+      "paper_id": "2007.02033",
+      "heading": "Table 1: Augmentation examples",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::3::para::0",
+          "section_id": "2007.02033::section::3",
+          "text": "In this paper, we propose a corpus and task agnostic framework that can be easily used to augment any English text corpus without the need to train or finetune models. Our framework leverages an ensemble of methods (Section 3) combined for the first time, to the best of our knowledge. We assess the contribution of our framework to different datasets in Section 4. Finally, we provide a discussion on the limitations of our framework in Section 5.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::4",
+      "paper_id": "2007.02033",
+      "heading": "Related Work",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::4::para::0",
+          "section_id": "2007.02033::section::4",
+          "text": "Text augmentation is usually applied in a discrete space of words, in which a simple change implies to change a whole word. Such changes lead to the use of word replacement methods to augment texts. Those replacements are valid if they preserve data characteristics which can be achieved in supervised learning settings guaranteeing augmented texts compatibility with their labels 3 .",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::4::para::1",
+          "section_id": "2007.02033::section::4",
+          "text": "Preserving text meaning through the augmentation may be sufficient to satisfy label compatibility in many contexts. Thus, some works rely on WordNet to find synonyms replacements [11,52], while others leverage word embeddings and latest language models such as BERT [25,54]. Our work benefits from both methods. Besides word replacements, other operations at word level have been explored such as word dropout or word swap [52]. However, these operations do not guarantee sentence readability or syntax validity, potentially bringing discrepancy between augmented texts and original ones.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::4::para::2",
+          "section_id": "2007.02033::section::4",
+          "text": "Natural language generation [25,42] can also be used to augment text, however guaranteeing label compatibility implies control over the generation process. Paraphrase generation has been widely studied and may provide sufficient control over the generation process. For instance, Gupta et al. [12] use a Variational Autoencoder (VAE) [21,45] conditioned on the original text, and Li et al. [31] propose to use a generator and evaluator network with a supervised training and Reinforcement Learning finetuning. These works have shown promising results but there is still a gap in terms of readability and relevance between generated and ground truth paraphrases. Moreover, these architectures can be complex to implement (e.g., several training phases, multiple networks).",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.02033::section::4::para::3",
+          "section_id": "2007.02033::section::4",
+          "text": "An alternative to paraphrase generation is back-translation [9]. Machine translation has significantly improved in the last years with the growing use of Neural Machine Translation (NMT) [2,55]. NMT relies on Seq2Seq models [3,28,43] compressing the source language text before generating the target language text. Through multiple compressions and generations, back-translation allows to generate paraphrases. This method has already been successfully used for text augmentation [47,56]. We implemented our version of a multi-step back-translation.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.02033::section::4::para::4",
+          "section_id": "2007.02033::section::4",
+          "text": "Some works also explore augmentation in word embedding space [11,58]. In such a space, texts are represented as a concatenation of continuous word vectors referred to as word embeddings. This continuous text representation can then be used to feed NLP models. Similarly to computer vision where noise can be applied to augment images [19] in the continuous pixel space, Zhang and Yang [58], and Giridhara et al. [11] study the addition of noise in the continuous word embedding space. Noise or small variations can occur on image pixels due to sensor uncertainty or adversarial attacks [1], consequently noise-based augmentation improves model robustness to small variations. However, in natural language, the word embedding for a same word in a same context will not vary as it is the output of a deterministic model. We argue that adding noise to words embeddings may bring discrepancy as augmented word embeddings cannot exist \"naturally\".",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2007.02033::section::4::para::5",
+          "section_id": "2007.02033::section::4",
+          "text": "It is possible to combine different text augmentation methods. For instance, Giridhara et al. [11] combine augmentation at word level and word embedding level, and Wei and Zou [52] combine different simple text editing methods. As in computer vision, we argue that combining different augmentation methods helps to improve augmented texts diversity. Our proposed framework uses an ensemble of augmentation methods combining words replacements and back translations (see Section 3.2).",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::5",
+      "paper_id": "2007.02033",
+      "heading": "Method",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::5::para::0",
+          "section_id": "2007.02033::section::5",
+          "text": "We propose a new data augmentation framework that combines different methods while ensuring that augmented texts are good candidates to improve the original dataset and the generalization of machine learning models trained on it.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::5::para::1",
+          "section_id": "2007.02033::section::5",
+          "text": "Our proposed augmentation framework generates an augmentation pipeline for each augmentation attempt. An augmentation pipeline consists of a normalization module that tokenizes the input text, an augmentation module made of a random sequence of k methods that augments the text and a validation module that filters out the augmented text candidate. At the end of the pipeline the augmented text may be kept or discarded. We parameterize the number of generated augmentation pipelines for each input text with a constant (e.g., 10). Consequently, the number of kept augmented texts per input is limited and may vary.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::5::para::2",
+          "section_id": "2007.02033::section::5",
+          "text": "This architecture is flexible as we can easily tune, activate, or deactivate the different modules. We now describe each module in details.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::6",
+      "paper_id": "2007.02033",
+      "heading": "Normalization module",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::6::para::0",
+          "section_id": "2007.02033::section::6",
+          "text": "Normalization is the first step of an augmentation pipeline. It parses an input text into separate tokens representing words or punctuation and ensures correct encoding for those tokens. Our normalization module relies on spaCy 4 and provides characteristics about each identified token (e.g., Part-Of-Speech (POS) tag, Named Entities Recognition, stemming). These characteristics are leveraged by our augmentation methods.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::7",
+      "paper_id": "2007.02033",
+      "heading": "Augmentation module",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::7::para::0",
+          "section_id": "2007.02033::section::7",
+          "text": "We propose to combine several methods including multi-steps machine translation, words replacement leveraging BERT [7] and Wordnet, abbreviations and misspellings generation based on heuristics.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::7::para::1",
+          "section_id": "2007.02033::section::7",
+          "text": "The number k of methods used in the augmentation module of a pipeline is a parameter (e.g., a random variable in our case, a constant, a function of text length, etc.). Thus a sequence of k augmentation methods is built picking methods one by one at random with replacement. Augmentation methods are then applied successively in the sequence order transforming the input normalized text into an augmented text.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::8",
+      "paper_id": "2007.02033",
+      "heading": "Words replacements:",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::8::para::0",
+          "section_id": "2007.02033::section::8",
+          "text": "The goal of words replacements is to modify an existing text while preserving its syntax and meaning. Doing so, we reduce the risk for an augmented text to be grammatically incorrect and incompatible with its label. We now describe three types of words replacements that we implemented in our framework.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::9",
+      "paper_id": "2007.02033",
+      "heading": "Semantic-based replacements:",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::9::para::0",
+          "section_id": "2007.02033::section::9",
+          "text": "With the objective of preserving the original text meaning, we want to replace words by synonyms or near-synonyms [49]. Leveraging pretrained BertForMaskedLM base uncased from HuggingFace's package [7], we developed two different methods to increase replacements diversity. These methods make use of both spaCy and BERT WordPiece tokens as we developed a mapping between these two tokenization techniques.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::9::para::1",
+          "section_id": "2007.02033::section::9",
+          "text": "For the first method, we randomly mask 10% of WordPiece tokens excluding tokens with spaCy POS tags corresponding to pronouns, determinants and proper nouns. We then use pretrained BERT to output a probability distribution over the vocabulary for each masked word. By masking less than 10% of tokens, most of the text context is preserved which mitigates the risk of inaccurate probability predictions. Eventually we choose the replacement candidate sampling over the distribution due to the inherent uncertainty of masked word prediction, leveraging Nucleus Sampling with a threshold of 95% [14]. To mitigate the risk of inconsistent replacements, we added constraints on syntax and contextual semantic continuity. Thus a replacement is accepted if it preserves the original word POS tag (e.g., strict equality) and if the cosine similarity between its embedding and the original word embedding is high enough, i.e., above a given threshold.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::9::para::2",
+          "section_id": "2007.02033::section::9",
+          "text": "For the second method, we use both WordNet [36] and BERT. We first perform a selection of words to replace, exactly as done in the first method. For each selected word, we obtain a list of replacement candidates using WordNet synsets and the word POS tag. As previously, we compare candidates and original word embeddings with cosine similarity, refining the list. Eventually a replacement is randomly chosen from the refined list.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.02033::section::9::para::3",
+          "section_id": "2007.02033::section::9",
+          "text": "As mentioned in Section 2, other works use language models for words replacements in text augmentation context [23,25,54]. However, these methods are not corpus agnostic as language models are finetuned, conditioning replacements on text labels. Our methods do not involve any finetuning and can directly be used on any text corpus.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.02033::section::9::para::4",
+          "section_id": "2007.02033::section::9",
+          "text": "Abbreviation-based replacements : Abbreviations are quite common in natural language, so a word or group of words may be replaced by an abbreviation and vice versa (e.g., \"IMO\" for \"In my opinion\"). We perform replacements from expanded to abbreviated form and inversely, relying on word-pair dictionaries. To ensure that our method remains corpus independent, and to preserve texts meaning, we exclude from those dictionaries abbreviations whose expanded forms differ depending on the texts context (e.g., \"PM\" → {\"Post Meridiem\", \"Project Manager\", etc.}.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2007.02033::section::9::para::5",
+          "section_id": "2007.02033::section::9",
+          "text": "Misspelling-based replacements : Misspellings are quite common in natural language and they are often accidental. We replace a word by a misspelled version relying on a heuristic to simplify misspellings occurrence and letter replacements. This heuristic can be used on any English text and is detailed in Appendix A. Moreover, in fraud detection context, misspellings are important as they can be used to convey a sense of urgency, or to evade security technologies [15,51].",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::10",
+      "paper_id": "2007.02033",
+      "heading": "Multiple steps of translation:",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::10::para::0",
+          "section_id": "2007.02033::section::10",
+          "text": "We propose a method relying on multiple steps of translation using a strongly connected graph. An example of such a graph is given in Ap-pendix B -Figure 4. Each node L i represents a language, and each edge M T ij represents a machine translation engine able to translate from L i to L j . We generate a cycle from the English node and passing through several intermediate languages, achieving a multi-steps back-translation. Numerous constraints can be applied to generate a cycle (e.g., its length, its edge's performance) affecting back-translated texts validity (e.g., label compatibility) and diversity.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::10::para::1",
+          "section_id": "2007.02033::section::10",
+          "text": "In our settings, we use Google Translate engine 5 (GT) for all edges, considering only the best performing translation pairs from and to the English language according to the empirical evaluation available at teachyoubackwards.com 6 . We also limit the cycle maximum length to 3 (i.e., simple and 2-steps back-translation possible) in our experiments. For instance, a path may be: English → Spanish → Danish → English. As mentioned in teachyoubackwards evaluation, it is likely that GT does not use a direct translation for non-English pairs (e.g., Spanish → Danish), but instead uses English language as a pivot (e.g., Spanish → English → Danish). Leveraging multi-step back-translation, we push further towards back-translated texts diversity while mitigating the risk of invalidity selecting best English translation pairs.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::11",
+      "paper_id": "2007.02033",
+      "heading": "Validation module",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::11::para::0",
+          "section_id": "2007.02033::section::11",
+          "text": "Ideally an augmentation should ensure label compatibility and bring added value to the dataset. Making the assumption that diverse paraphrases satisfy these objectives, our validation module goal is to discard augmented texts that are too dissimilar or redundant when compared to the original text. For this purpose, our validation module consists of two steps: a first step where dissimilar texts are identified by a classifier and a second step where redundant texts are detected by an heuristic.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::12",
+      "paper_id": "2007.02033",
+      "heading": "Dissimilar text detection:",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::12::para::0",
+          "section_id": "2007.02033::section::12",
+          "text": "To discard dissimilar augmented texts, we train a text pair logistic regression classifier on paraphrases corpora to predict if two texts have the same meaning (i.e., similar) or not (i.e., dissimilar). Corpora used are Quora Question Pairs [4], Microsoft Research Paraphrases Corpus [8] and an internal email text pairs dataset (see Appendix F). An augmented text is kept and considered for redundancy detection only if it is classified as similar to the original text, otherwise it is discarded.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::12::para::1",
+          "section_id": "2007.02033::section::12",
+          "text": "Each input text pair is mapped to a feature vector using a set of similarity metrics. We initially performed a performance study of metrics different enough to increase their potential synergy, considering metrics based on n-grams co-occurrence [16,39], metrics leveraging WordNet [30,35] or language models [6,44]. This study highlighted a limited complementarity between metrics as most of accuracy is captured by Sentence-bert [44]. Thus, in our framework, we combine 3 metrics [35,39,44], slightly improving over Sentence-bert accuracy alone without impacting the computation time.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::12::para::2",
+          "section_id": "2007.02033::section::12",
+          "text": "Redundant text detection: To detect redundancy, we rely on a heuristic, scoring each similar augmented text based on the transformations applied (e.g., +1 for each word change). Each score is re-scaled based on the original text length (e.g., number of tokens). Example of a score computation is given in Appendix C. A similar augmented text is considered redundant and discarded if its re-scaled score is too low, i.e., under a given threshold.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.02033::section::12::para::3",
+          "section_id": "2007.02033::section::12",
+          "text": "To tune this threshold, we rely on our internal text pairs dataset. As detailed in Appendix F, each text pair is labeled according to 4 levels of similarity, going from near-duplicate to dissimilar. Using the described heuristic, we compute for each pair the re-scaled score comparing one text to another. Ranking text pairs with re-scaled scores, the threshold optimizes the F 1 score associated with near-duplicate detection among pairs classified as similar by the previously described classifier.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::13",
+      "paper_id": "2007.02033",
+      "heading": "Experiments",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::13::para::0",
+          "section_id": "2007.02033::section::13",
+          "text": "In this section, we evaluate the contribution of our augmentations to classification tasks commonly used in text augmentation state-of-the-art. Additionally, we study our augmentations added value in BEC detection use case with different settings, varying the number of augmented texts or using a finetuned language model for better classification performance.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::14",
+      "paper_id": "2007.02033",
+      "heading": "Datasets",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::14::para::0",
+          "section_id": "2007.02033::section::14",
+          "text": "To perform our experiments, we use SST-2 [48] and TREC-6 [29] public datasets as well as our private dataset for BEC detection. SST-2 is made of movie reviews with two labels (positive or negative). TREC-6 is a multi-label questions dataset, each label corresponding to a question type (e.g., Abbreviation, Locations, Entities).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::14::para::1",
+          "section_id": "2007.02033::section::14",
+          "text": "Our BEC detection dataset is composed of anonymized texts extracted from emails, labeled as suspicious through different typologies (e.g., ceofraud, w2fraud) or nonsuspicious (see Appendix D). This dataset is highly unbalanced as BEC are not common. Class imbalance is a known issue in Machine Learning [24] as most models assume data to be equally distributed which results in poor performances on minority classes. To address this imbalance, we only augment minority classes (i.e., BEC typologies) samples referred as BEC* in Table 2.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::14::para::2",
+          "section_id": "2007.02033::section::14",
+          "text": "Dataset c l N |V | SST-2 2 19 9 613 16 185 TREC-6 6 10 5 952 9 592 BEC 6 48 1 224 8 042 BEC* 5 38 115 1 153",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.02033::section::14::para::3",
+          "section_id": "2007.02033::section::14",
+          "text": "Table 2: Datasets statistics Table 2 contains for each dataset the number of classes c, the average text length 7 l, the total number of texts N , and the vocabulary size |V |. These datasets are diverse in terms of samples number and text length allowing us to study the impact of these factors on the added value of our augmentations. Intuitively we expect a stronger added value on a small dataset with long texts. Indeed, the space of possible augmentations for a text is constrained by its length. Moreover, a model trained on a large-scale dataset may achieve good generalization without data augmentation.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.02033::section::14::para::4",
+          "section_id": "2007.02033::section::14",
+          "text": "Besides the number of samples and the text length, the complexity of the classification task must be taken in account. As mentioned in Section 2, augmented texts must be compatible with their labels to be relevant. If the natural language task is complex, augmented texts may hardly ensure label compatibility which would reduce augmentation added value. We argue that we also have diversity in term of task complexity: TREC-6 questions are divided into semantic categories, questions are short and objective; SST-2 implies figurative language; BEC classification is sensitive to syntax and semantic as a suspicious email will contain a request on some specific topics (e.g., payment, sharing of sensitive information, etc.). Thus we analyze the resilience of our augmentation framework to different kinds of classification tasks and complexities.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2007.02033::section::14::para::5",
+          "section_id": "2007.02033::section::14",
+          "text": "We only augment the train split of each dataset. For the public classification tasks, we use TREC-6 and SST-2 provided train/test splits. For our BEC detection task, we apply a 70%/30% stratified split.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::15",
+      "paper_id": "2007.02033",
+      "heading": "Models",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::15::para::0",
+          "section_id": "2007.02033::section::15",
+          "text": "To study our augmentation contribution on different text classification tasks, we use the CNN for sentence classification [20]. This model has smaller capacity 8 than recent language models [7,57], however it has been widely used in text augmentation stateof-the-art [23,54,58]. For the BEC dataset, we also assess our augmentation contribution finetuning BertForSequenceClassification base uncased implemented in Hugging-Face's [53]. Following Kim [20] we train our classification models using early stopping on a development set (dev set). For SST-2 the dev set is provided, for TREC-6 and BEC detection datasets we generate it with respectively a 90%/10% and 80%/20% stratified split of the train set.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::16",
+      "paper_id": "2007.02033",
+      "heading": "Data augmentation",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::16::para::0",
+          "section_id": "2007.02033::section::16",
+          "text": "We augment each dataset using our framework. As mentioned in Section 3, the number of kept augmented texts per input varies. We generate 10 augmentation pipelines for each text sample, which gives enough augmented texts for our experiments. The average number of augmented texts per sample (i.e., the augmentation factor) is recorded in Table 3.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::16::para::1",
+          "section_id": "2007.02033::section::16",
+          "text": "We argue that the difference between augmentation factors is driven by the average text length (see l in Table 2). Consequently, the augmentation contribution potential is higher on BEC than on SST-2 or TREC-6.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::16::para::2",
+          "section_id": "2007.02033::section::16",
+          "text": "Dataset Augmentation factor TREC-6 7.2 SST-2 8.8 BEC* 9. 2 Table 3: Average augmentation factor per dataset.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::17",
+      "paper_id": "2007.02033",
+      "heading": "Impact of data size",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::17::para::0",
+          "section_id": "2007.02033::section::17",
+          "text": "We analyze our augmentation contribution on public datasets through different data regimes. For this purpose, TREC-6 and SST-2 datasets are augmented. Figure 1 depicts the results obtained by training the CNN [20] on three types of data: Originals, corresponding to text samples from TREC-6 or SST-2 datasets; Augmentations, corresponding to augmented texts outputted by our framework using samples from Originals; Merged, containing all samples from Originals and Augmentations. The proportion of Originals samples used to create datasets varies from 10% to 100%. For each proportion, a new data trio (Originals, Augmentations, Merged) is generated. For instance, we may consider a 10% subsampling of TREC-6, i.e., Originals, from this subsample output augmented texts, i.e., Augmentations, and combine the subsample and related augmented texts into a single dataset Merged. Evaluation is performed on provided test sets. Figure 1 validates that most of our augmented texts preserve label compatibility on different task complexities as there is no significant performance drop when training models solely on augmented samples (i.e., Augmentations). Figure 1 also shows the contribution of our augmentation, especially in low-data regimes. This is depicted by the positive and decreasing performance gap between Merged and Originals. To improve our email text classifier generalization for BEC detection, we augment our BEC corpus on minority classes. Merged is the dataset containing BEC corpus and all related augmented texts. On average 9.2 augmented texts are generated for each sample (Table 3), which significantly increases minority classes weight in the learning phase. To dissociate classes weight effect from our augmentation contribution, we created BEC \"duplicated\" corpus (Duplicated) where each minority class sample is duplicated to replicate the number of augmented texts in Merged. To analyze the impact of the number of augmented texts per sample, we capped 9 this number from 0 to 10 and trained CNN [20] on each data type (i.e., Original, Duplicated and Merged), results are shown in Figure 2.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::17::para::1",
+          "section_id": "2007.02033::section::17",
+          "text": "Augmentation contribution is significant in this small-scale dataset (see Table 2) as we can notice a large gap between Merged and other data types. Moreover, the contribution increases with the cap, first strongly then moderately after a cap of 2 augmented texts per sample. The performance growth shows our framework ability to produce both diverse and label compatible augmented texts. However, the growth slowdown may indicate that diversity among augmented texts becomes harder to maintain as their number increases. Yet, it may also be explained by other factors (e.g., model capacity). For this reason, we analyzed text samples with their related augmentations. This analysis (examples in Appendix E) shows that diversity among augmented texts can further be improved.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::18",
+      "paper_id": "2007.02033",
+      "heading": "Our use case with class imbalance",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::18::para::0",
+          "section_id": "2007.02033::section::18",
+          "text": "Dataset CNN [20] BertForSequence Classification In this experiment, BertForSequenceClassification is considered in addition to CNN [20]. As mentioned previously, language models have improved NLP state-of-the-art on various tasks 10 . Leveraging self-supervised pretraining and Transformer architecture [50], these models learn and transpose language concepts to specific tasks, achieving excellent generalization.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::18::para::1",
+          "section_id": "2007.02033::section::18",
+          "text": "Table 4 regroups the best results obtained when varying the cap of the augmented texts number per sample. As shown previously (Figure 2), augmentation is key for CNN model generalization, with a contribution well above classes weight. With BertForSe-quenceClassification, while being less significant, augmentation still has a positive impact over class weights. Thus we exemplified that even with recent pretrained language models such as BERT, data augmentation stays relevant in low-data regimes.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::19",
+      "paper_id": "2007.02033",
+      "heading": "Corpus agnostic framework",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::19::para::0",
+          "section_id": "2007.02033::section::19",
+          "text": "We designed our augmentation framework to be corpus agnostic in order to address the diversity of use cases within our company. Initially motivated by the task of BEC detection, the development of our framework evolved towards an internal service to augment English texts in several contexts (e.g., BEC detection, security awareness training, fraud simulation). Being corpus agnostic may degrade the quality of augmented texts as it prevents the use of context specific methods, such as model finetuning [23,54]. We propose several workarounds to mitigate this risk.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::19::para::1",
+          "section_id": "2007.02033::section::19",
+          "text": "First, as detailed in Section 3, we constrain words replacements. Replacement candidates must preserve their initial POS tags and are filtered based on the cosine similarity of BERT embeddings. These constraints reduce inconsistent replacements. However they are not optimal as BERT embeddings are not optimized for cosine similarity measurements which suppose that all dimensions have equal weights 11 , and the POS tag preservation constraint may discard some valid replacements.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::19::para::2",
+          "section_id": "2007.02033::section::19",
+          "text": "Additionally, we developed a validation module called at the end of the pipeline (Section 3) to reduce the risk of compromising labels. This module is further discussed in following subsections. Results presented in Section 4 have shown, in different contexts, that our framework produces label compatible augmentations despite being corpus agnostic.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::20",
+      "paper_id": "2007.02033",
+      "heading": "Augmentations and diversity",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::20::para::0",
+          "section_id": "2007.02033::section::20",
+          "text": "Fig. 3: 2D visualization.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::20::para::1",
+          "section_id": "2007.02033::section::20",
+          "text": "To ease the analysis of augmentation impact on data diversity, we propose a visualization of augmented areyouavailable class from BEC corpus (Figure 3), projecting each text to an embedding space [44] and leveraging t-SNE [32] for 2D visualization 12 .",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::20::para::2",
+          "section_id": "2007.02033::section::20",
+          "text": "Visualization suggests that augmented texts, while bringing diversity, are restricted to the neighborhood of original samples they relate to. The challenge of diversity is to expand these neighborhoods while preserving augmented texts validity. We argue that using an ensemble of augmentation methods helps increase diversity. Our experiments (Section 4) exhibit the ability and limitations of our framework to continuously produce diverse augmented texts. Diversity improvement will be addressed in future work by modifying our existing methods (e.g., translation paths addition, words replacements sampling change) and investigating new ones involving for instance natural language generation.",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::21",
+      "paper_id": "2007.02033",
+      "heading": "Augmentations validation",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::21::para::0",
+          "section_id": "2007.02033::section::21",
+          "text": "It is important to ensure that augmented texts have enough diversity while preserving data characteristics, which is a challenge as our augmentation framework is corpus agnostic. Indeed, we cannot guarantee that our transformations always preserve data characteristics. For this purpose, we use a validation module constraining our augmented texts to be paraphrases of the samples they relate to. We made the assumption that paraphrasing original texts brings sufficient control to prevent data poisoning in most contexts. Moreover, our validation module also discards detected near duplicates of original texts to augment data diversity (Section 3). However, this validation module is not an oracle. Paraphrase detection models tend to fail on sentence pairs that have lexical overlap but different meaning [59] which can easily occur in augmentation context. In future work, we will investigate language models finetuning which have shown top performance on paraphrase detection 13 and consider Paraphrase Adversaries from Word Scrambling corpus [59] as an additional data source.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::22",
+      "paper_id": "2007.02033",
+      "heading": "Task influence",
+      "section_type": null,
+      "order": 22,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::22::para::0",
+          "section_id": "2007.02033::section::22",
+          "text": "Similarly to what is done for image or sound augmentation, it is relevant to analyze how data is processed and what we know about the task before designing augmentation. Our framework being corpus and task agnostic, this preliminary analysis is not possible. Moreover, constraining augmented texts to be valid paraphrases of original texts may not prevent data poisoning for all tasks. For example, if the task is authorship attribution (i.e. determining the writer of a text), using back-translation to augment texts may poison the data, altering some writer style characteristics (e.g., vocabulary distribution, syntax representation). The modular design of our framework brings flexibility helping to cope with some specific contexts, for instance we may not consider multi-step back-translation in case of authorship attribution.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::23",
+      "paper_id": "2007.02033",
+      "heading": "Closing remarks",
+      "section_type": null,
+      "order": 23,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::23::para::0",
+          "section_id": "2007.02033::section::23",
+          "text": "In this paper we present a new text augmentation framework that is corpus and task agnostic. This framework combines several augmentation methods and can be easily applied to different NLP projects. Experiments have shown that our augmentation improves significantly machine learning models generalization in different low-data regime contexts. Our analysis on limitations provides guidelines for future work such as the addition of new methods (e.g., natural language generation) or the improvement of existing ones (e.g., replacements monitoring, validation module) aiming towards better augmented texts diversity and validity.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::23::para::1",
+          "section_id": "2007.02033::section::23",
+          "text": "development. Finally we would like to acknowledge Fatima Qachfar's contribution to obtain early results on the use of language models.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::24",
+      "paper_id": "2007.02033",
+      "heading": "A Misspelling replacements heuristic",
+      "section_type": null,
+      "order": 24,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::24::para::0",
+          "section_id": "2007.02033::section::24",
+          "text": "Below is the code of the main function behind our misspelling replacements heuristic. A token has a probability of 0.01 to be picked for misspelling replacement.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::24::para::1",
+          "section_id": "2007.02033::section::24",
+          "text": "def generate_misspellings(picked_token): word = picked_token.string # default misspelling types misspelling_types = [\"transposition\", \"extra\", \"mistyping\", \"phonetic\"] # optional misspelling type has_doubles = any(word[i] == word[i + 1] for i in range(len(word) -1)) if has_doubles: misspelling_types.append(\"missing\") # pick misspelling misspelling_type = random.choice(misspelling_types) misspelled_word = apply_misspelling(word, misspelling_type) picked_token.string = misspelled_word return picked_token The table below described apply misspelling() action for each misspelling type: Input token Misspelling type Output token Description winter transpostion witner Swap two adjacent letters winter extra winterr Repeat a letter twice winter mistyping wimter Replace a letter by an adjacent letter in QWERTY layout misspelling missing misspeling Remove a letter in case of double letters dependent phonetic dependant Replace a group of letters by another which has the same pronunciation",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::24::para::2",
+          "section_id": "2007.02033::section::24",
+          "text": "Table 5: apply misspelling() actions",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::25",
+      "paper_id": "2007.02033",
+      "heading": "B Example of multistep translation graph",
+      "section_type": null,
+      "order": 25,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::25::para::0",
+          "section_id": "2007.02033::section::25",
+          "text": "Based on teachyoubackwards 14 study, we chose the following list of languages: Afrikaans, Chinese, Croatian, Danish, Dutch, Finnish, German, Greek, Hungarian, Polish, Portuguese, Spanish. All these languages show relatively good translation performances from and to English, i.e, BARD ≥ 40, T ARZAN ≥ 50, F AIL ≤ 35. On Figure 4, the following set of languages {English, Dutch, Danish, Spanish} is considered.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::25::para::1",
+          "section_id": "2007.02033::section::25",
+          "text": "GT which stands for Google Translate engine is used for all translations. For each back-translation, a cycle is generated from English node. In the example represented on Figure 4, the generated path is : English → Spanish → Danish → English.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::26",
+      "paper_id": "2007.02033",
+      "heading": "C Example of augmentation scoring",
+      "section_type": null,
+      "order": 26,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::26::para::0",
+          "section_id": "2007.02033::section::26",
+          "text": "In Table 6, we show an example of score computation for the redundancy detection heuristic. In this case, the re-scaling is done by dividing the score by the number of SpaCy tokens in the original text. Table 6: Augmentation scoring D BEC corpus labels",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::26::para::1",
+          "section_id": "2007.02033::section::26",
+          "text": "Table 7 describes BEC corpus classes.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::27",
+      "paper_id": "2007.02033",
+      "heading": "E Redundancy among augmentations",
+      "section_type": null,
+      "order": 27,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::27::para::0",
+          "section_id": "2007.02033::section::27",
+          "text": "An analysis of augmented texts relative to randomly selected original texts pointed out a limited diversity. Table 8 gives examples of very similar augmented texts.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::28",
+      "paper_id": "2007.02033",
+      "heading": "F Internal text pairs dataset labels",
+      "section_type": null,
+      "order": 28,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::28::para::0",
+          "section_id": "2007.02033::section::28",
+          "text": "Labels correspond to different levels of similarity considering texts pairs meaning and lexical overlap. We define:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::28::para::1",
+          "section_id": "2007.02033::section::28",
+          "text": "• 0: texts have different meaning and low lexical overlap.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::28::para::2",
+          "section_id": "2007.02033::section::28",
+          "text": "• 1: texts have different meaning and significant lexical overlap.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.02033::section::28::para::3",
+          "section_id": "2007.02033::section::28",
+          "text": "• 2: texts have same meaning with low to moderate lexical overlap.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.02033::section::28::para::4",
+          "section_id": "2007.02033::section::28",
+          "text": "• 3: texts have same meaning and are nearly identical (i.e., high lexical overlap).",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2007.02033::section::28::para::5",
+          "section_id": "2007.02033::section::28",
+          "text": "In the context of text pair classification, labels 0 and 1 can be grouped under dissimilar, labels 2 and 3 under similar.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2007.02033::section::28::para::6",
+          "section_id": "2007.02033::section::28",
+          "text": "To build the corpus, we first extracted email texts from our professional mailboxes. These email texts have been manually anonymized. We also extracted texts from public email corpora such as Enron [22], DNCfoot_12 , Podesta 16 . Then for each selected text, we handcrafted new texts in order to form pairs for the defined labels. Samples from our corpus are given in Table 9.",
+          "paragraph_index": 6
+        }
+      ]
+    },
+    {
+      "id": "2007.02033::section::29",
+      "paper_id": "2007.02033",
+      "heading": "Definition Example areyouavailable",
+      "section_type": null,
+      "order": 29,
+      "paragraphs": [
+        {
+          "id": "2007.02033::section::29::para::0",
+          "section_id": "2007.02033::section::29",
+          "text": "Short email asking for the availability of the recipient, usually with a sense of urgency. One of the goal of this kind of email is to initiate a communication with the victim without using suspect keywords. BEC detection technologies may whitelist an email address after a couple of emails have been exchanged, hence this trick.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2007.02033::section::29::para::1",
+          "section_id": "2007.02033::section::29",
+          "text": "\"I need you to get a task done for me promptly. Let me know if you are unoccupied\" ceofraud CEO fraud is a threat consisting in the impersonation of a position of authority (e.g., CEO) asking an employee to transfer money to a fraudulent bank account. It usually targets finance department. The threat relies on the fear of failing to please an authoritative power.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2007.02033::section::29::para::2",
+          "section_id": "2007.02033::section::29",
+          "text": "\"Please process immediately a wire transfer payment to $45,000.It is an urgent invoice from the business attorney. Banking instructions attached. Thanks\" giftcardscam Gift card scam is a threat consisting in the impersonation of an executive requesting the purchase of gift cards for a special occasion. The message will often tell the victim to stay quiet, trying to make it appear as a surprise.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2007.02033::section::29::para::3",
+          "section_id": "2007.02033::section::29",
+          "text": "\"Hi, I have a request, I'm planning to surprise some of the staff with gifts, are you available to get a purchase done for me? I will appreciate your assistance and confidentiality.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2007.02033::section::29::para::4",
+          "section_id": "2007.02033::section::29",
+          "text": "Email me once you get this.\"",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2007.02033::section::29::para::5",
+          "section_id": "2007.02033::section::29",
+          "text": "Payroll fraud is a threat consisting in the impersonation of an employee asking to change direct deposit information. It usually targets HR or finance departments. The goal for the fraudster is to replace in the payroll system the impersonated employee bank account by a fraudulent bank account.",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2007.02033::section::29::para::6",
+          "section_id": "2007.02033::section::29",
+          "text": "\"I have recently changed banks and need to change my direct deposit for payroll. I need your prompt assistance in this matter and when this will take effect.\" w2fraud W-2 fraud is a threat consisting in the impersonation of an executive asking for documents (e.g., W-2 forms) containing employees confidential information, such as SSN.",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2007.02033::section::29::para::7",
+          "section_id": "2007.02033::section::29",
+          "text": "\"I have an important meeting at 10:30 and I need the W-2s of the staff ASAP. Please upload the files to https://drop.box.it for security purposes. Thanks!\" nonsuspicious This label corresponds to all emails we decided not to flag in our BEC detection context, i.e., emails that do not belong to previous labels.",
+          "paragraph_index": 7
+        },
+        {
+          "id": "2007.02033::section::29::para::8",
+          "section_id": "2007.02033::section::29",
+          "text": "There are two types of emails in this category: benign emails that have similar topics (invoice, sense of urgency, etc.), and benign emails that do not have any similar topics (majority of the corpus).",
+          "paragraph_index": 8
+        },
+        {
+          "id": "2007.02033::section::29::para::9",
+          "section_id": "2007.02033::section::29",
+          "text": "\"I will pay this invoice per Randy. If you need anything else just let me know. Thanks.\" Table 8: Redundancy among augmentations",
+          "paragraph_index": 9
+        }
+      ]
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "equations": [],
+  "citations": [
+    {
+      "id": "2007.02033::citation::0",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Threat of adversarial attacks on deep learning in computer vision: A survey",
+      "cited_authors": [
+        "N Akhtar",
+        "A Mian"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::1",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Findings of the 2016 conference on machine translation",
+      "cited_authors": [
+        "O Bojar",
+        "R Chatterjee",
+        "C Federmann",
+        "Y Graham",
+        "B Haddow",
+        "M Huck",
+        "A J Yepes",
+        "P Koehn",
+        "V Logacheva",
+        "C Monz"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::2",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "The best of both worlds: Combining recent advances in neural machine translation",
+      "cited_authors": [
+        "M X Chen",
+        "O Firat",
+        "A Bapna",
+        "M Johnson",
+        "W Macherey",
+        "G Foster",
+        "L Jones",
+        "N Parmar",
+        "M Schuster",
+        "Z Chen"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1804.09849",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::3",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": null,
+      "cited_authors": [
+        "Z Chen",
+        "H Zhang",
+        "X Zhang",
+        "L Zhao"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::4",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "High precision detection of business email compromise",
+      "cited_authors": [
+        "A Cidon",
+        "L Gavish",
+        "I Bleier",
+        "N Korshun",
+        "M Schweighauser",
+        "A Tsitkin"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::5",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Supervised learning of universal sentence representations from natural language inference data",
+      "cited_authors": [
+        "A Conneau",
+        "D Kiela",
+        "H Schwenk",
+        "L Barrault",
+        "A Bordes"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": "arXiv:1705.02364",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::6",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Bert: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "J Devlin",
+        "M W Chang",
+        "K Lee",
+        "K Toutanova"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1810.04805",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::7",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Automatically constructing a corpus of sentential paraphrases",
+      "cited_authors": [
+        "W B Dolan",
+        "C Brockett"
+      ],
+      "cited_year": 2005,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::8",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Understanding back-translation at scale",
+      "cited_authors": [
+        "S Edunov",
+        "M Ott",
+        "M Auli",
+        "D Grangier"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1808.09381",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::9",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Federal Bureau of Investigation, Internet Crime Complaint Center",
+      "cited_authors": [
+        "Fbi"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::10",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "A study of various text augmentation techniques for relation classification in free text",
+      "cited_authors": [
+        "P K B Giridhara",
+        "M Chinmaya",
+        "R K M Venkataramana",
+        "S S Bukhari",
+        "A Dengel"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::11",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "A deep generative framework for paraphrase generation",
+      "cited_authors": [
+        "A Gupta",
+        "A Agarwal",
+        "P Singh",
+        "P Rai"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::12",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Detecting credential spearphishing in enterprise settings",
+      "cited_authors": [
+        "G Ho",
+        "A Sharma",
+        "M Javed",
+        "V Paxson",
+        "D Wagner"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::13",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "The curious case of neural text degeneration",
+      "cited_authors": [
+        "A Holtzman",
+        "J Buys",
+        "L Du",
+        "M Forbes",
+        "Y Choi"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1904.09751",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::14",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Modern web attacks",
+      "cited_authors": [
+        "F Howard"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::15",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Similarity measures for text document clustering",
+      "cited_authors": [
+        "A Huang"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::16",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "A survey of malware detection techniques",
+      "cited_authors": [
+        "N Idika",
+        "A P Mathur"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::17",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Understanding social engineering based scams",
+      "cited_authors": [
+        "M Jakobsson"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::18",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Robust convolutional neural networks under adversarial noise",
+      "cited_authors": [
+        "J Jin",
+        "A Dundar",
+        "E Culurciello"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": "arXiv:1511.06306",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::19",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Convolutional neural networks for sentence classification",
+      "cited_authors": [
+        "Y Kim"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": "arXiv:1408.5882",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::20",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Auto-encoding variational bayes",
+      "cited_authors": [
+        "D P Kingma",
+        "M Welling"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::21",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Introducing the enron corpus",
+      "cited_authors": [
+        "B Klimt",
+        "Y Yang"
+      ],
+      "cited_year": 2004,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::22",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Contextual augmentation: Data augmentation by words with paradigmatic relations",
+      "cited_authors": [
+        "S Kobayashi"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1805.06201",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::23",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Learning from imbalanced data: open challenges and future directions",
+      "cited_authors": [
+        "B Krawczyk"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::24",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Data augmentation using pre-trained transformer models",
+      "cited_authors": [
+        "V Kumar",
+        "A Choudhary",
+        "E Cho"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": "arXiv:2003.02245",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::25",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Why do users not report spear phishing emails? Telematics and Informatics",
+      "cited_authors": [
+        "Y Kwak",
+        "S Lee",
+        "A Damiano",
+        "A Vishwanath"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::26",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Multilevel intent analysis method for email filtration",
+      "cited_authors": [
+        "Z Levow",
+        "D Drako"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::27",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Bart: Denoising sequence-to-sequence pre-training for natural language generation, translation, and comprehension",
+      "cited_authors": [
+        "M Lewis",
+        "Y Liu",
+        "N Goyal",
+        "M Ghazvininejad",
+        "A Mohamed",
+        "O Levy",
+        "V Stoyanov",
+        "L Zettlemoyer"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1910.13461",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::28",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Learning question classifiers",
+      "cited_authors": [
+        "X Li",
+        "D Roth"
+      ],
+      "cited_year": 2002,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::29",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Sentence similarity based on semantic nets and corpus statistics",
+      "cited_authors": [
+        "Y Li",
+        "D Mclean",
+        "Z A Bandar",
+        "J D O'shea",
+        "K Crockett"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::30",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Paraphrase generation with deep reinforcement learning",
+      "cited_authors": [
+        "Z Li",
+        "X Jiang",
+        "L Shang",
+        "H Li"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": "arXiv:1711.00279",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::31",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Visualizing data using t-sne",
+      "cited_authors": [
+        "L V D Maaten",
+        "G Hinton"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::32",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "The imitation game: How business email compromise scams are robbing organisations",
+      "cited_authors": [
+        "S Mansfield-Devine"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::33",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Applications of circumscription to formalizing common-sense knowledge",
+      "cited_authors": [
+        "J Mccarthy"
+      ],
+      "cited_year": 1986,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::34",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Corpus-based and knowledge-based measures of text semantic similarity",
+      "cited_authors": [
+        "R Mihalcea",
+        "C Corley",
+        "C Strapparava"
+      ],
+      "cited_year": 2006,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::35",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "WordNet: An electronic lexical database",
+      "cited_authors": [
+        "G A Miller"
+      ],
+      "cited_year": 1998,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::36",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Detection of malicious pdf files and directions for enhancements: A state-of-the art survey",
+      "cited_authors": [
+        "N Nissim",
+        "A Cohen",
+        "C Glezer",
+        "Y Elovici"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::37",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Fraudulent message detection",
+      "cited_authors": [
+        "J Oliver",
+        "S D Eikenberry",
+        "G Budman",
+        "B Kim"
+      ],
+      "cited_year": 2008,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::38",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Bleu: a method for automatic evaluation of machine translation",
+      "cited_authors": [
+        "K Papineni",
+        "S Roukos",
+        "T Ward",
+        "W J Zhu"
+      ],
+      "cited_year": 2002,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::39",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "The effectiveness of data augmentation in image classification using deep learning",
+      "cited_authors": [
+        "L Perez",
+        "J Wang"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": "arXiv:1712.04621",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b39",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::40",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Understanding email fraud",
+      "cited_authors": [
+        "Proofpoint"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b40",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::41",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Language models are unsupervised multitask learners",
+      "cited_authors": [
+        "A Radford",
+        "J Wu",
+        "R Child",
+        "D Luan",
+        "D Amodei",
+        "I Sutskever"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b41",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::42",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Exploring the limits of transfer learning with a unified text-to-text transformer",
+      "cited_authors": [
+        "C Raffel",
+        "N Shazeer",
+        "A Roberts",
+        "K Lee",
+        "S Narang",
+        "M Matena",
+        "Y Zhou",
+        "W Li",
+        "P J Liu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1910.10683",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b42",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::43",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Sentence-bert: Sentence embeddings using siamese bertnetworks",
+      "cited_authors": [
+        "N Reimers",
+        "I Gurevych"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1908.10084",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b43",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::44",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Stochastic backpropagation and approximate inference in deep generative models",
+      "cited_authors": [
+        "D J Rezende",
+        "S Mohamed",
+        "D Wierstra"
+      ],
+      "cited_year": 2014,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b44",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::45",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Deep convolutional neural networks and data augmentation for environmental sound classification",
+      "cited_authors": [
+        "J Salamon",
+        "J P Bello"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b45",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::46",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Improving neural machine translation models with monolingual data",
+      "cited_authors": [
+        "R Sennrich",
+        "B Haddow",
+        "A Birch"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": "arXiv:1511.06709",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b46",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::47",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Recursive deep models for semantic compositionality over a sentiment treebank",
+      "cited_authors": [
+        "R Socher",
+        "A Perelygin",
+        "J Wu",
+        "J Chuang",
+        "C D Manning",
+        "A Y Ng",
+        "C Potts"
+      ],
+      "cited_year": 2013,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b47",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::48",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Cognitive synonymy: A general overview",
+      "cited_authors": [
+        "M Stanojević"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b48",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::49",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Attention is all you need",
+      "cited_authors": [
+        "A Vaswani",
+        "N Shazeer",
+        "N Parmar",
+        "J Uszkoreit",
+        "L Jones",
+        "A N Gomez",
+        "Ł Kaiser",
+        "I Polosukhin"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b49",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::50",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Detecting hate speech on the world wide web",
+      "cited_authors": [
+        "W Warner",
+        "J Hirschberg"
+      ],
+      "cited_year": 2012,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b50",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::51",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Eda: Easy data augmentation techniques for boosting performance on text classification tasks",
+      "cited_authors": [
+        "J W Wei",
+        "K Zou"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1901.11196",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b51",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::52",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Huggingface's transformers: State-of-the-art natural language processing",
+      "cited_authors": [
+        "T Wolf",
+        "L Debut",
+        "V Sanh",
+        "J Chaumond",
+        "C Delangue",
+        "A Moi",
+        "P Cistac",
+        "T Rault",
+        "R Louf",
+        "M Funtowicz"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b52",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::53",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Conditional bert contextual augmentation",
+      "cited_authors": [
+        "X Wu",
+        "S Lv",
+        "L Zang",
+        "J Han",
+        "S Hu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b53",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::54",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Google's neural machine translation system: Bridging the gap between human and machine translation",
+      "cited_authors": [
+        "Y Wu",
+        "M Schuster",
+        "Z Chen",
+        "Q V Le",
+        "M Norouzi",
+        "W Macherey",
+        "M Krikun",
+        "Y Cao",
+        "Q Gao",
+        "K Macherey"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": "arXiv:1609.08144",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b54",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::55",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Unsupervised data augmentation",
+      "cited_authors": [
+        "Q Xie",
+        "Z Dai",
+        "E Hovy",
+        "M T Luong",
+        "Q V Le"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1904.12848",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b55",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::56",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Xlnet: Generalized autoregressive pretraining for language understanding",
+      "cited_authors": [
+        "Z Yang",
+        "Z Dai",
+        "Y Yang",
+        "J Carbonell",
+        "R R Salakhutdinov",
+        "Q V Le"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b56",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::57",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Word embedding perturbation for sentence classification",
+      "cited_authors": [
+        "D Zhang",
+        "Z Yang"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": "arXiv:1804.08166",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b57",
+      "in_text_context": null
+    },
+    {
+      "id": "2007.02033::citation::58",
+      "paper_id": "2007.02033",
+      "raw_text": null,
+      "cited_title": "Paws: Paraphrase adversaries from word scrambling",
+      "cited_authors": [
+        "Y Zhang",
+        "J Baldridge",
+        "L He"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": "arXiv:1904.01130",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b58",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}

@@ -1,0 +1,1672 @@
+{
+  "arxiv_id": "2305.17371",
+  "title": "Towards Better Entity Linking with Multi-View Enhanced Distillation",
+  "authors": [
+    {
+      "name": "Yi Liu",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yuan Tian",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Jianxun Lian",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Xinlong Wang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Yanan Cao",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Fang Fang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Wen Zhang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Haizhen Huang",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Denvy Deng",
+      "affiliation": null,
+      "orcid": null
+    },
+    {
+      "name": "Qi Zhang",
+      "affiliation": null,
+      "orcid": null
+    }
+  ],
+  "abstract": "Dense retrieval is widely used for entity linking to retrieve entities from large-scale knowledge bases. Mainstream techniques are based on a dual-encoder framework, which encodes mentions and entities independently and calculates their relevances via rough interaction metrics, resulting in difficulty in explicitly modeling multiple mention-relevant parts within entities to match divergent mentions. Aiming at learning entity representations that can match divergent mentions, this paper proposes a Multi-View Enhanced Distillation (MVD) framework, which can effectively transfer knowledge of multiple fine-grained and mention-relevant parts within entities from cross-encoders to dual-encoders. Each entity is split into multiple views to avoid irrelevant information being over-squashed into the mention-relevant view. We further design cross-alignment and self-alignment mechanisms for this framework to facilitate fine-grained knowledge distillation from the teacher model to the student model. Meanwhile, we reserve a global-view that embeds the entity as a whole to prevent dispersal of uniform information. Experiments show our method achieves state-of-the-art performance on several entity linking benchmarks.",
+  "categories": [
+    "cs.CL"
+  ],
+  "versions": [
+    {
+      "version": "v1",
+      "created": "2023-05-27T05:15:28"
+    }
+  ],
+  "doi": null,
+  "venue": {
+    "name": "Annual Meeting of the Association for Computational Linguistics",
+    "venue_type": null
+  },
+  "semantic_scholar_id": null,
+  "publication_date": "2023-05-27",
+  "citation_count": 8,
+  "reference_count": 49,
+  "fields_of_study": [
+    "Computer Science"
+  ],
+  "sections": [
+    {
+      "id": "2305.17371::section::0",
+      "paper_id": "2305.17371",
+      "heading": "Introduction",
+      "section_type": null,
+      "order": 0,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::0::para::0",
+          "section_id": "2305.17371::section::0",
+          "text": "Entity Linking (EL) serves as a fundamental task in Natural Language Processing (NLP), connecting mentions within unstructured contexts to their corresponding entities in a Knowledge Base (KB). EL usually provides the entity-related data foundation for various tasks, such as KBQA (Ye et al., 2022), Knowledge-based Language Models (Liu et al., 2020) and Information Retrieval (Li et al., 2022). Most EL systems consist of two stages: entity retrieval (candidate generation), which retrieves Figure 1: The illustration of two types of entities. Mentions in contexts are in bold, key information in entities is highlighted in color. The information in the first type of entity is relatively consistent and can be matched with a corresponding mention. In contrast, the second type of entity contains diverse and sparsely distributed information, can match with divergent mentions. a small set of candidate entities corresponding to mentions from a large-scale KB with low latency, and entity ranking (entity disambiguation), which ranks those candidates using a more accurate model to select the best match as the target entity. This paper focuses on the entity retrieval task, which poses a significant challenge due to the need to retrieve targets from a large-scale KB. Moreover, the performance of entity retrieval is crucial for EL systems, as any recall errors in the initial stage can have a significant impact on the performance of the latter ranking stage (Luan et al., 2021).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::0::para::1",
+          "section_id": "2305.17371::section::0",
+          "text": "Recent advancements in pre-trained language models (PLMs) (Kenton and Toutanova, 2019) have led to the widespread use of dense retrieval technology for large-scale entity retrieval (Gillick et al., 2019;Wu et al., 2020). This approach typically adopts a dual-encoder architecture that embeds the textual content of mentions and entities independently into fixed-dimensional vectors (Karpukhin et al., 2020) to calculate their relevance scores using a lightweight interaction metric (e.g., dot-product). This allows for pre-computing the entity embeddings, enabling entities to be retrieved through various fast nearest neighbor search techniques (Johnson et al., 2019;Jayaram Subramanya et al., 2019).",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::0::para::2",
+          "section_id": "2305.17371::section::0",
+          "text": "The primary challenge in modeling relevance between an entity and its corresponding mentions lies in explicitly capturing the mention-relevant parts within the entity. By analyzing the diversity of intra-information within the textual contents of entities, we identify two distinct types of entities, as illustrated in Figure 1. Entities with uniform information can be effectively represented by the dual-encoder; however, due to its single-vector representation and coarse-grained interaction metric, this framework may struggle with entities containing divergent and sparsely distributed information. To alleviate the issue, existing methods construct multi-vector entity representations from different perspectives (Ma et al., 2021;Zhang and Stratos, 2021;Tang et al., 2021). Despite these efforts, all these methods rely on coarse-grained entity-level labels for training and lack the necessary supervised signals to select the most relevant representation for a specific mention from multiple entity vectors. As a result, their capability to effectively capture multiple fine-grained aspects of an entity and accurately match mentions with varying contexts is significantly hampered, ultimately leading to suboptimal performance in dense entity retrieval.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.17371::section::0::para::3",
+          "section_id": "2305.17371::section::0",
+          "text": "In order to obtain fine-grained entity representations capable of matching divergent mentions, we propose a novel Multi-View Enhanced Distillation (MVD) framework. MVD effectively transfers knowledge of multiple fine-grained and mentionrelevant parts within entities from cross-encoders to dual-encoders. By jointly encoding the entity and its corresponding mentions, cross-encoders enable the explicit capture of mention-relevant components within the entity, thereby facilitating the learning of fine-grained elements of the entity through more accurate soft-labels. To achieve this, our framework constructs the same multi-view representation for both modules by splitting the textual information of entities into multiple fine-grained views. This approach prevents irrelevant information from being over-squashed into the mentionrelevant view, which is selected based on the results of cross-encoders.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2305.17371::section::0::para::4",
+          "section_id": "2305.17371::section::0",
+          "text": "We further design cross-alignment and self-alignment mechanisms for our framework to separately align the original entity-level and finegrained view-level scoring distributions, thereby facilitating fine-grained knowledge transfer from the teacher model to the student model. Motivated by prior works (Xiong et al., 2020;Zhan et al., 2021;Qu et al., 2021;Ren et al., 2021), MVD jointly optimizes both modules and employs an effective hard negative mining technique to facilitate transferring of hard-to-train knowledge in distillation. Meanwhile, we reserve a global-view that embeds the entity as a whole to prevent dispersal of uniform information and better represent the first type of entities in Figure 1.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2305.17371::section::0::para::5",
+          "section_id": "2305.17371::section::0",
+          "text": "Through extensive experiments on several entity linking benchmarks, including ZESHEL, AIDA-B, MSNBC, and WNED-CWEB, our method demonstrates superior performance over existing approaches. The results highlight the effectiveness of MVD in capturing fine-grained entity representations and matching divergent mentions, which significantly improves entity retrieval performance and facilitates overall EL performance by retrieving high-quality candidates for the ranking stage.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::1",
+      "paper_id": "2305.17371",
+      "heading": "Related Work",
+      "section_type": null,
+      "order": 1,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::1::para::0",
+          "section_id": "2305.17371::section::1",
+          "text": "To accurately and efficiently acquire target entities from large-scale KBs, the majority of EL systems are designed in two stages: entity retrieval and entity ranking. For entity retrieval, prior approaches typically rely on simple methods like frequency information (Yamada et al., 2016), alias tables (Fang et al., 2019) and sparse-based models (Robertson et al., 2009) to retrieve a small set of candidate entities with low latency. For the ranking stage, neural networks had been widely used for calculating the relevance score between mentions and entities (Yamada et al., 2016;Ganea and Hofmann, 2017;Fang et al., 2019;Kolitsas et al., 2018).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::1::para::1",
+          "section_id": "2305.17371::section::1",
+          "text": "Recently, with the development of PLMs (Kenton and Toutanova, 2019; Lewis et al., 2020), PLMbased models have been widely used for both stages of EL. Logeswaran et al. (2019) and Yao et al. (2020) utilize the cross-encoder architecture that jointly encodes mentions and entities to rank candidates, Gillick et al. (2019) employs the dualencoder architecture for separately encoding mentions and entities into high-dimensional vectors for entity retrieval. BLINK (Wu et al., 2020) improves overall EL performance by incorporating both architectures in its retrieve-then-rank pipeline, making it a strong baseline for the task. GERENE (De Cao et al., 2020) directly generates entity names through an auto-regressive approach.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::1::para::2",
+          "section_id": "2305.17371::section::1",
+          "text": "To further improve the retrieval performance, various methods have been proposed. Zhang and Stratos (2021) and Sun et al. (2022) demonstrate the effectiveness of hard negatives in enhancing retrieval performance. Agarwal et al. (2022) and GER (Wu et al., 2023) construct mention/entity centralized graph to learn the fine-grained entity representations. However, being limited to the single vector representation, these methods may struggle with entities that have multiple and sparsely distributed information. Although Tang et al. (2021) and MuVER (Ma et al., 2021) construct multi-view entity representations and select the optimal view to calculate the relevance score with the mention, they still rely on the same entity-level supervised signal to optimize the scores of different views within the entity, which limit the capacity of matching with divergent mentions.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.17371::section::1::para::3",
+          "section_id": "2305.17371::section::1",
+          "text": "In contrast to existing methods, MVD is primarily built upon the knowledge distillation technique (Hinton et al., 2015), aiming to acquire finegrained entity representations from cross-encoders to handle diverse mentions. To facilitate finegrained knowledge transfer of multiple mentionrelevant parts, MVD splits the entity into multiple views to avoid irrelevant information being squashed into the mention-relevant view, which is selected by the more accurate teacher model. This Framework further incorporates cross-alignment and self-alignment mechanisms to learn mentionrelevant view representation from both original entity-level and fine-grained view-level scoring distributions, these distributions are derived from the soft-labels generated by the cross-encoders.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::2",
+      "paper_id": "2305.17371",
+      "heading": "Task Formulation",
+      "section_type": null,
+      "order": 2,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::2::para::0",
+          "section_id": "2305.17371::section::2",
+          "text": "We first describe the task of entity linking as follows. Give a mention m in a context sentence s =< c l , m, c r >, where c l and c r are words to the left/right of the mention, our goal is to efficiently obtain the entity corresponding to m from a large-scale entity collection ε = {e 1 , e 2 , ..., e N }, each entity e ∈ ε is defined by its title t and description d as a generic setting in neural entity linking (Ganea and Hofmann, 2017). Here we follow the two-stage paradigm proposed by (Wu et al., 2020): 1) retrieving a small set of candidate enti-ties {e 1 , e 2 , ..., e K } corresponding to mention m from ε, where K ≪ N ; 2) ranking those candidates to obtain the best match as the target entity. In this work, we mainly focus on the first-stage retrieval.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::3",
+      "paper_id": "2305.17371",
+      "heading": "Encoder Architecture",
+      "section_type": null,
+      "order": 3,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::3::para::0",
+          "section_id": "2305.17371::section::3",
+          "text": "In this section, we describe the model architectures used for dense retrieval. Dual-encoder is the most adopted architecture for large-scale retrieval as it separately embeds mentions and entities into high-dimensional vectors, enabling offline entity embeddings and efficient nearest neighbor search. In contrast, the cross-encoder architecture performs better by computing deeply-contextualized representations of mention tokens and entity tokens, but is computationally expensive and impractical for first-stage large-scale retrieval (Reimers and Gurevych, 2019;Humeau et al., 2019). Therefore, in this work, we use the cross-encoder only during training, as the teacher model, to enhance the performance of the dual-encoder through the distillation of relevance scores.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::4",
+      "paper_id": "2305.17371",
+      "heading": "Dual-Encoder Architecture",
+      "section_type": null,
+      "order": 4,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::4::para::0",
+          "section_id": "2305.17371::section::4",
+          "text": "Similar to the work of (Wu et al., 2020) for entity retrieval, the retriever contains two-tower PLMbased encoders Enc m (•) and Enc e (•) that encode mention and entity into single fixed-dimension vectors independently, which can be formulated as:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::4::para::1",
+          "section_id": "2305.17371::section::4",
+          "text": "(1) where m,c l ,c r ,t, and d are the word-piece tokens of the mention, the context before and after the mention, the entity title, and the entity description. The special tokens [M s ] and [M e ] are separators to identify the mention, and [ENT] serves as the delimiter of titles and descriptions.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::4::para::2",
+          "section_id": "2305.17371::section::4",
+          "text": "[CLS] and [SEP] are special tokens in BERT. For simplicity, we directly take the [CLS] embeddings E(m) and E(e) as the representations for mention m and entity e, then the relevance score s de (m, e) can be calculated by a dot product s de (m, e) = E(m) • E(e).",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::5",
+      "paper_id": "2305.17371",
+      "heading": "Cross-Encoder Architecture",
+      "section_type": null,
+      "order": 5,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::5::para::0",
+          "section_id": "2305.17371::section::5",
+          "text": "Cross-encoder is built upon a PLM-based encoder Enc ce (•), which concatenates and jointly encodes mention m and entity e (remove the [CLS] token in the entity tokens), then gets the [CLS] vectors as their relevance representation E(m, e), finally fed it into a multi-layer perceptron (MLP) to compute the relevance score s ce (m, e).",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::6",
+      "paper_id": "2305.17371",
+      "heading": "Multi-View Based Architecture",
+      "section_type": null,
+      "order": 6,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::6::para::0",
+          "section_id": "2305.17371::section::6",
+          "text": "With the aim to prevent irrelevant information being over-squashed into the entity representation and better represent the second type of entities in Figure 1, we construct multi-view entity representations for the entity-encoder Enc e (•). The textual information of the entity is split into multiple fine-grained local-views to explicitly capture the key information in the entity and match mentions with divergent contexts. Following the settings of MuVER (Ma et al., 2021), for each entity e, we segment its description d into several sentences d t (t = 1, 2, .., n) with NLTK toolkit 2 , and then concatenate with its title t as the t-th view e t (t = 1, 2, .., n):",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::6::para::1",
+          "section_id": "2305.17371::section::6",
+          "text": "Meanwhile, we retain the original entity representation E(e) defined in Eq. ( 1) as the global-view e 0 in inference, to avoid the uniform information being dispersed into different views and better represent the first type of entities in Figure 1. Finally, the relevance score s(m, e i ) of mention m and entity e i can be calculated with their multiple embeddings. Here we adopt a max-pooler to select the view with the highest relevant score as the mention-relevant view:",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::7",
+      "paper_id": "2305.17371",
+      "heading": "Multi-View Enhanced Distillation",
+      "section_type": null,
+      "order": 7,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::7::para::0",
+          "section_id": "2305.17371::section::7",
+          "text": "The basic intuition of MVD is to accurately transfer knowledge of multiple fine-grained views from a more powerful cross-encoder to the dual-encoder to obtain mention-relevant entity representations. First, in order to provide more accurate relevance between mention m and each view e t (t = 1, 2, ..., n) of the entity e as a supervised signal for distillation, we introduce a multi-view based crossencoder following the formulation in Sec 3.2.3:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::7::para::1",
+          "section_id": "2305.17371::section::7",
+          "text": "where m enc and e t enc (t = 1, 2, .., n) are the wordpiece tokens of the mention and entity representations defined as in Eq. ( 1) and (2), respectively.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::7::para::2",
+          "section_id": "2305.17371::section::7",
+          "text": "2 www.nltk.org",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.17371::section::7::para::3",
+          "section_id": "2305.17371::section::7",
+          "text": "We further design cross-alignment and selfalignment mechanisms to separately align the original entity-level scoring distribution and finegrained view-level scoring distribution, in order to facilitate the fine-grained knowledge distillation from the teacher model to the student model. Cross-alignment In order to learn entity-level scoring distribution among candidate entities at the multi-view scenario, we calculate the relevance score s(m, e i ) for mention m and candidate entity e i in candidates {e 1 , e 2 , ..., e K } by all its views {e 1",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2305.17371::section::7::para::4",
+          "section_id": "2305.17371::section::7",
+          "text": "i , e 2 i , ..., e n i }, the indexes of relevant views i de and i ce for dual-encoder and cross-encoder are as follows:",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2305.17371::section::7::para::5",
+          "section_id": "2305.17371::section::7",
+          "text": "here to avoid the mismatch of relevant views (i.e., i de ̸ = i ce ), we align their relevant views based on the index i ce of max-score view in cross-encoder, the loss can be measured by KL-divergence as",
+          "paragraph_index": 5
+        },
+        {
+          "id": "2305.17371::section::7::para::6",
+          "section_id": "2305.17371::section::7",
+          "text": "where sde (m, e i ) = e s de (m,e ice i ) e s de (m,e ice i ) + j̸ =i e s de (m,e jce j ) sce (m, e i ) = e sce(m,e ice i ) e sce(m,e ice i ) + j̸ =i e sce(m,e jce j ) (7) here sde (m, e i ) and sce (m, e i ) denote the probability distributions of the entity-level scores which are represented by the i ce -th view over all candidate entities. Self-alignment Aiming to learn the view-level scoring distribution within each entity for better distinguishing relevant view from other irrelevant views, we calculate the relevance score s(m, e t ) for mention m and each view e t i (t = 1, 2, ..., n) of entity e i , the loss can be measured by KL-divergence as: L self = K i=1 n t=1 sce (m, e t i ) • log sce (m, e t i ) sde (m, e t i ) (8) MLP CLS 𝑒 1 𝑖 CLS Entity Encoder CLS 𝑉 𝑑𝑒 1 𝑉 𝑑𝑒 2 𝑉 𝑑𝑒 𝑛 … Entity Encoder CLS 𝑒 2 1 𝑒 𝑡 1 … 𝑒 1 1 CLS View 1 View 2 View n 𝑒 𝑡 2 𝑒 𝑡 𝑛 Cross Encoder Cross Encoder … … CLS 𝑚 𝑙 𝑚 1 SEP 𝑒 𝑡 1 𝑒 1 1 CLS View 1 CLS CLS View 2 View n 𝑒 𝑡 2 𝑉𝑐𝑒 1 𝑉𝑐𝑒 2 𝑉𝑐𝑒 𝑛 … self-alignment distillation 𝑉𝑐𝑒 𝑖 𝐾 argmax to obtain relevant view's index i 𝑉 𝑑𝑒 𝑖 𝐾 Align mention-relevant view CLS 𝑒 1 𝑖 CLS Entity Encoder CLS 𝑉 𝑑𝑒 1 𝑉 𝑑𝑒 2 𝑉 𝑑𝑒 𝑛 … Entity Encoder CLS 𝑒 2 1 𝑒 𝑡 1 … 𝑒 1 1 CLS View 1 View 2 View n 𝑒 𝑡 2 𝑒 𝑡 𝑛 Cross Encoder Cross Encoder … … CLS 𝑚 𝑙 𝑚 1 SEP 𝑒 𝑡 1 𝑒 1 1 CLS View 1 CLS CLS View 2 View n 𝑒 𝑡 2 𝑉𝑐𝑒 1 𝑉𝑐𝑒 2 𝑉𝑐𝑒 𝑛 … self-alignment distillation 𝑉𝑐𝑒 𝑖 1 argmax to obtain relevant view's index i 𝑉 𝑑𝑒 𝑖 1 Align mention-relevant view … Mention Encoder CLS 𝑚2 𝑚𝑙 𝑚1 CLS CLS 𝑒 1 𝑖 CLS Entity Encoder CLS 𝑉 𝑑𝑒 1 𝑉 𝑑𝑒 2 𝑉 𝑑𝑒 𝑛 … Entity Encoder CLS 𝑒 2 1 𝑒 𝑙 ′ 1 … 𝑒 1 1 CLS View 1 View 2 View n 𝑒 𝑙 ′ 2 𝑒 𝑙 ′ 𝑛 Cross Encoder Cross Encoder … … CLS 𝑚𝑙 𝑚1 SEP 𝑒 𝑙 ′ 1 𝑒 1 1 CLS View 1 CLS CLS View 2 View n 𝑒 𝑙 ′ 2 𝑒 𝑙 ′ 𝑛 𝑉𝑐𝑒 1 𝑉𝑐𝑒 2 𝑉𝑐𝑒 𝑛 … 𝑉𝑐𝑒 𝑖 + Argmax to obtain the mention-relevant view 𝑉 𝑑𝑒 𝑖 + Align mention-relevant view 𝐸 𝑑𝑒 + 𝐸 𝑑𝑒 1 𝐸 𝑑𝑒 𝐾 … 𝐸𝑐𝑒 + 𝐸𝑐𝑒 1 𝐸𝑐𝑒 𝐾 … Golden entity Negative entity 1 Negative entity K MLP Layer 𝐿 𝑑𝑒 𝐿 𝑐𝑒 𝐿 𝑐𝑟𝑜𝑠𝑠 𝐿 𝑠𝑒𝑙𝑓 Figure 2: The general framework of Multi-View Enhanced Distillation (MVD). V i de and V i ce are the relevance scores between m and e i separately calculated by dual-encoder and cross-encoder, E de and E ce are the entity relevance scores represented by V i de and V i ce , base on the max-score view's index i in cross-encoder. where sde (m, e t i ) = e s de (m,e t i ) e s de (m,e t i ) + j̸ =t e s de (m,e j i ) sce (m, e t i ) = e sce(m,e t i ) e sce(m,e t i ) + j̸ =t e sce(m,e j i )",
+          "paragraph_index": 6
+        },
+        {
+          "id": "2305.17371::section::7::para::7",
+          "section_id": "2305.17371::section::7",
+          "text": "here sde (m, e t i ) and sce (m, e t i ) denote the probability distributions of the view-level scores over all views within each entity.",
+          "paragraph_index": 7
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::8",
+      "paper_id": "2305.17371",
+      "heading": "Joint training",
+      "section_type": null,
+      "order": 8,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::8::para::0",
+          "section_id": "2305.17371::section::8",
+          "text": "The overall joint training framework can be found in Figure 2. The final loss function is defined as",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::8::para::1",
+          "section_id": "2305.17371::section::8",
+          "text": "Here, L cross and L self are the knowledge distillation loss with the cross-encoder and defined as in Eq. ( 6) and ( 8) respectively, α and β are coefficients for them. Besides, L de and L ce are the supervised training loss of the dual-encoder and cross-encoder on the labeled data to maximize the s(m, e k ) for the golden entity e k in the set of candidates {e 1 , e 2 , ..., e K }, the loss can be defined as:",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::8::para::2",
+          "section_id": "2305.17371::section::8",
+          "text": "Inference we only apply the mention-encoder to obtain the mention embeddings, and then retrieve targets directly from pre-computing view embeddings via efficient nearest neighbor search. These view embeddings encompass both global and local views and are generated by the entity-encoder following joint training. Although the size of the entity index may increase due to the number of views, the time complexity can remain sub-linear with the index size due to mature nearest neighbor search techniques (Zhang et al., 2022).",
+          "paragraph_index": 2
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::9",
+      "paper_id": "2305.17371",
+      "heading": "Hard Negative Sampling",
+      "section_type": null,
+      "order": 9,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::9::para::0",
+          "section_id": "2305.17371::section::9",
+          "text": "Hard negatives are effective information carriers for difficult knowledge in distillation. Mainstream techniques for generating hard negatives include utilizing static samples (Wu et al., 2020) or top-K dynamic samples retrieved from a recent iteration of the retriever (Xiong et al., 2020;Zhan et al., 2021), but these hard negatives may not be suitable for the current model or are pseudo-negatives (i.e., unlabeled positives) (Qu et al., 2021). Aiming to mitigate this issue, we adopt a simple negative sampling method that first retrieves top-N candidates, then randomly samples K negatives from them, which reduces the probability of pseudo-negatives and improves the generalization of the retriever.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::10",
+      "paper_id": "2305.17371",
+      "heading": "Datasets",
+      "section_type": null,
+      "order": 10,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::10::para::0",
+          "section_id": "2305.17371::section::10",
+          "text": "We evaluate MVD under two distinct types of datasets: three standard EL datasets AIDA-CoNLL Method R@1 R@2 R@4 R@8 R@16 R@32 R@50 R@64 Table 2: Recall@K(R@K) on test set of Wikipedia datasets, best results are shown in bold. Underline notes for the results we reproduce. (Hoffart et al., 2011), WNED-CWEB (Guo and Barbosa, 2018) and MSNBC (Cucerzan, 2007), these datasets are all constructed based on a uniform Wikipedia KB; and a more challenging Wikiabased dataset ZESHEL (Logeswaran et al., 2019), adopts a unique setup where the train, valid, and test sets correspond to different KBs. Statistics of these datasets are listed in Appendix A.1.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::11",
+      "paper_id": "2305.17371",
+      "heading": "Training Procedure",
+      "section_type": null,
+      "order": 11,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::11::para::0",
+          "section_id": "2305.17371::section::11",
+          "text": "The training pipeline of MVD consists of two stages: Warmup training and MVD training. In the Warmup training stage, we separately train dualencoder and cross-encoder by in-batch negatives and static negatives. Then we initialize the student model and the teacher model with the well-trained dual-encoder and cross-encoder, and perform multiview enhanced distillation to jointly optimize the two modules following Section 3.3. Implementation details are listed in Appendix A.2.",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::12",
+      "paper_id": "2305.17371",
+      "heading": "Compared Methods",
+      "section_type": null,
+      "order": 12,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::12::para::0",
+          "section_id": "2305.17371::section::12",
+          "text": "We compare MVD with previous state-of-the-art methods. These methods can be divided into several categories according to the representations of entities: BM25 (Robertson et al., 2009) is a sparse retrieval model based on exact term matching. BLINK (Wu et al., 2020) adopts a typical dual-encoder architecture that embeds the entity independently into a single fixed-size vector. SOM (Zhang and Stratos, 2021) represents entities by its tokens and computes relevance scores via the sum-of-max operation (Khattab and Zaharia, 2020). Similar to our work, MuVER (Ma et al., 2021) constructs multi-view entity representations to match divergent mentions and achieved the best results, so we select MuVER as the main compared baseline. Besides, ARBORESCENCE (Agarwal et al., 2022) and GER (Wu et al., 2023) construct mention/entity centralized graphs to learn fine-grained entity representations.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::12::para::1",
+          "section_id": "2305.17371::section::12",
+          "text": "For Zeshel dataset we compare MVD with all the above models. As shown in Table 1, MVD performs better than all the existing methods. Compared to the previously best performing method MuVER, MVD significantly surpasses in all metrics, particularly in R@1, which indicates the ability to directly obtain the target entity. This demonstrates the effectiveness of MVD, which uses hard negatives as information carriers to explicitly transfer knowledge of multiple fine-grained views from the cross-encoder to better represent entities for Table 4: Ablation for training strategies in MVD on test set of ZESHEL.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::12::para::2",
+          "section_id": "2305.17371::section::12",
+          "text": "matching multiple mentions, resulting in higherquality candidates for the ranking stage.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.17371::section::12::para::3",
+          "section_id": "2305.17371::section::12",
+          "text": "For Wikipedia datasets we compare MVD with BLINKfoot_0 and MuVER (Ma et al., 2021). As shown in Table 2, our MVD framework also outperforms other methods and achieves state-of-the-art performance on AIDA-b, MSNBC, and WNED-CWEB datasets, which verifies the effectiveness of our method again in standard EL datasets.",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::13",
+      "paper_id": "2305.17371",
+      "heading": "Ablation Study",
+      "section_type": null,
+      "order": 13,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::13::para::0",
+          "section_id": "2305.17371::section::13",
+          "text": "For conducting fair ablation studies and clearly evaluating the contributions of each fine-grained component and training strategy in MVD, we exclude the coarse-grained global-view to evaluate the capability of transferring knowledge of multiple fine-grained views, and utilize Top-K dynamic hard negatives without random sampling to mitigate the effects of randomness on training.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::13::para::1",
+          "section_id": "2305.17371::section::13",
+          "text": "Fine-grained components ablation results are presented in Table 3. When we replace the multiview representations in the cross-encoder with the original single vector or remove the relevant view selection based on the results of the crossencoder, the retrieval performance drops, indicat-",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::13::para::2",
+          "section_id": "2305.17371::section::13",
+          "text": "Method View Type R@1 R@64 BLINK global 46.04 87.46 MuVER global 36.90 80.65 MVD (ours) global 47.11 87.04 BLINK local 37.20 86.38 MuVER local 41.99 89.25 MVD (ours) local 51.27 90.25 MVD (ours) global+local 52.51 91.55",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.17371::section::13::para::3",
+          "section_id": "2305.17371::section::13",
+          "text": "Table 5: Comparison for representing entities from multi-grained views on test set of ZESHEL. Results of BLINK and MuVER are reproduced by us.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2305.17371::section::13::para::4",
+          "section_id": "2305.17371::section::13",
+          "text": "ing the importance of providing accurate supervised signals for each view of the entity during distillation. Additionally, the removal of crossalignment and self-alignment results in a decrease in performance, highlighting the importance of these alignment mechanisms. Finally, when we exclude all fine-grained components in MVD and employ the traditional distillation paradigm based on single-vector entity representation and entity-level soft-labels, there is a significant decrease in performance, which further emphasizes the effectiveness of learning knowledge of multiple fine-grained and mention-relevant views during distillation.",
+          "paragraph_index": 4
+        },
+        {
+          "id": "2305.17371::section::13::para::5",
+          "section_id": "2305.17371::section::13",
+          "text": "Training strategies we further explore the effectiveness of joint training and hard negative sampling in distillation, Table 4 shows the results. First, we examine the effect of joint training by freezing the teacher model's parameters to do a static distillation, the retrieval performance drops due to the teacher model's limitation. Similarly, the performance drops a lot when we replace the dynamic hard negatives with static negatives, which demonstrates the importance of dynamic hard negatives for making the learning task more challenging. Furthermore, when both training strategies are excluded and the student model is independently trained using static negatives, a substantial decrease in retrieval performance is observed, which validates the effectiveness of both training strategies in enhancing retrieval performance.",
+          "paragraph_index": 5
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::14",
+      "paper_id": "2305.17371",
+      "heading": "Comparative Study on Entity Representation",
+      "section_type": null,
+      "order": 14,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::14::para::0",
+          "section_id": "2305.17371::section::14",
+          "text": "To demonstrate the capability of representing entities from multi-grained views, we carry out comparative analyses between MVD and BLINK (Wu et al., 2020), as well as MuVER (Ma et al., 2021).",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::14::para::1",
+          "section_id": "2305.17371::section::14",
+          "text": "Candidate Retriever U.Acc.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::15",
+      "paper_id": "2305.17371",
+      "heading": "Base Version Ranker",
+      "section_type": null,
+      "order": 15,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::15::para::0",
+          "section_id": "2305.17371::section::15",
+          "text": "BM25 (Logeswaran et al., 2019) 55.08 BLINK (Wu et al., 2020) 61.34 SOM (Zhang and Stratos, 2021) 65.39 Agarwal et al. (2022) 62.53 MVD (ours)",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::16",
+      "paper_id": "2305.17371",
+      "heading": "66.85",
+      "section_type": null,
+      "order": 16,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::16::para::0",
+          "section_id": "2305.17371::section::16",
+          "text": "Large Version Ranker BLINK (Wu et al., 2020) 63.03 SOM (Zhang and Stratos, 2021) 67.14 MVD (ours) 67.84",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::16::para::1",
+          "section_id": "2305.17371::section::16",
+          "text": "Table 6: Performance of ranker based on different candidate retrievers on the test set of ZESHEL. U.Acc. means the unnormalized macro accuracy.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::16::para::2",
+          "section_id": "2305.17371::section::16",
+          "text": "These systems are founded on the principles of coarse-grained global-views and fine-grained localviews, respectively. We evaluate the retrieval performance of both entity representations and present the results in Table 5. The results clearly indicate that MVD surpasses both BLINK and MuVER in terms of entity representation performance, even exceeding BLINK's global-view performance in R@1, despite being a fine-grained training framework. Unsurprisingly, the optimal retrieval performance is attained when MVD employs both entity representations concurrently during the inference process.",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.17371::section::16::para::3",
+          "section_id": "2305.17371::section::16",
+          "text": "5 Further Analysis",
+          "paragraph_index": 3
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::17",
+      "paper_id": "2305.17371",
+      "heading": "Facilitating Ranker's Performance",
+      "section_type": null,
+      "order": 17,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::17::para::0",
+          "section_id": "2305.17371::section::17",
+          "text": "To evaluate the impact of the quality of candidate entities on overall performance, we consider two aspects: candidates generated by different retrievers and the number of candidate entities used in inference. First, we separately train BERT-base and BERT-large based cross-encoders to rank the top-64 candidate entities retrieved by MVD. As shown in Table 6, the ranker based on our framework achieves the best results in the two-stage performance compared to other candidate retrievers, demonstrating its ability to generate high-quality candidate entities for the ranking stage.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::17::para::1",
+          "section_id": "2305.17371::section::17",
+          "text": "Additionally, we study the impact of the number of candidate entities on overall performance, as shown in Figure 3, with the increase of candidates number k, the retrieval performance grows steadily while the overall performance is likely to be stagnant. This indicates that it's ideal to choose an appropriate k to balance the efficiency and efficacy, we observe that k = 16 is optimal on most of the existing EL benchmarks.",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::18",
+      "paper_id": "2305.17371",
+      "heading": "Qualitative Analysis",
+      "section_type": null,
+      "order": 18,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::18::para::0",
+          "section_id": "2305.17371::section::18",
+          "text": "To better understand the practical implications of fine-grained knowledge transfer and global-view entity representation in MVD, as shown in Table 7, we conduct comparative analysis between our method and MuVER (Ma et al., 2021) using retrieval examples from the test set of ZESHEL for qualitative analysis.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::18::para::1",
+          "section_id": "2305.17371::section::18",
+          "text": "In the first example, MVD clearly demonstrates its ability to accurately capture the mentionrelevant information Rekelen were members of this movement and professor Natima Lang in the golden entity \"Cardassian dissident movement\". In contrast, MuVER exhibits limited discriminatory ability in distinguishing between the golden entity and the hard negative entity \"Romulan underground movement\". In the second example, Unlike Mu-VER which solely focuses on local information within the entity, MVD can holistically model multiple mention-relevant parts within the golden entity \"Greater ironguard\" through a global-view entity representation, enabling matching with the corresponding mention \"improved version of lesser ironguard\".",
+          "paragraph_index": 1
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::19",
+      "paper_id": "2305.17371",
+      "heading": "Conclusion",
+      "section_type": null,
+      "order": 19,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::19::para::0",
+          "section_id": "2305.17371::section::19",
+          "text": "In this paper, we propose a novel Multi-View Enhanced Distillation framework for dense entity retrieval. Our framework enables better representation of entities through multi-grained views, and by using hard negatives as information car-",
+          "paragraph_index": 0
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::20",
+      "paper_id": "2305.17371",
+      "heading": "Mention and Context Entity retrieved by MVD Entity retrieved by MuVER",
+      "section_type": null,
+      "order": 20,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::20::para::0",
+          "section_id": "2305.17371::section::20",
+          "text": "Title: Cardassian dissident movement Title: Romulan underground movement Rekelen was a member of the underground movement and a student under professor Natima Lang. In 2370, Rekelen was forced to flee Cardassia prime because of her political views.",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::20::para::1",
+          "section_id": "2305.17371::section::20",
+          "text": "The Cardassian dissident movement was a resistance movement formed to resist and oppose the Cardassian Central Command and restore the authority of the Detapa Council. They believed this change was critical for the future of their people. Professor Natima Lang, Hogue, and Rekelen were members of this movement in the late 2360s and 2370s. ... The Romulan underground movement was formed sometime prior to the late 24th century on the planet Romulus by a group of Romulan citizens who opposed the Romulan High Command and who supported a Romulan -Vulcan reunification. Its methods and principles were similar to those of the Cardassian dissident movement which emerged in the Cardassian Union around the same time. ... Title: Greater ironguard Title: Lesser ironguard Known as the improved version of lesser ironguard, this spell granted the complete immunity from all common, unenchanted metals to the caster or one creature touched by the caster.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::20::para::2",
+          "section_id": "2305.17371::section::20",
+          "text": "Greater ironguard was an arcane abjuration spell that temporarily granted one creature immunity from all non-magical metals and some enchanted metals. It was an improved version of ironguard. The effects of this spell were the same as for \"lesser ironguard\" except that it also granted immunity and transparency to metals that had been enchanted up to a certain degree. ... ... after an improved version was developed, this spell became known as lesser ironguard. Upon casting this spell, the caster or one creature touched by the caster became completely immune to common, unenchanted metal. metal weapons would pass through the individual without causing harm. likewise, the target of this spell could pass through metal barriers such as iron bars, grates, or portcullises. ...",
+          "paragraph_index": 2
+        },
+        {
+          "id": "2305.17371::section::20::para::3",
+          "section_id": "2305.17371::section::20",
+          "text": "Table 7: Examples of entities retrieved by MVD and MuVER, mentions in contexts and mention-relevant information in entities are in bold.",
+          "paragraph_index": 3
+        },
+        {
+          "id": "2305.17371::section::20::para::4",
+          "section_id": "2305.17371::section::20",
+          "text": "riers to effectively transfer knowledge of multiple fine-grained and mention-relevant views from the more powerful cross-encoder to the dualencoder. We also design cross-alignment and selfalignment mechanisms for this framework to facilitate the fine-grained knowledge distillation from the teacher model to the student model. Our experiments on several entity linking benchmarks show that our approach achieves state-of-the-art entity linking performance.",
+          "paragraph_index": 4
+        }
+      ]
+    },
+    {
+      "id": "2305.17371::section::21",
+      "paper_id": "2305.17371",
+      "heading": "Limitations",
+      "section_type": null,
+      "order": 21,
+      "paragraphs": [
+        {
+          "id": "2305.17371::section::21::para::0",
+          "section_id": "2305.17371::section::21",
+          "text": "The limitations of our method are as follows:",
+          "paragraph_index": 0
+        },
+        {
+          "id": "2305.17371::section::21::para::1",
+          "section_id": "2305.17371::section::21",
+          "text": "• We find that utilizing multi-view representations in the cross-encoder is an effective method for MVD, however, the ranking performance of the cross-encoder may slightly decrease. Therefore, it is sub-optimal to directly use the cross-encoder model for entity ranking.",
+          "paragraph_index": 1
+        },
+        {
+          "id": "2305.17371::section::21::para::2",
+          "section_id": "2305.17371::section::21",
+          "text": "• Mention detection is the predecessor task of our retrieval model, so our retrieval model will be affected by the error of the mention detection. Therefore, designing a joint model of mention detection and entity retrieval is an improvement direction of our method.",
+          "paragraph_index": 2
+        }
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "id": "2305.17371::figure::0",
+      "paper_id": "2305.17371",
+      "figure_number": "Figure 3 :",
+      "caption": "Figure 3: Recall and overall micro accuracy based on different number of candidates k.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "fig_0",
+      "image_path": null,
+      "caption_understanding": null,
+      "embedding": null
+    }
+  ],
+  "tables": [
+    {
+      "id": "2305.17371::table::0",
+      "paper_id": "2305.17371",
+      "table_number": "Table 1 :",
+      "caption": "Recall@K(R@K) on test set of ZESHEL, R@K measures the percentage of mentions for which the top-K retrieved entities include the golden entities. The best results are shown in bold and the results unavailable are left blank. * is reproduced byMa et al. (2021) that expands context length to 512.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_0",
+      "raw_data": [
+        [
+          "BM25",
+          "",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "69.26"
+        ],
+        [
+          "BLINK (Wu et al., 2020)",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "82.06"
+        ],
+        [
+          "Partalidou et al. (2022)",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "84.28",
+          "-"
+        ],
+        [
+          "BLINK*",
+          "",
+          "45.59 57.55 66.10 72.47 77.65 81.69 84.31 85.56"
+        ],
+        [
+          "SOM (Zhang and Stratos, 2021)",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "89.62"
+        ],
+        [
+          "MuVER (Ma et al., 2021)",
+          "43.49 58.56 68.78 75.87 81.33 85.86 88.35 89.52"
+        ],
+        [
+          "Agarwal et al. (2022)",
+          "50.31 61.04 68.34 74.26 78.40 82.02",
+          "-",
+          "85.11"
+        ],
+        [
+          "GER (Wu et al., 2023)",
+          "42.86",
+          "-",
+          "66.48 73.00 78.11 82.15 84.41 85.65"
+        ],
+        [
+          "MVD (ours)",
+          "",
+          "52.51 64.77 73.43 79.74 84.35 88.17 90.43 91.55"
+        ],
+        [
+          "Method",
+          "AIDA-b R@10 R@30 R@100 R@10 R@30 R@100 R@10 R@30 R@100 MSNBC WNED-CWEB"
+        ],
+        [
+          "BLINK",
+          "92.38 94.87",
+          "96.63",
+          "93.03 95.46",
+          "96.76",
+          "",
+          "82.23 86.09",
+          "88.68"
+        ],
+        [
+          "MuVER",
+          "94.53 95.25",
+          "98.11",
+          "95.02 96.62",
+          "97.75",
+          "",
+          "79.31 83.94",
+          "88.15"
+        ],
+        [
+          "MVD (ours) 97.05 98.15",
+          "98.80",
+          "96.74 97.71",
+          "98.04",
+          "",
+          "85.01 88.18",
+          "91.11"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    },
+    {
+      "id": "2305.17371::table::1",
+      "paper_id": "2305.17371",
+      "table_number": "Table 3 :",
+      "caption": "Ablation for fine-grained components in MVD on test set of ZESHEL. Results on Wikipedia-based datasets are similar and omitted due to limited space.",
+      "page_number": null,
+      "bounding_box": null,
+      "grobid_ref_id": "tab_1",
+      "raw_data": [
+        [
+          "Model",
+          "R@1 R@64"
+        ],
+        [
+          "MVD",
+          "51.69 89.78"
+        ],
+        [
+          "-w/o multi-view cross-encoder 50.85 89.24"
+        ],
+        [
+          "-w/o relevant-view alignment",
+          "51.02 89.55"
+        ],
+        [
+          "-w/o self-alignment",
+          "51.21 89.43"
+        ],
+        [
+          "-w/o cross-alignment",
+          "50.82 88.71"
+        ],
+        [
+          "-w/o all components",
+          "51.40 84.16"
+        ],
+        [
+          "Method",
+          "R@1 R@64"
+        ],
+        [
+          "MVD",
+          "51.69 89.78"
+        ],
+        [
+          "-w/o dynamic distillation 51.11 88.50"
+        ],
+        [
+          "-w/o dynamic negatives",
+          "50.26 88.46"
+        ],
+        [
+          "-w/o all strategies",
+          "50.16 87.54"
+        ]
+      ],
+      "image_path": null,
+      "embedding": null
+    }
+  ],
+  "equations": [
+    {
+      "id": "2305.17371::equation::0",
+      "paper_id": "2305.17371",
+      "latex": "E(m) = Enc m ([CLS] c l [M s ] m [M e ] c r [SEP]) E(e) = Enc e ([CLS] t [ENT] d [SEP])",
+      "equation_number": null,
+      "grobid_ref_id": "formula_0",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.17371::equation::1",
+      "paper_id": "2305.17371",
+      "latex": "E(e t ) = Enc e ([CLS] t [ENT] d t [SEP]) (2)",
+      "equation_number": null,
+      "grobid_ref_id": "formula_1",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.17371::equation::2",
+      "paper_id": "2305.17371",
+      "latex": "s(m, e i ) = max t {s(m, e t i )} = max t {E(m) • E(e t )}",
+      "equation_number": "(3)",
+      "grobid_ref_id": "formula_2",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.17371::equation::3",
+      "paper_id": "2305.17371",
+      "latex": "E(m, e t ) = Enc ce ([CLS] m enc [SEP] e t enc [SEP])",
+      "equation_number": "(4)",
+      "grobid_ref_id": "formula_3",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.17371::equation::4",
+      "paper_id": "2305.17371",
+      "latex": "i de = arg max t {s de (m, e t i )} i ce = arg max t {s ce (m, e t i )}",
+      "equation_number": "(5)",
+      "grobid_ref_id": "formula_4",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.17371::equation::5",
+      "paper_id": "2305.17371",
+      "latex": "L cross = K i=1 sce (m, e i ) • log sce (m, e i ) sde (m, e i )",
+      "equation_number": "(6)",
+      "grobid_ref_id": "formula_5",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.17371::equation::6",
+      "paper_id": "2305.17371",
+      "latex": "L total = L de + L ce + \\alpha L cross + \\beta L self (10)",
+      "equation_number": null,
+      "grobid_ref_id": "formula_7",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.17371::equation::7",
+      "paper_id": "2305.17371",
+      "latex": "L de = -s de (m, e k ) + log K j=1 exp(s de (m, e j )) L ce = -s ce (m, e k ) + log K j=1 exp(s ce (m, e j )) (",
+      "equation_number": "11",
+      "grobid_ref_id": "formula_8",
+      "inline": false,
+      "page_number": null
+    },
+    {
+      "id": "2305.17371::equation::8",
+      "paper_id": "2305.17371",
+      "latex": ")",
+      "equation_number": null,
+      "grobid_ref_id": "formula_9",
+      "inline": false,
+      "page_number": null
+    }
+  ],
+  "citations": [
+    {
+      "id": "2305.17371::citation::0",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Entity linking via explicit mention-mention coreference modeling",
+      "cited_authors": [
+        "Dhruv Agarwal",
+        "Rico Angell",
+        "Nicholas Monath",
+        "Andrew Mccallum"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b0",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::1",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Large-scale named entity disambiguation based on wikipedia data",
+      "cited_authors": [
+        "Silviu Cucerzan"
+      ],
+      "cited_year": 2007,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b1",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::2",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Autoregressive entity retrieval",
+      "cited_authors": [
+        "Nicola De Cao",
+        "Gautier Izacard",
+        "Sebastian Riedel",
+        "Fabio Petroni"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b2",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::3",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Joint entity linking with deep reinforcement learning",
+      "cited_authors": [
+        "Zheng Fang",
+        "Yanan Cao",
+        "Qian Li",
+        "Dongjie Zhang",
+        "Zhenyu Zhang",
+        "Yanbing Liu"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b3",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::4",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Deep joint entity disambiguation with local neural attention",
+      "cited_authors": [
+        "Octavian-Eugen Ganea",
+        "Thomas Hofmann"
+      ],
+      "cited_year": 2017,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b4",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::5",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Learning dense representations for entity retrieval",
+      "cited_authors": [
+        "Dan Gillick",
+        "Sayali Kulkarni",
+        "Larry Lansing",
+        "Alessandro Presta",
+        "Jason Baldridge",
+        "Eugene Ie",
+        "Diego Garcia-Olano"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b5",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::6",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Robust named entity disambiguation with random walks",
+      "cited_authors": [
+        "Zhaochen Guo",
+        "Denilson Barbosa"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b6",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::7",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Distilling the knowledge in a neural network",
+      "cited_authors": [
+        "Geoffrey Hinton",
+        "Oriol Vinyals",
+        "Jeff Dean"
+      ],
+      "cited_year": 2015,
+      "cited_arxiv_id": "arXiv:1503.02531",
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b7",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::8",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Robust disambiguation of named entities in text",
+      "cited_authors": [
+        "Johannes Hoffart",
+        "Mohamed Amir Yosef",
+        "Ilaria Bordino",
+        "Hagen Fürstenau",
+        "Manfred Pinkal",
+        "Marc Spaniol",
+        "Bilyana Taneva",
+        "Stefan Thater",
+        "Gerhard Weikum"
+      ],
+      "cited_year": 2011,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b8",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::9",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Poly-encoders: Architectures and pre-training strategies for fast and accurate multi-sentence scoring",
+      "cited_authors": [
+        "Samuel Humeau",
+        "Kurt Shuster",
+        "Marie-Anne Lachaux",
+        "Jason Weston"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b9",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::10",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Diskann: Fast accurate billion-point nearest neighbor search on a single node",
+      "cited_authors": [
+        "Jayaram Suhas",
+        "Fnu Subramanya",
+        "Harsha Devvrit",
+        "Ravishankar Vardhan Simhadri",
+        "Rohan Krishnawamy",
+        "Kadekodi"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b10",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::11",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Billion-scale similarity search with gpus",
+      "cited_authors": [
+        "Jeff Johnson",
+        "Matthijs Douze",
+        "Hervé Jégou"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b11",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::12",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Dense passage retrieval for opendomain question answering",
+      "cited_authors": [
+        "Vladimir Karpukhin",
+        "Barlas Oguz",
+        "Sewon Min",
+        "Patrick Lewis",
+        "Ledell Wu",
+        "Sergey Edunov",
+        "Danqi Chen",
+        "Wen-Tau Yih"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b12",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::13",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Bert: Pre-training of deep bidirectional transformers for language understanding",
+      "cited_authors": [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton",
+        "Lee Kristina",
+        "Toutanova"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b13",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::14",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Colbert: Efficient and effective passage search via contextualized late interaction over bert",
+      "cited_authors": [
+        "Omar Khattab",
+        "Matei Zaharia"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b14",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::15",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "End-to-end neural entity linking",
+      "cited_authors": [
+        "Nikolaos Kolitsas",
+        "Octavian-Eugen",
+        "Thomas Ganea",
+        "Hofmann"
+      ],
+      "cited_year": 2018,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b15",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::16",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Denoising sequence-to-sequence pre-training for natural language generation, translation, and comprehension",
+      "cited_authors": [
+        "Mike Lewis",
+        "Yinhan Liu",
+        "Naman Goyal",
+        "Marjan Ghazvininejad",
+        "Abdelrahman Mohamed",
+        "Omer Levy",
+        "Veselin Stoyanov",
+        "Luke Zettlemoyer"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b16",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::17",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "A cooperative neural information retrieval pipeline with knowledge enhanced automatic query reformulation",
+      "cited_authors": [
+        "Xiangsheng Li",
+        "Jiaxin Mao",
+        "Weizhi Ma",
+        "Zhijing Wu",
+        "Yiqun Liu",
+        "Min Zhang",
+        "Shaoping Ma",
+        "Zhaowei Wang",
+        "Xiuqiang He"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b17",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::18",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "K-bert: Enabling language representation with knowledge graph",
+      "cited_authors": [
+        "Weijie Liu",
+        "Peng Zhou",
+        "Zhe Zhao",
+        "Zhiruo Wang",
+        "Qi Ju",
+        "Haotang Deng",
+        "Ping Wang"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b18",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::19",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Zero-shot entity linking by reading entity descriptions",
+      "cited_authors": [
+        "Lajanugen Logeswaran",
+        "Ming-Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova",
+        "Jacob Devlin",
+        "Honglak Lee"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b19",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::20",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Sparse, dense, and attentional representations for text retrieval",
+      "cited_authors": [
+        "Yi Luan",
+        "Jacob Eisenstein",
+        "Kristina Toutanova",
+        "Michael Collins"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b20",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::21",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Muver: Improving first-stage entity retrieval with multi-view entity representations",
+      "cited_authors": [
+        "Xinyin Ma",
+        "Yong Jiang",
+        "Nguyen Bach",
+        "Tao Wang",
+        "Zhongqiang Huang",
+        "Fei Huang",
+        "Weiming Lu"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b21",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::22",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Improving zero-shot entity retrieval through effective dense representations",
+      "cited_authors": [
+        "Eleni Partalidou",
+        "Despina Christou",
+        "Grigorios Tsoumakas"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b22",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::23",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Kilt: a benchmark for knowledge intensive language tasks",
+      "cited_authors": [
+        "Fabio Petroni",
+        "Aleksandra Piktus",
+        "Angela Fan",
+        "Patrick Lewis",
+        "Majid Yazdani",
+        "Nicola De Cao",
+        "James Thorne",
+        "Yacine Jernite",
+        "Vladimir Karpukhin",
+        "Jean Maillard"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b23",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::24",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Rocketqa: An optimized training approach to dense passage retrieval for opendomain question answering",
+      "cited_authors": [
+        "Yingqi Qu",
+        "Yuchen Ding",
+        "Jing Liu",
+        "Kai Liu",
+        "Ruiyang Ren",
+        "Wayne Xin Zhao",
+        "Daxiang Dong",
+        "Hua Wu",
+        "Haifeng Wang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b24",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::25",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Sentence-bert: Sentence embeddings using siamese bert-networks",
+      "cited_authors": [
+        "Nils Reimers",
+        "Iryna Gurevych"
+      ],
+      "cited_year": 2019,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b25",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::26",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Rocketqav2: A joint training method for dense passage retrieval and passage re-ranking",
+      "cited_authors": [
+        "Ruiyang Ren",
+        "Yingqi Qu",
+        "Jing Liu",
+        "Wayne Xin Zhao",
+        "Qiaoqiao She",
+        "Hua Wu",
+        "Haifeng Wang",
+        "Ji-Rong Wen"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b26",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::27",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "The probabilistic relevance framework: Bm25 and beyond",
+      "cited_authors": [
+        "Stephen Robertson",
+        "Hugo Zaragoza"
+      ],
+      "cited_year": 2009,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b27",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::28",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "A transformational biencoder with in-domain negative sampling for zero-shot entity linking",
+      "cited_authors": [
+        "Kai Sun",
+        "Richong Zhang",
+        "Samuel Mensah",
+        "Yongyi Mao",
+        "Xudong Liu"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b28",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::29",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "A bidirectional multi-paragraph reading model for zero-shot entity linking",
+      "cited_authors": [
+        "Hongyin Tang",
+        "Xingwu Sun",
+        "Beihong Jin",
+        "Fuzheng Zhang"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b29",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::30",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Scalable zeroshot entity linking with dense entity retrieval",
+      "cited_authors": [
+        "Ledell Wu",
+        "Fabio Petroni",
+        "Martin Josifoski",
+        "Sebastian Riedel",
+        "Luke Zettlemoyer"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b30",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::31",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Modeling finegrained information via knowledge-aware hierarchical graph for zero-shot entity retrieval",
+      "cited_authors": [
+        "Taiqiang Wu",
+        "Xingyu Bai",
+        "Weigang Guo",
+        "Weijie Liu",
+        "Siheng Li",
+        "Yujiu Yang"
+      ],
+      "cited_year": 2023,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b31",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::32",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Approximate nearest neighbor negative contrastive learning for dense text retrieval",
+      "cited_authors": [
+        "Lee Xiong",
+        "Chenyan Xiong",
+        "Ye Li",
+        "Kwok-Fung Tang",
+        "Jialin Liu",
+        "Paul N Bennett",
+        "Junaid Ahmed",
+        "Arnold Overwijk"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b32",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::33",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Joint learning of the embedding of words and entities for named entity disambiguation",
+      "cited_authors": [
+        "Ikuya Yamada",
+        "Hiroyuki Shindo",
+        "Hideaki Takeda",
+        "Yoshiyasu Takefuji"
+      ],
+      "cited_year": 2016,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b33",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::34",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Zero-shot entity linking with efficient long range sequence modeling",
+      "cited_authors": [
+        "Zonghai Yao",
+        "Liangliang Cao",
+        "Huapu Pan"
+      ],
+      "cited_year": 2020,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b34",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::35",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "RNG-KBQA: Generation augmented iterative ranking for knowledge base question answering",
+      "cited_authors": [
+        "Xi Ye",
+        "Semih Yavuz",
+        "Kazuma Hashimoto",
+        "Yingbo Zhou",
+        "Caiming Xiong"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": "10.18653/v1/2022.acl-long.417",
+      "external_id": null,
+      "grobid_ref_id": "b35",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::36",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Optimizing dense retrieval model training with hard negatives",
+      "cited_authors": [
+        "Jingtao Zhan",
+        "Jiaxin Mao",
+        "Yiqun Liu",
+        "Jiafeng Guo",
+        "Min Zhang",
+        "Shaoping Ma"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b36",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::37",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Multi-view document representation learning for open-domain dense retrieval",
+      "cited_authors": [
+        "Shunyu Zhang",
+        "Yaobo Liang",
+        "Ming Gong",
+        "Daxin Jiang",
+        "Nan Duan"
+      ],
+      "cited_year": 2022,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b37",
+      "in_text_context": null
+    },
+    {
+      "id": "2305.17371::citation::38",
+      "paper_id": "2305.17371",
+      "raw_text": null,
+      "cited_title": "Understanding hard negatives in noise contrastive estimation",
+      "cited_authors": [
+        "Wenzheng Zhang",
+        "Karl Stratos"
+      ],
+      "cited_year": 2021,
+      "cited_arxiv_id": null,
+      "cited_doi": null,
+      "external_id": null,
+      "grobid_ref_id": "b38",
+      "in_text_context": null
+    }
+  ],
+  "last_updated": null
+}
