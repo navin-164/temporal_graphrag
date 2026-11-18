@@ -106,7 +106,7 @@ def build_index() -> None:
 
     print("\nIndex built:")
     for modality in store.modalities:
-        print(f"  {modality}: {store.count(modality)} vector(s)")
+        print(f"  {modality}: {store.count(modality)} vector(s)") 
 
     store.save(OUTPUT_DIR)
     print(f"\nSaved to {OUTPUT_DIR}/ — one .index + one _ids.json file per modality.")
