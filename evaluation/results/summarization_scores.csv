@@ -25,5 +25,5 @@ How does the Mixture-of-Expert Conformer handle streaming multilingual speech re
 What does naturalistic causal probing investigate about morpho-syntax in language models?,True,0.65,0.2268041237113402,0.0520833333333333,0.1443298969072164
 How does the paper on translating wordplay use multi-agent translation?,False,0.351,0.25,0.0631578947368421,0.1458333333333333
 How does reinforcement communication learning vary across different social network structures?,True,0.6,0.3055555555555556,0.0285714285714285,0.1666666666666666
-What text augmentation approach does the spear-phishing detection paper propose?,False,0.5,0.34862385321100914,0.05607476635514019,0.1834862385321101
-How does the paper on entity linking use multi-view distillation to improve results?,False,0.5,0.18181818181818182,0.035211267605633804,0.0979020979020979
+What text augmentation approach does the spear-phishing detection paper propose?,False,0.5,0.3486238532110091,0.0560747663551401,0.1834862385321101
+How does the paper on entity linking use multi-view distillation to improve results?,False,0.5,0.1818181818181818,0.0352112676056338,0.0979020979020979

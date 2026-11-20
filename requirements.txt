@@ -116,3 +116,22 @@ mypy>=1.10
 #   actually build those modules — I'd rather check current best options at
 #   that time than pin something today based on a guess.
 # ==============================================================================
+
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+neo4j>=5.18.0
+faiss-cpu>=1.8.0
+sentence-transformers>=2.6.0
+langchain>=0.1.16
+langgraph>=0.0.35
+google-generativeai>=0.4.1
+groq>=0.4.2
+pymupdf>=1.23.21
+python-multipart>=0.0.9
+streamlit>=1.32.0
+requests>=2.31.0
+python-dotenv>=1.0.1
+numpy>=1.26.4
+pandas>=2.2.1

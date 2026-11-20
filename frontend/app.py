@@ -111,7 +111,7 @@ def render_knowledge_graph(sources: list[dict]) -> None:
 
     net.save_graph("kg_view.html")
     with open("kg_view.html", "r", encoding="utf-8") as f:
-        st.components.v1.html(f.read(), height=520)
+        st.iframe(src_doc=f.read(), height=520)
 
     if not edges:
         st.caption("No direct citation links found among these specific sources — nodes shown without edges.")

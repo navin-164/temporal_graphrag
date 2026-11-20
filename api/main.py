@@ -26,15 +26,28 @@ from fastapi import FastAPI
 from temporal_graphrag.agents.graph import build_agent_graph
 from api.routers.query import router as query_router
 
+def _unpack_graph(built: object):
+    if hasattr(built, "ainvoke") or hasattr(built, "invoke"):
+        return built, None
+    if isinstance(built, (tuple, list)) and len(built) >= 1:
+        graph = built[0]
+        cleanup = built[1] if len(built) > 1 and callable(built[1]) else None
+        if hasattr(graph, "ainvoke") or hasattr(graph, "invoke"):
+            return graph, cleanup
+    raise TypeError(f"Unexpected return from build_agent_graph(): {type(built).__name__}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    graph, aclose = await build_agent_graph()
+    built = await build_agent_graph()
+    graph, cleanup = _unpack_graph(built)
     app.state.agent_graph = graph
     try:
         yield
     finally:
-        await aclose()
+        if cleanup is not None:
+            res = cleanup()
+            if hasattr(res, "__await__"):
+                await res
 
 
 app = FastAPI(
@@ -43,6 +56,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# After creating `app = FastAPI(...)` and lifespan:
+app.include_router(query_router)
 app.include_router(query_router, prefix="/api", tags=["query"])
 
 

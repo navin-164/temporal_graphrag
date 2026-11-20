@@ -20,3 +20,8 @@ data/arxiv-metadata-oai-snapshot.json
 
 # Logs
 *.log
+
+# Generated UI & test artifacts
+extracted_images/
+kg_view.html
+.pytest_cache/
